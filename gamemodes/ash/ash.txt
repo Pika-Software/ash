@@ -1,0 +1,6 @@
+"ash"
+{
+	"base"          "base"
+    "title"         "ash"
+	"menusystem"	"0"
+}
