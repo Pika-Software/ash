@@ -31,12 +31,16 @@ do
     local coroutine_resume = coroutine.resume
     local coroutine_yield = coroutine.yield
 
-    local player_entity = LocalPlayer() or NULL
+    local player_entity = LocalPlayer()
 
     local thread = coroutine.create( function()
-        while player_entity == nil or not Entity_IsValid( player_entity ) do
-            player_entity = LocalPlayer()
+        ::retry_loop::
+
+        player_entity = LocalPlayer()
+
+        if player_entity == nil or not Entity_IsValid( player_entity ) then
             coroutine_yield( false )
+            goto retry_loop
         end
 
         if not player_isInitialized( player_entity ) then
