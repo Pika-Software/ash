@@ -11,7 +11,7 @@ local screen_width, screen_height = ScrW(), ScrH()
 local vmin = math_min( screen_width, screen_height ) * 0.01
 local vmax = math_max( screen_width, screen_height ) * 0.01
 
-MODULE:On( "OnScreenSizeChanged", function( _, __, w, h )
+hook.Add( "OnScreenSizeChanged", "ScreenSize", function( _, __, w, h )
     screen_width, screen_height = w, h
     vmin = math_min( w, h ) * 0.01
     vmax = math_max( w, h ) * 0.01

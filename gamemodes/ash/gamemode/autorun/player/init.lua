@@ -1,10 +1,3 @@
----@class ash.player
-local player = include( "shared.lua" )
-
-local player_isInitialized = player.isInitialized
-
-local Entity_SetNW2Bool = Entity.SetNW2Bool
-
 MODULE.Networks = {
     "ash.player"
 }
@@ -13,52 +6,99 @@ MODULE.ClientFiles = {
     "shared.lua"
 }
 
-do
+---@class ash.player
+local player = include( "shared.lua" )
+local player_isInitialized = player.isInitialized
 
-    local function player_sync( pl )
-        if player_isInitialized( pl ) then
-            net.Start( "ash.player" )
-            net.WriteUInt( 0, 8 )
+---@type dreamwork.std.math
+local math = require( "dreamwork.math" )
+local math_floor = math.floor
 
-            net.WritePlayer( pl )
+hook.Add( "PlayerInitialized", "HullSync", function( pl )
+    if player_isInitialized( pl ) then
+        net.Start( "ash.player" )
 
-            local mins, maxs = pl:GetHull()
-            net.WriteVector( mins )
-            net.WriteVector( maxs )
+        net.WriteUInt( 0, 8 )
+        net.WritePlayer( pl )
 
-            local mins_ducked, maxs_ducked = pl:GetHullDuck()
-            net.WriteVector( mins_ducked )
-            net.WriteVector( maxs_ducked )
+        local mins, maxs = pl:GetHull()
+        net.WriteVector( mins ); net.WriteVector( maxs )
 
-            net.Broadcast()
-        end
+        local mins_ducked, maxs_ducked = pl:GetHullDuck()
+        net.WriteVector( mins_ducked ); net.WriteVector( maxs_ducked )
+
+        net.Broadcast()
     end
-
-    MODULE:On( "PlayerConnected", player_sync )
-    MODULE:On( "PlayerSpawn", player_sync )
-
-end
+end )
 
 do
+
+    local Entity_SetNWBool = Entity.SetNWBool
 
     ---@type table<integer, fun( pl: Player, len: integer )>
-    local util_actions = {
-        -- hull sync
+    local net_commands = {
+        -- player initialized
         [ 0 ] = function( pl )
-            if player_isInitialized( pl ) then
-                return
+            if not player_isInitialized( pl ) then
+                Entity_SetNWBool( pl, "m_bInitialized", true )
+                hook.Run( "PlayerInitialized", pl )
             end
-
-            Entity_SetNW2Bool( pl, "m_bConnected", true )
-            MODULE:Call( "PlayerConnected", pl )
         end
     }
 
     net.Receive( "ash.player", function( len, pl )
-        local fn = util_actions[ net.ReadUInt( 8 ) ]
-        if fn == nil then return end
-        fn( pl, len )
+        local cmd_fn = net_commands[ net.ReadUInt( 8 ) ]
+        if cmd_fn ~= nil then
+            cmd_fn( pl, len )
+        end
     end )
+
+end
+
+
+do
+
+    local Player_SetHullDuck = Player.SetHullDuck
+    local Player_SetHull = Player.SetHull
+    local Vector = Vector
+
+    --- [SERVER]
+    ---
+    --- Sets the player's hull.
+    ---
+    ---@param pl Player
+    ---@param on_crouch boolean
+    ---@param mins Vector
+    ---@param maxs Vector
+    function player.setHull( pl, on_crouch, mins, maxs )
+        if on_crouch then
+            Player_SetHullDuck( pl, mins, maxs )
+        else
+            Player_SetHull( pl, mins, maxs )
+        end
+
+        net.Start( "ash.player" )
+        net.WriteUInt( 0, 8 )
+        net.WritePlayer( pl )
+        net.WriteBool( on_crouch )
+        net.WriteVector( mins )
+        net.WriteVector( maxs )
+        net.Broadcast()
+    end
+
+    --- [SERVER]
+    ---
+    --- Sets the player's hull size.
+    ---
+    ---@param pl Player
+    ---@param on_crouch boolean
+    ---@param width integer
+    ---@param height integer
+    ---@param depth integer
+    function player.setHullSize( pl, on_crouch, width, height, depth )
+        local width_half, depth_half = math_floor( width * 0.5 ), math_floor( depth * 0.5 )
+        player.setHull( pl, on_crouch, Vector( -width_half, -depth_half, 0 ), Vector( width_half, depth_half, height ) )
+    end
 
 end
 

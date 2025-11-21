@@ -58,4 +58,37 @@ do
 
 end
 
+do
+
+    local Player_GetHullDuck = Player.GetHullDuck
+    local Player_GetHull = Player.GetHull
+
+    --- [SHARED]
+    ---
+    --- Gets the player's hull.
+    ---
+    ---@param pl Player
+    ---@param on_crouch boolean
+    ---@return Vector mins
+    ---@return Vector maxs
+    function player.getHull( pl, on_crouch )
+        return ( on_crouch and Player_GetHullDuck or Player_GetHull )( pl )
+    end
+
+    --- [SHARED]
+    ---
+    --- Gets the player's hull size.
+    ---
+    ---@param pl Player
+    ---@param on_crouch boolean
+    ---@return integer width
+    ---@return integer depth
+    ---@return integer height
+    function player.getHullSize( pl, on_crouch )
+        local mins, maxs = player.getHull( pl, on_crouch )
+        return maxs[ 1 ] - mins[ 1 ], maxs[ 2 ] - mins[ 2 ], maxs[ 3 ] - mins[ 3 ]
+    end
+
+end
+
 return player

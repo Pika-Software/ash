@@ -21,26 +21,33 @@ local setmetatable = std.setmetatable
 local setfenv = std.setfenv
 local pcall = std.pcall
 
+local isString = std.isString
+
 local debug = std.debug
 local string = std.string
 local table = std.table
 local class = std.class
 local path = std.path
+local raw = std.raw
 local fs = std.fs
 
-local hook = _G.hook
-local file = _G.file
+local glua_timer = _G.timer
+local glua_util = _G.util
+local glua_hook = _G.hook
+local glua_file = _G.file
+local glua_net = _G.net
 
 local table_insert = table.insert
 local table_remove = table.remove
 local table_concat = table.concat
-local table_unpack = table.unpack
 
 local string_format = string.format
 local string_lower = string.lower
+local string_match = string.match
 local string_len = string.len
 
-local raw_ipairs = std.raw.ipairs
+local raw_ipairs = raw.ipairs
+local raw_pairs = raw.pairs
 
 local Color = std.Color
 
@@ -53,7 +60,7 @@ ash = ash or {}
 ash.Name = "Ash"
 ash.Version = "0.1.0"
 ash.Author = "Unknown Developer"
-ash.Tag = string_lower( string.match( ash.Name, "[^%s%p]+" ) ) .. "@" .. ash.Version
+ash.Tag = string_lower( string_match( ash.Name, "[^%s%p]+" ) ) .. "@" .. ash.Version
 
 ash.Dedicated = game.IsDedicated()
 ash.dreamwork = std
@@ -96,7 +103,7 @@ ash.Logger = logger
 function ash.printTable( t )
     print( "{" )
 
-    for k, v in pairs( t ) do
+    for k, v in raw_pairs( t ) do
         print( string_format( "\t[ %s ] = %s,", k, v ) )
     end
 
@@ -116,15 +123,16 @@ local chain_file = "ash/" .. active_gamemode .. "_chain.lua"
 local clientFileSend
 do
 
+    local checksum_crc32 = std.checksum.crc32
     local AddCSLuaFile = _G.AddCSLuaFile
 
-    ---@type table<string, boolean>
-    local sended = {}
+    ---@type table<string, integer>
+    local checksums = {}
 
     ---@param file_path string
     ---@param stack_level? integer
     function clientFileSend( file_path, stack_level )
-        if not LUA_SERVER or LUA_CLIENT or sended[ file_path ] ~= nil then
+        if not LUA_SERVER or LUA_CLIENT then
             return
         end
 
@@ -134,12 +142,26 @@ do
             stack_level = stack_level + 1
         end
 
-        if pcall( AddCSLuaFile, file_path ) then
-            logger:debug( "File '%s' sent to the client.", file_path )
-            sended[ file_path ] = true
-        else
-            logger:error( "Failed to send file '%s' to the client.", file_path )
+        local content = glua_file.Read( file_path, "lsv" )
+        if content == nil or string.byte( content, 1, 1 ) == nil then
+            std.errorf( stack_level, false, "File '%s' is empty.", file_path )
         end
+
+        ---@cast content string
+
+        local crc32 = checksum_crc32( content )
+        if checksums[ file_path ] == crc32 then
+            logger:debug( "File '%s' with CRC32 '%d' already sent to the client.", file_path, crc32 )
+            return
+        end
+
+        if pcall( AddCSLuaFile, file_path ) then
+            checksums[ file_path ] = crc32
+            logger:debug( "File '%s' sent to the client.", file_path )
+            return
+        end
+
+        std.errorf( stack_level, false, "Failed to add file 'lua/%s' to the client.", file_path )
     end
 
 end
@@ -155,8 +177,8 @@ if LUA_SERVER then
 
     fs.makeDirectory( "/garrysmod/data/ash/injections", true )
 
-    for _, file_name in raw_ipairs( file.Find( "ash/injections/*.dat", "DATA" ) ) do
-        file.Delete( "ash/injections/" .. file_name )
+    for _, file_name in raw_ipairs( glua_file.Find( "ash/injections/*.dat", "DATA" ) ) do
+        glua_file.Delete( "ash/injections/" .. file_name )
     end
 
     ---@class ash.gamemode.Info
@@ -177,16 +199,16 @@ if LUA_SERVER then
     ---@return string | nil
     function ash.parse( name )
         local file_path = "gamemodes/" .. name .. "/" .. name .. ".txt"
-        if not file.Exists( file_path, "GAME" ) then
+        if not glua_file.Exists( file_path, "GAME" ) then
             return nil, string_format( "could not find file '%s'", file_path )
         end
 
-        local file_content = file.Read( file_path, "GAME" )
+        local file_content = glua_file.Read( file_path, "GAME" )
         if file_content == nil or string_len( file_content ) == 0 then
             return nil, string_format( "file '%s' is empty", file_path )
         end
 
-        local gamemode_info = util.KeyValuesToTable( file_content, false, false )
+        local gamemode_info = glua_util.KeyValuesToTable( file_content, false, false )
         if gamemode_info == nil or not istable( gamemode_info ) then
             return nil, string_format( "Could not parse file '%s'", file_path )
         end
@@ -273,7 +295,7 @@ if LUA_SERVER then
         local function build( file_path )
             ---@type File
             ---@diagnostic disable-next-line: assign-type-mismatch
-            local injection_handler = file.Open( file_path, "wb", "DATA" )
+            local injection_handler = glua_file.Open( file_path, "wb", "DATA" )
 
             injection_handler:Write( "GMAD\3" )
             injection_handler:WriteUInt64( "76561198100459279" )
@@ -304,7 +326,7 @@ if LUA_SERVER then
                 injection_handler:WriteULong( string_len( info_content ) ) -- size
                 injection_handler:Write( "\0\0\0\0" )
 
-                injection_handler:WriteULong( tonumber( util.CRC( info_content ), 10 ) ) -- crc32
+                injection_handler:WriteULong( tonumber( glua_util.CRC( info_content ), 10 ) ) -- crc32
 
                 logger:debug( "File '%s' (%d) will be injected.", info_path, i )
             end
@@ -342,7 +364,7 @@ if LUA_SERVER then
         local injection_name = string_format( "%s_%s.gma.dat", active_gamemode, std.uuid.v7() )
         local add_file, build = ash.pack( injection_name, "A magical injection into the game to bang greedy, fat f*ck Garry Newman." )
 
-        add_file( "lua/" .. chain_file, "return \"" .. util.Base64Encode( util.Compress( util.TableToJSON( chain, false ) ), true ) .. "\"" )
+        add_file( "lua/" .. chain_file, "return \"" .. glua_util.Base64Encode( glua_util.Compress( glua_util.TableToJSON( chain, false ) ), true ) .. "\"" )
         add_file( "lua/" .. active_gamemode .. "/gamemode/cl_init.lua", "include( \"ash/loader.lua\" )" )
         add_file( "lua/" .. active_gamemode .. "/gamemode/init.lua", "include( \"ash/loader.lua\" )" )
 
@@ -350,11 +372,11 @@ if LUA_SERVER then
         ---@param path_to string
         local function bake_content( name, path_to )
             local parent_path = "gamemodes/" .. name .. "/content/" .. path_to
-            local parent_files, parent_directories = file.Find( parent_path .. "*", "GAME" )
+            local parent_files, parent_directories = glua_file.Find( parent_path .. "*", "GAME" )
 
             for _, file_name in raw_ipairs( parent_files ) do
-                if not file.Exists( path_to .. file_name, "GAME" ) then
-                    add_file( path_to .. file_name, file.Read( parent_path .. file_name, "GAME" ) )
+                if not glua_file.Exists( path_to .. file_name, "GAME" ) then
+                    add_file( path_to .. file_name, glua_file.Read( parent_path .. file_name, "GAME" ) )
                 end
             end
 
@@ -393,15 +415,15 @@ if LUA_SERVER then
 
             local modules_path = name .. "/gamemode/modules/"
 
-            for _, directory_name in raw_ipairs( select( 2, file.Find( modules_path .. "*", "LUA" ) ) ) do
+            for _, directory_name in raw_ipairs( select( 2, glua_file.Find( modules_path .. "*", "LUA" ) ) ) do
                 local module_path = modules_path .. directory_name
 
                 local entrypoint_path = module_path .. "/cl_init.lua"
-                if file.Exists( entrypoint_path, "LUA" ) then
+                if glua_file.Exists( entrypoint_path, "LUA" ) then
                     clientFileSend( entrypoint_path, 2 )
                 else
                     entrypoint_path = module_path .. "/shared.lua"
-                    if file.Exists( entrypoint_path, "LUA" ) then
+                    if glua_file.Exists( entrypoint_path, "LUA" ) then
                         clientFileSend( entrypoint_path, 2 )
                     end
                 end
@@ -411,7 +433,7 @@ if LUA_SERVER then
 
 end
 
-if not file.Exists( chain_file, "LUA" ) then
+if not glua_file.Exists( chain_file, "LUA" ) then
     logger:info( "No chain file detected, skipping." )
     return
 end
@@ -433,24 +455,24 @@ do
         return
     end
 
-    if not isstring( chain_data ) then
+    if not isString( chain_data ) then
         logger:error( "Failed to read '%s', invalid data >:c", chain_file )
         return
     end
 
-    local decoded_data = util.Base64Decode( chain_data )
+    local decoded_data = glua_util.Base64Decode( chain_data )
     if decoded_data == nil then
         logger:error( "Failed to decode '%s', invalid data >:c", chain_file )
         return
     end
 
-    local compressed_data = util.Decompress( decoded_data )
+    local compressed_data = glua_util.Decompress( decoded_data )
     if compressed_data == nil then
         logger:error( "Failed to decompress '%s', possibly data corruption :-c", chain_file )
         return
     end
 
-    local chain = util.JSONToTable( compressed_data, true, true )
+    local chain = glua_util.JSONToTable( compressed_data, true, true )
     if chain == nil or not istable( chain ) then
         logger:error( "Failed to parse '%s', possibly data corruption x_x", chain_file )
         return
@@ -485,7 +507,7 @@ do
             } )
         }
 
-        hook.Add( "PostGamemodeLoaded", "ash.gamemode", function()
+        glua_hook.Add( "PostGamemodeLoaded", "ash.gamemode", function()
             ---@type GM
             local GM = GM or GAMEMODE
 
@@ -532,65 +554,12 @@ setmetatable( environment, {
 
 local DEBUG = cvars.Number( "developer", 0 ) ~= 0
 environment.DEBUG = DEBUG
+environment._G = _G
 
 local enviroment_metatable = {
     __index = environment,
     __newindex = debug.fempty
 }
-
----@type table<string, ash.GameEvent>
-local game_events = {}
-
----@class ash.GameEvent : dreamwork.Object
----@field __class ash.GameEventClass
----@field name string
-local GameEvent = class.base( "ash.GameEvent", false )
-
----@return string
----@protected
-function GameEvent:__tostring()
-    return string_format( "ash.GameEvent: %p [%s]", self, self.name )
-end
-
----@class ash.Hook
----@field fn fun( ... ): ...
----@field module ash.Module
-
-do
-
-    local hook_Call = hook.Call
-    local event_registry = {}
-
-    ---@param name string
-    ---@protected
-    function GameEvent:__init( name )
-        self.hook_count = 0
-        self.hooks = {}
-        self.name = name
-
-        event_registry[ name ] = self
-    end
-
-    function hook.Call( event_name, gamemode_table, ... )
-        local a1, b1, c1, d1, e1, f1 = hook_Call( event_name, gamemode_table, ... )
-        if a1 ~= nil then
-            return a1, b1, c1, d1, e1, f1
-        end
-
-        local event = event_registry[ event_name ]
-        if event ~= nil then
-            local hooks = event.hooks
-
-            for i = event.hook_count, 1, -1 do
-                local a2, b2, c2, d2, e2, f2 = hooks[ i ][ 1 ]( ... )
-                if a2 ~= nil then
-                    return a2, b2, c2, d2, e2, f2
-                end
-            end
-        end
-    end
-
-end
 
 do
 
@@ -600,78 +569,18 @@ do
     ---@param name string
     ---@param base_name string
     function gamemode.Register( it, name, base_name )
-        xpcall( hook.Run, ErrorNoHaltWithStack, "GamemodeRegistered", name, it, base_name )
+        xpcall( glua_hook.Run, ErrorNoHaltWithStack, "GamemodeRegistered", name, it, base_name )
         return gamemode_Register( it, name, base_name )
     end
 
 end
 
---- [SHARED]
----
---- Calls all hooks attached to the event.
----
----@param ... any
----@return any ...
-function GameEvent:call( ... )
-    local hooks = self.hooks
-
-    for i = self.hook_count, 1, -1 do
-        local a, b, c, d, e = hooks[ i ][ 1 ]( ... )
-        if a ~= nil then
-            return a, b, c, d, e
-        end
-    end
-end
-
---- [SHARED]
----
---- Attaches a hook to the event.
----
----@param module_object ash.Module
----@param fn fun( ... ): ...
----@param priority? integer
-function GameEvent:attach( module_object, fn, priority )
-    if priority == nil then
-        table_insert( self.hooks, { fn, module_object } )
-    else
-        table_insert( self.hooks, priority, { fn, module_object } )
-    end
-
-    self.hook_count = self.hook_count + 1
-end
-
----@param module_object ash.Module
-function GameEvent:cleanup( module_object )
-    local hook_count = self.hook_count
-    local hooks = self.hooks
-
-    for i = hook_count, 1, -1 do
-        if hooks[ i ][ 2 ] == module_object then
-            hook_count = hook_count - 1
-            table_remove( hooks, i )
-        end
-    end
-
-    self.hook_count = hook_count
-end
-
----@class ash.GameEventClass : ash.GameEvent
----@field __base ash.GameEvent
----@overload fun( name: string ): ash.GameEvent
-local GameEventClass = class.create( GameEvent )
-
-setmetatable( game_events, {
-    __index = function( self, event_name )
-        local game_event = GameEventClass( event_name )
-        self[ event_name ] = game_event
-        return game_event
-    end
-} )
-
 ---@class ash.Module : dreamwork.Object
 ---@field __class ash.Module
 ---@field Name string The name of the module.
+---@field Prefix string The prefix of the module.
 ---@field Location string The location of the module.
+---@field EntryPoint string The entrypoint of the module.
 ---@field Networks? string[] The list of networks used by the module.
 ---@field ClientFiles? string[] The list of client files used by the module.
 ---@field Environment table The environment of the module.
@@ -692,35 +601,342 @@ end
 ---@param location string
 ---@protected
 function Module:__init( name, location )
+    self.Prefix = name .. "::"
     self.Location = location
     self.Name = name
-
-    self.Environment = setmetatable( {
-        MODULE = self
-    }, enviroment_metatable )
 end
 
---- [SHARED]
----
---- Adds a hook to the module.
----
----@param event_name string
----@param fn fun( ... ): ...
----@param priority? integer
-function Module:On( event_name, fn, priority )
-    game_events[ event_name ]:attach( self, fn, priority )
-    -- logger:debug( "Hook '%s' added to %s.", event_name, self )
-end
+do
 
---- [SHARED]
----
---- Calls the module's hooks.
----
----@param event_name string
----@param ... any
----@return any ...
-function Module:Call( event_name, ... )
-    return game_events[ event_name ]:call( ... )
+    ---@type table<ash.Module, table<string, any[]>>
+    local hooks = {}
+
+    ---@type table<ash.Module, string[]>
+    local timers = {}
+
+    ---@type table<ash.Module, table<string, integer>>
+    local networks = {}
+
+    do
+
+        local events_metatable = {
+            __index = function( self, event_name )
+                local identifiers = {}
+                self[ event_name ] = identifiers
+                return identifiers
+            end
+        }
+
+        setmetatable( hooks, {
+            -- __mode = "k",
+            __index = function( self, module_object )
+                local events = {}
+                setmetatable( events, events_metatable )
+                self[ module_object ] = events
+                return events
+            end
+        } )
+
+        setmetatable( timers, events_metatable )
+        setmetatable( networks, events_metatable )
+
+    end
+
+    if LUA_SERVER then
+
+        local util = {}
+        environment.util = util
+
+        setmetatable( util, {
+            __index = glua_util,
+            __newindex = glua_util
+        } )
+
+        local util_AddNetworkString = glua_util.AddNetworkString
+
+        function util.AddNetworkString( network_name )
+            local call_environment = getfenv( 2 )
+            if call_environment ~= nil then
+                ---@type ash.Module | nil
+                local module_object = call_environment.MODULE
+                if module_object ~= nil then
+                    network_name = module_object.Prefix .. network_name
+
+                    local network_id = util_AddNetworkString( network_name )
+                    networks[ module_object ][ network_name ] = network_id
+                    return network_id
+                end
+            end
+
+            return util_AddNetworkString( network_name )
+        end
+
+    end
+
+    local net_Receive = glua_net.Receive
+
+    do
+
+        local net = {}
+        environment.net = net
+
+        setmetatable( net, {
+            __index = glua_net,
+            __newindex = glua_net
+        } )
+
+        local net_Start = glua_net.Start
+
+        ---@param network_name string
+        ---@param unreliable boolean
+        ---@return boolean
+        function net.Start( network_name, unreliable )
+            local call_environment = getfenv( 2 )
+            if call_environment ~= nil then
+                ---@type ash.Module | nil
+                local module_object = call_environment.MODULE
+                if module_object ~= nil then
+                    network_name = module_object.Prefix .. network_name
+                end
+            end
+
+            return net_Start( network_name, unreliable )
+        end
+
+        ---@param network_name string
+        ---@param fn function
+        function net.Receive( network_name, fn )
+            local call_environment = getfenv( 2 )
+            if call_environment ~= nil then
+                ---@type ash.Module | nil
+                local module_object = call_environment.MODULE
+                if module_object ~= nil then
+                    network_name = module_object.Prefix .. network_name
+                end
+            end
+
+            return net_Receive( network_name, fn )
+        end
+
+    end
+
+    local hook_lib = {}
+    environment.hook = hook_lib
+
+    do
+
+        local hook_Add = glua_hook.Add
+
+        ---@param event_name string
+        ---@param identifier any
+        ---@param fn function
+        ---@param priority? integer
+        function hook_lib.Add( event_name, identifier, fn, priority )
+            if isString( identifier ) then
+                local call_environment = getfenv( 2 )
+                if call_environment ~= nil then
+                    ---@type ash.Module | nil
+                    local module_object = call_environment.MODULE
+                    if module_object ~= nil then
+                        local identifiers = hooks[ module_object ][ event_name ]
+
+                        for i = #identifiers, 1, -1 do
+                            if identifiers[ i ] == identifier then
+                                table_remove( identifiers, i )
+                                break
+                            end
+                        end
+
+                        table_insert( identifiers, identifier )
+
+                        ---@diagnostic disable-next-line: redundant-parameter
+                        return hook_Add( event_name, module_object.Prefix .. identifier, fn, priority )
+                    end
+                end
+            end
+
+            ---@diagnostic disable-next-line: redundant-parameter
+            return hook_Add( event_name, identifier, fn, priority )
+        end
+
+    end
+
+    hook_lib.Run = glua_hook.Run
+
+    local timer_lib = {}
+    environment.timer = timer_lib
+
+    setmetatable( timer_lib, {
+        __index = glua_timer,
+        __newindex = glua_timer
+    } )
+
+    do
+
+        local timer_Create = glua_timer.Create
+
+        ---@param identifier string
+        ---@param delay number
+        ---@param repetitions integer
+        ---@param event_fn function
+        function timer_lib.Create( identifier, delay, repetitions, event_fn )
+            local call_environment = getfenv( 2 )
+            if call_environment ~= nil then
+                ---@type ash.Module | nil
+                local module_object = call_environment.MODULE
+                if module_object ~= nil then
+                    local identifiers = timers[ module_object ]
+
+                    for i = #identifiers, 1, -1 do
+                        if identifiers[ i ] == identifier then
+                            table_remove( identifiers, i )
+                            break
+                        end
+                    end
+
+                    table_insert( identifiers, identifier )
+
+                    return timer_Create( module_object.Prefix .. identifier, delay, repetitions, event_fn )
+                end
+            end
+
+            return timer_Create( identifier, delay, repetitions, event_fn )
+        end
+
+    end
+
+    do
+
+        ---@param fn function
+        ---@return fun( identifier: string, ... ): ...
+        local function timer_fn( fn )
+            return function( identifier, ... )
+                local call_environment = getfenv( 2 )
+                if call_environment ~= nil then
+                    ---@type ash.Module | nil
+                    local module_object = call_environment.MODULE
+                    if module_object ~= nil then
+                        local identifiers = timers[ module_object ]
+
+                        for i = #identifiers, 1, -1 do
+                            if identifiers[ i ] == identifier then
+                                return fn( module_object.Prefix .. identifier, ... )
+                            end
+                        end
+                    end
+                end
+
+                return fn( identifier, ... )
+            end
+        end
+
+        timer_lib.Adjust = timer_fn( glua_timer.Adjust )
+        timer_lib.Create = timer_fn( glua_timer.Create )
+        timer_lib.Exists = timer_fn( glua_timer.Exists )
+
+        timer_lib.Start = timer_fn( glua_timer.Start )
+        timer_lib.Stop = timer_fn( glua_timer.Stop )
+
+        timer_lib.Pause = timer_fn( glua_timer.Pause )
+        timer_lib.UnPause = timer_fn( glua_timer.UnPause )
+        timer_lib.Toggle = timer_fn( glua_timer.Toggle )
+
+        timer_lib.RepsLeft = timer_fn( glua_timer.RepsLeft )
+        timer_lib.TimeLeft = timer_fn( glua_timer.TimeLeft )
+
+    end
+
+    do
+
+        local hook_Remove = glua_hook.Remove
+
+        ---@param event_name string
+        ---@param identifier any
+        function hook_lib.Remove( event_name, identifier )
+            if isString( identifier ) then
+                local call_environment = getfenv( 2 )
+                if call_environment ~= nil then
+                    ---@type ash.Module | nil
+                    local module_object = call_environment.MODULE
+                    if module_object ~= nil then
+                        local identifiers = hooks[ module_object ][ event_name ]
+
+                        for i = #identifiers, 1, -1 do
+                            if identifiers[ i ] == identifier then
+                                table_remove( identifiers, i )
+                                return hook_Remove( event_name, module_object.Prefix .. identifier )
+                            end
+                        end
+                    end
+                end
+            end
+
+            return hook_Remove( event_name, identifier )
+        end
+
+        local timer_Remove = glua_timer.Remove
+
+        ---@param timer_name string
+        function timer_lib.Remove( timer_name )
+            local call_environment = getfenv( 2 )
+            if call_environment ~= nil then
+                ---@type ash.Module | nil
+                local module_object = call_environment.MODULE
+                if module_object ~= nil then
+                    local identifiers = hooks[ module_object ]
+
+                    for i = #identifiers, 1, -1 do
+                        if identifiers[ i ] == timer_name then
+                            table_remove( identifiers, i )
+                            return timer_Remove( module_object.Prefix .. timer_name )
+                        end
+                    end
+                end
+            end
+
+            return timer_Remove( timer_name )
+        end
+
+        --- [SHARED]
+        ---
+        --- Unloads the module.
+        ---
+        function Module:unload()
+            if self.Environment == nil then return end
+            self.Environment = nil
+
+            local prefix = self.Prefix
+
+            for event_name, identifiers in raw_pairs( hooks[ self ] ) do
+                for i = #identifiers, 1, -1 do
+                    local identifier = identifiers[ i ]
+
+                    if isString( identifier ) then
+                        identifier = prefix .. identifier
+                    end
+
+                    hook_Remove( event_name, identifier )
+                end
+            end
+
+            local timer_list = timers[ self ]
+            if timer_list ~= nil then
+                for i = #timer_list, 1, -1 do
+                    timer_Remove( timer_list[ i ] )
+                end
+            end
+
+            local networks_map = networks[ self ]
+            if networks_map ~= nil then
+                for network_name, network_id in raw_pairs( networks_map ) do
+                    ---@diagnostic disable-next-line: param-type-mismatch
+                    net_Receive( network_name, nil )
+                end
+            end
+        end
+
+    end
+
 end
 
 ---@param file_path string
@@ -762,13 +978,13 @@ do
         if LUA_CLIENT and ash.Dedicated then
             success, result = pcall( CompileFile, file_path, true )
         else
-            local lua_code = file.Read( file_path, "LUA" )
+            local lua_code = glua_file.Read( file_path, "LUA" )
             if lua_code == nil or string_len( lua_code ) == 0 then
                 success, result = pcall( CompileFile, file_path, true )
             else
                 result = CompileString( lua_code, file_path, false )
 
-                if isstring( result ) or result == nil then
+                if isString( result ) or result == nil then
                     success, result = false, nil
                 else
                     success = true
@@ -798,9 +1014,28 @@ do
 
 end
 
+--- [SHARED]
+---
+--- Loads the module.
+---
+---@param stack_level integer
+function Module:load( stack_level )
+    local module_enviroment = self.Environment
+    if self.Environment ~= nil then return end
+
+    module_enviroment = {
+        MODULE = self
+    }
+
+    setmetatable( module_enviroment, enviroment_metatable )
+    self.Environment = module_enviroment
+
+    self.Result = file_compile( self.EntryPoint, module_enviroment, stack_level )()
+end
+
 do
 
-    local raw_set = std.raw.set
+    local raw_set = raw.set
 
     --- [SHARED]
     ---
@@ -815,8 +1050,9 @@ do
 
         ---@type ash.Module | nil
         local module_object = call_environment.MODULE
+
         if module_object ~= nil then
-            call_environment = module_object.Environment or call_environment
+            call_environment = module_object.Environment
         end
 
         local fn, fn_environment = file_compile( abs_path, call_environment, 2 )
@@ -842,6 +1078,17 @@ do
 
     local init_file = LUA_CLIENT and "/cl_init.lua" or "/init.lua"
 
+    ---@type table<string, ash.Module>
+    local native_modules = {}
+
+    do
+
+        local dreamwork_module = ModuleClass( "dreamwork", "dreamwork/std" )
+        native_modules.dreamwork = dreamwork_module
+        dreamwork_module.Result = std
+
+    end
+
     --- [SHARED]
     ---
     --- Includes and sends a module in the server and/or client.
@@ -858,92 +1105,92 @@ do
         end
 
         local segments, segments_count = string.byteSplit( module_path, 0x2e --[[ . ]] )
-        local root_name = segments[ 1 ] or active_gamemode
-        local folder_name = segments[ 2 ]
 
-        if folder_name == nil then
-            folder_name, root_name = root_name, active_gamemode
+        if segments_count == 0 then
+            std.error( "Module name cannot be empty.", stack_level, false )
         end
 
+        if segments_count == 1 then
+            segments[ 2 ] = segments[ 1 ]
+
+            local main_fn = debug.getfmain( stack_level )
+            if main_fn ~= nil then
+                local fn_path = debug.getfpath( main_fn )
+                if fn_path ~= nil then
+                    segments[ 1 ] = string_match( fn_path, "^/workspace/lua/([^/]+)/gamemode/" )
+                end
+            end
+
+            if segments[ 1 ] == nil then
+                segments[ 1 ] = active_gamemode
+            end
+        end
+
+        local root_name = segments[ 1 ]
+
+        local module_object = native_modules[ root_name ]
+        if module_object ~= nil then
+            return module_object
+        end
+
+        local folder_name = segments[ 2 ]
         local module_name = root_name .. "." .. folder_name
 
         ---@type ash.Module | nil
         ---@diagnostic disable-next-line: assign-type-mismatch
-        local module_object = modules[ module_name ]
+        module_object = modules[ module_name ]
+
         if module_object ~= nil and not ignore_cache then
             return module_object
         end
 
         local homedir = root_name .. "/gamemode/autorun/" .. folder_name
-        if not file.IsDir( homedir, "LUA" ) then
+        if not glua_file.IsDir( homedir, "LUA" ) then
             homedir = root_name .. "/gamemode/modules/" .. folder_name
-
-            if not file.IsDir( homedir, "LUA" ) then
-                std.errorf( stack_level, false, "Module '%s' not found!", module_name )
+            if not glua_file.IsDir( homedir, "LUA" ) then
+                return nil
             end
         end
 
         if LUA_SERVER then
             local cl_init_path = homedir .. "/cl_init.lua"
-            if file.Exists( cl_init_path, "LUA" ) then
+            if glua_file.Exists( cl_init_path, "LUA" ) then
                 clientFileSend( cl_init_path, stack_level )
             else
-
                 cl_init_path = homedir .. "/shared.lua"
-                if file.Exists( cl_init_path, "LUA" ) then
+                if glua_file.Exists( cl_init_path, "LUA" ) then
                     clientFileSend( cl_init_path, stack_level )
                 end
-
             end
         end
 
-        local entrypoint
-
-        if segments_count > 2 then
-            entrypoint = table_concat( segments, "/", 3, segments_count )
-        else
-            entrypoint = init_file
-        end
-
-        local entrypoint_path = homedir .. entrypoint
-        if not file.Exists( entrypoint_path, "LUA" ) then
+        local entrypoint_path = homedir .. init_file
+        if not glua_file.Exists( entrypoint_path, "LUA" ) then
             entrypoint_path = homedir .. "/shared.lua"
-
-            if not file.Exists( entrypoint_path, "LUA" ) then
-                -- std.errorf( stack_level, false, "Module '%s' entrypoint file is missing!", module_name )
+            if not glua_file.Exists( entrypoint_path, "LUA" ) then
                 return nil
             end
         end
 
-        -- cleanup
-        if modules[ module_name ] ~= nil then
-            local old_module = modules[ module_name ]
-            modules[ module_name ] = nil
-
-            for _, game_event in pairs( game_events ) do
-                game_event:cleanup( old_module )
-            end
-
-            for i = #modules, 1, -1 do
-                if modules[ i ] == module_name then
-                    table_remove( modules, i )
-                    break
-                end
-            end
+        if module_object == nil then
+            module_object = ModuleClass( module_name, homedir )
+            modules[ module_name ] = module_object
+            table_insert( modules, module_name )
+        else
+            module_object:unload()
         end
 
-        module_object = ModuleClass( module_name, homedir )
-        modules[ module_name ] = module_object
-        table_insert( modules, module_name )
-
-        module_object.Result = { file_compile( entrypoint_path, module_object.Environment, stack_level )() }
+        module_object.EntryPoint = entrypoint_path
+        module_object:load( stack_level )
 
         if LUA_SERVER then
 
             local networks = module_object.Networks
             if networks ~= nil then
+                local prefix = module_object.Prefix
+
                 for i = 1, #networks, 1 do
-                    util.AddNetworkString( networks[ i ] )
+                    glua_util.AddNetworkString( prefix .. networks[ i ] )
                 end
             end
 
@@ -951,7 +1198,7 @@ do
             if client_files ~= nil then
                 for i = 1, #client_files, 1 do
                     local file_path = homedir .. "/" .. client_files[ i ]
-                    if file.Exists( file_path, "lsv" ) and not file.IsDir( file_path, "lsv" ) then
+                    if glua_file.Exists( file_path, "lsv" ) and not glua_file.IsDir( file_path, "lsv" ) then
                         clientFileSend( file_path, stack_level )
                     else
                         logger:error( "Failed to send file '%s' to the client from '%s'.", file_path, module_object )
@@ -974,7 +1221,7 @@ do
                 file_object, is_directory = fs.lookup( "/garrysmod/" .. mount_path )
 
                 if is_directory and file_object ~= nil and fs.watchdog.watch( file_object ) then
-                    logger:debug( "'%s' being watched for changes.", file_object )
+                    logger:debug( "'%s' being watched for changes.", file_object.path )
                 end
             end
         end
@@ -989,22 +1236,22 @@ do
         fs.watchdog.Modified:attach( function( fs_object, is_directory )
             if is_directory then return end
 
-            local gamemode_name, module_type, directory_name = string.match( fs_object.path, "^/garrysmod/addons/[^/]+/gamemodes/([^/]+)/gamemode/(%w+)/([^/]+)/.+$" )
+            local gamemode_name, module_type, directory_name = string_match( fs_object.path, "^/garrysmod/addons/[^/]+/gamemodes/([^/]+)/gamemode/(%w+)/([^/]+)/.+$" )
             if not ( module_type == "modules" or module_type == "autorun" ) then return end
             if gamemode_name == nil or directory_name == nil then return end
 
             local module_name = gamemode_name .. "." .. directory_name
-            if modules[ module_name ] == nil then return end
+            if modules[ module_name ] == nil and not ( LUA_SERVER and fs_object.name == "cl_init.lua" ) then return end
 
-            ash.resend()
+            -- ash.resend()
 
             xpcall( module_require, ErrorNoHaltWithStack, module_name, true, 2 )
 
-            timer.Create( "ash.reload.1", 2, 1, function()
-                net.Start( "ash.reload" )
-                net.WriteUInt( 1, 1 )
-                net.WriteString( module_name )
-                net.Broadcast()
+            glua_timer.Create( "ash.reload.1", 2, 1, function()
+                glua_net.Start( "ash.reload" )
+                glua_net.WriteUInt( 1, 1 )
+                glua_net.WriteString( module_name )
+                glua_net.Broadcast()
             end )
         end )
 
@@ -1026,7 +1273,16 @@ do
 
         ---@cast module_object ash.Module
 
-        return table_unpack( module_object.Result )
+        local result = module_object.Result
+
+        if result ~= nil then
+            local segments, segments_count = string.byteSplit( module_name, 0x2e --[[ . ]] )
+            if segments_count > 2 then
+                return table.get( result, table_concat( segments, ".", native_modules[ segments[ 1 ] ] ~= nil and 2 or 3, segments_count ), 0x2e --[[ . ]] )
+            end
+        end
+
+        return result
     end
 
     environment.require = ash.require
@@ -1040,19 +1296,35 @@ do
 
         for i = #chain, 1, -1 do
             local gamemode_info = chain[ i ]
-            local name = gamemode_info.name
+            local root_name = gamemode_info.name
 
-            local modules_path = name .. "/gamemode/autorun/"
+            local modules_path = root_name .. "/gamemode/autorun/"
 
-            for _, directory_name in raw_ipairs( select( 2, file.Find( modules_path .. "*", "LUA" ) ) ) do
-                xpcall( module_require, ErrorNoHaltWithStack, name .. "." .. directory_name, true, 2 )
+            for _, directory_name in raw_ipairs( select( 2, glua_file.Find( modules_path .. "*", "LUA" ) ) ) do
+                if DEBUG and LUA_SERVER then
+                    local workspace_object, is_directory = fs.lookup( "/workspace/gamemodes/" .. modules_path .. directory_name )
+                    ---@cast workspace_object dreamwork.std.fs.File
+
+                    local mount_point, mount_path = fs.whereis( workspace_object )
+
+                    if is_directory and mount_point == "MOD" then
+                        local file_object
+                        file_object, is_directory = fs.lookup( "/garrysmod/" .. mount_path )
+
+                        if is_directory and file_object ~= nil and fs.watchdog.watch( file_object ) then
+                            logger:debug( "'%s' being watched for changes.", file_object.path )
+                        end
+                    end
+                end
+
+                xpcall( module_require, ErrorNoHaltWithStack, root_name .. "." .. directory_name, true, 2 )
             end
         end
     end
 
     if LUA_SERVER then
 
-        util.AddNetworkString( "ash.reload" )
+        glua_util.AddNetworkString( "ash.reload" )
 
         concommand.Add( "ash.reload", function( pl )
             local is_player = pl and pl:IsValid()
@@ -1063,10 +1335,10 @@ do
             ash.resend()
             ash.reload()
 
-            timer.Create( "ash.reload.0", 1, 1, function()
-                net.Start( "ash.reload" )
-                net.WriteUInt( 0, 1 )
-                net.Broadcast()
+            glua_timer.Create( "ash.reload.0", 1, 1, function()
+                glua_net.Start( "ash.reload" )
+                glua_net.WriteUInt( 0, 1 )
+                glua_net.Broadcast()
             end )
         end )
 
@@ -1074,14 +1346,14 @@ do
 
     if LUA_CLIENT then
 
-        net.Receive( "ash.reload", function()
-            local uint1_1 = net.ReadUInt( 1 )
+        glua_net.Receive( "ash.reload", function()
+            local uint1_1 = glua_net.ReadUInt( 1 )
             if uint1_1 == 0 then
-                timer.Create( "ash.reload.0", 1, 1, ash.reload )
+                glua_timer.Create( "ash.reload.0", 1, 1, ash.reload )
             elseif uint1_1 == 1 then
-                local module_name = net.ReadString()
+                local module_name = glua_net.ReadString()
 
-                timer.Create( "ash.reload.1", 1, 1, function()
+                glua_timer.Create( "ash.reload.1", 1, 1, function()
                     xpcall( module_require, ErrorNoHaltWithStack, module_name, true, 2 )
                 end )
             end
@@ -1160,6 +1432,9 @@ do
 
     ---@diagnostic disable-next-line: param-type-mismatch
     environment.Angle = addMetatable( "Angle", Angle )
+
+    ---@diagnostic disable-next-line: param-type-mismatch
+    environment.Matrix = addMetatable( "VMatrix", Matrix )
 
     ---@diagnostic disable-next-line: param-type-mismatch
     environment.Color = addMetatable( "Color", Color )

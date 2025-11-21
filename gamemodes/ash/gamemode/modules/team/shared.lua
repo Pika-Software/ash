@@ -123,7 +123,7 @@ setmetatable( players, {
 	end
 } )
 
-MODULE:On( "EntityNetworkedVarChanged", function( entity, name, previous_value, new_value )
+hook.Add( "EntityNetworkedVarChanged", "Default", function( entity, name, previous_value, new_value )
 	if entity ~= nil and entity:IsValid() then
 		if name == "ash.team" then
 			if previous_value == nil then
@@ -174,7 +174,7 @@ MODULE:On( "EntityNetworkedVarChanged", function( entity, name, previous_value, 
 	hook.Run( "ash.TeamScoreChanged", team_name, tonumber( previous_value or 0, 10 ), tonumber( new_value or 0, 10 ) )
 end, 1 )
 
-MODULE:On( "EntityRemoved", function( entity, full_update )
+hook.Add( "EntityRemoved", "Default", function( entity, full_update )
 	if full_update or entity == nil or not entity:IsValid() then return end
 
 	if entity:IsPlayer() then

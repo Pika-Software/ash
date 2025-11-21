@@ -3,21 +3,33 @@ local player = include( "shared.lua" )
 
 do
 
-    local util_actions = {
-        -- hull sync
-        [ 0 ] = function()
+    ---@type table<integer, function>
+    local net_commands = {}
+
+    do
+
+        local Player_SetHullDuck = Player.SetHullDuck
+        local Player_SetHull = Player.SetHull
+
+        -- player hull setup
+        net_commands[ 0 ] = function()
             local pl = net.ReadPlayer()
-            if pl ~= nil and pl:IsValid() then
-                pl:SetHull( net.ReadVector(), net.ReadVector() )
-                pl:SetHullDuck( net.ReadVector(), net.ReadVector() )
+            if not ( pl ~= nil and pl:IsValid() ) then return end
+
+            if net.ReadBool() then
+                Player_SetHullDuck( pl, net.ReadVector(), net.ReadVector() )
+            else
+                Player_SetHull( pl, net.ReadVector(), net.ReadVector() )
             end
         end
-    }
+
+    end
 
     net.Receive( "ash.player", function()
-        local fn = util_actions[ net.ReadUInt( 8 ) ]
-        if fn == nil then return end
-        fn()
+        local cmd_fn = net_commands[ net.ReadUInt( 8 ) ]
+        if cmd_fn ~= nil then
+            cmd_fn()
+        end
     end )
 
 end
@@ -48,14 +60,14 @@ do
             net.WriteUInt( 0, 8 )
             net.SendToServer()
 
-            MODULE:Call( "PlayerConnected", player_entity )
+            hook.Run( "PlayerInitialized", player_entity )
         end
 
         coroutine_yield( true )
     end )
 
     if not coroutine_resume( thread ) then
-        MODULE:On( "InitPostEntity", function()
+        hook.Add( "InitPostEntity", "PlayerInit", function()
             if coroutine_resume( thread ) then
                 return
             end

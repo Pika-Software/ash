@@ -77,6 +77,22 @@ UserCommand = {}
 ---@overload fun( x: number, y: number, z: number ): Vector
 Vector = {}
 
+---@class ash.Matrix.Collumn
+---@field [1] number
+---@field [2] number
+---@field [3] number
+---@field [4] number
+
+---@class ash.Matrix.Rows
+---@field [1] ash.Matrix.Collumn
+---@field [2] ash.Matrix.Collumn
+---@field [3] ash.Matrix.Collumn
+---@field [4] ash.Matrix.Collumn
+
+---@class ash.Matrix : VMatrix
+---@overload fun( data: ash.Matrix.Rows ): VMatrix
+Matrix = {}
+
 ---@class ash.Weapon : Weapon
 ---@overload fun( class_name: string ): Weapon
 Weapon = {}
