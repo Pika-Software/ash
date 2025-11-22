@@ -1,5 +1,5 @@
 MODULE.Networks = {
-    "player"
+    "network"
 }
 
 MODULE.ClientFiles = {
@@ -7,8 +7,8 @@ MODULE.ClientFiles = {
 }
 
 ---@class ash.player
-local player = include( "shared.lua" )
-local player_isInitialized = player.isInitialized
+local player_lib = include( "shared.lua" )
+local player_isInitialized = player_lib.isInitialized
 
 ---@type dreamwork.std.math
 local math = require( "dreamwork.math" )
@@ -16,7 +16,7 @@ local math_floor = math.floor
 
 hook.Add( "PlayerInitialized", "HullSync", function( pl )
     if player_isInitialized( pl ) then
-        net.Start( "player" )
+        net.Start( "network" )
 
         net.WriteUInt( 0, 8 )
         net.WritePlayer( pl )
@@ -46,7 +46,7 @@ do
         end
     }
 
-    net.Receive( "player", function( len, pl )
+    net.Receive( "network", function( len, pl )
         local cmd_fn = net_commands[ net.ReadUInt( 8 ) ]
         if cmd_fn ~= nil then
             cmd_fn( pl, len )
@@ -70,14 +70,14 @@ do
     ---@param on_crouch boolean
     ---@param mins Vector
     ---@param maxs Vector
-    function player.setHull( pl, on_crouch, mins, maxs )
+    function player_lib.setHull( pl, on_crouch, mins, maxs )
         if on_crouch then
             Player_SetHullDuck( pl, mins, maxs )
         else
             Player_SetHull( pl, mins, maxs )
         end
 
-        net.Start( "player" )
+        net.Start( "network" )
         net.WriteUInt( 0, 8 )
         net.WritePlayer( pl )
         net.WriteBool( on_crouch )
@@ -95,11 +95,11 @@ do
     ---@param width integer
     ---@param height integer
     ---@param depth integer
-    function player.setHullSize( pl, on_crouch, width, height, depth )
+    function player_lib.setHullSize( pl, on_crouch, width, height, depth )
         local width_half, depth_half = math_floor( width * 0.5 ), math_floor( depth * 0.5 )
-        player.setHull( pl, on_crouch, Vector( -width_half, -depth_half, 0 ), Vector( width_half, depth_half, height ) )
+        player_lib.setHull( pl, on_crouch, Vector( -width_half, -depth_half, 0 ), Vector( width_half, depth_half, height ) )
     end
 
 end
 
-return player
+return player_lib

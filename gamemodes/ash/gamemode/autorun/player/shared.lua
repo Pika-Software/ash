@@ -1,5 +1,5 @@
 ---@class ash.player
-local player = {}
+local player_lib = {}
 
 ---@class ash.Player
 local Player = Player
@@ -8,7 +8,7 @@ do
 
     local Player_Alive = Player.Alive
 
-    player.isAlive = Player_Alive
+    player_lib.isAlive = Player_Alive
 
     --- [SHARED]
     ---
@@ -16,7 +16,7 @@ do
     ---
     ---@param pl Player
     ---@return boolean
-    function player.isDead( pl )
+    function player_lib.isDead( pl )
         return not Player_Alive( pl )
     end
 
@@ -26,7 +26,7 @@ do
 
     local Player_IsBot = Player.IsBot
 
-    player.isNextBot = Player_IsBot
+    player_lib.isNextBot = Player_IsBot
 
     --- [SHARED]
     ---
@@ -34,7 +34,7 @@ do
     ---
     ---@param pl Player
     ---@return boolean
-    function player.isHuman( pl )
+    function player_lib.isHuman( pl )
         return not Player_IsBot( pl )
     end
 
@@ -52,7 +52,7 @@ do
     ---
     ---@param pl Player
     ---@return boolean
-    function player.isInitialized( pl )
+    function player_lib.isInitialized( pl )
         return Entity_GetNWBool( pl, "m_bInitialized", false )
     end
 
@@ -71,7 +71,7 @@ do
     ---@param on_crouch boolean
     ---@return Vector mins
     ---@return Vector maxs
-    function player.getHull( pl, on_crouch )
+    function player_lib.getHull( pl, on_crouch )
         return ( on_crouch and Player_GetHullDuck or Player_GetHull )( pl )
     end
 
@@ -84,11 +84,11 @@ do
     ---@return integer width
     ---@return integer depth
     ---@return integer height
-    function player.getHullSize( pl, on_crouch )
-        local mins, maxs = player.getHull( pl, on_crouch )
+    function player_lib.getHullSize( pl, on_crouch )
+        local mins, maxs = player_lib.getHull( pl, on_crouch )
         return maxs[ 1 ] - mins[ 1 ], maxs[ 2 ] - mins[ 2 ], maxs[ 3 ] - mins[ 3 ]
     end
 
 end
 
-return player
+return player_lib

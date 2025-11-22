@@ -1,6 +1,6 @@
 ---@class ash.player
 ---@field Entity Player The local player entity.
-local player = include( "shared.lua" )
+local player_lib = include( "shared.lua" )
 
 do
 
@@ -26,7 +26,7 @@ do
 
     end
 
-    net.Receive( "player", function()
+    net.Receive( "network", function()
         local cmd_fn = net_commands[ net.ReadUInt( 8 ) ]
         if cmd_fn ~= nil then
             cmd_fn()
@@ -37,7 +37,7 @@ end
 
 do
 
-    local player_isInitialized = player.isInitialized
+    local player_isInitialized = player_lib.isInitialized
     local Entity_IsValid = Entity.IsValid
     local LocalPlayer = _G.LocalPlayer
 
@@ -45,7 +45,7 @@ do
     local coroutine_yield = coroutine.yield
 
     local player_entity = LocalPlayer() or _G.NULL
-    player.Entity = player_entity
+    player_lib.Entity = player_entity
 
     local thread = coroutine.create( function()
         ::retry_loop::
@@ -57,10 +57,10 @@ do
             goto retry_loop
         end
 
-        player.Entity = player_entity
+        player_lib.Entity = player_entity
 
         if not player_isInitialized( player_entity ) then
-            net.Start( "player" )
+            net.Start( "network" )
             net.WriteUInt( 0, 8 )
             net.SendToServer()
 
@@ -76,18 +76,18 @@ do
                 return
             end
 
-            timer.Create( "ash::player::await", 0.25, 0, function()
+            timer.Create( "await", 0.25, 0, function()
                 if coroutine_resume( thread ) then
-                    timer.Remove( "ash::player::await" )
+                    timer.Remove( "await" )
                 end
             end )
         end )
     end
 
-    function player.isLocal( pl )
+    function player_lib.isLocal( pl )
         return pl == player_entity
     end
 
 end
 
-return player
+return player_lib

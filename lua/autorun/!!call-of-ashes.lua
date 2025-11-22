@@ -31,6 +31,7 @@ local path = std.path
 local raw = std.raw
 local fs = std.fs
 
+local glua_cvars = _G.cvars
 local glua_timer = _G.timer
 local glua_util = _G.util
 local glua_hook = _G.hook
@@ -552,7 +553,7 @@ setmetatable( environment, {
     end
 } )
 
-local DEBUG = cvars.Number( "developer", 0 ) ~= 0
+local DEBUG = glua_cvars.Number( "developer", 0 ) ~= 0
 environment.DEBUG = DEBUG
 environment._G = _G
 
@@ -617,6 +618,9 @@ do
     ---@type table<ash.Module, table<string, integer>>
     local networks = {}
 
+    ---@type table<ash.Module, table<string, string[]>>
+    local cvar_callbacks = {}
+
     do
 
         local events_metatable = {
@@ -639,6 +643,90 @@ do
 
         setmetatable( timers, events_metatable )
         setmetatable( networks, events_metatable )
+
+        setmetatable( cvar_callbacks, {
+            __index = function( self, module_object )
+                local identifiers = {}
+                setmetatable( identifiers, events_metatable )
+                self[ module_object ] = identifiers
+                return identifiers
+            end
+        } )
+
+    end
+
+    local cvars_RemoveChangeCallback = glua_cvars.RemoveChangeCallback
+
+    do
+
+
+        local cvars = {}
+        environment.cvars = cvars
+
+        setmetatable( cvars, {
+            __index = glua_cvars,
+            __newindex = glua_cvars
+        } )
+
+        local cvars_AddChangeCallback = glua_cvars.AddChangeCallback
+
+        ---@param cvar_name string
+        ---@param fn function
+        ---@param identifier? string
+        function cvars.AddChangeCallback( cvar_name, fn, identifier )
+            if identifier == nil then
+                identifier = "Default"
+            end
+
+            local call_environment = getfenv( 2 )
+            if call_environment ~= nil then
+                ---@type ash.Module | nil
+                local module_object = call_environment.MODULE
+                if module_object ~= nil then
+                    local identifiers = cvar_callbacks[ module_object ][ cvar_name ]
+
+                    for i = #identifiers, 1, -1 do
+                        if identifiers[ i ] == identifier then
+                            table_remove( identifiers, i )
+                            break
+                        end
+                    end
+
+                    table_insert( identifiers, identifier )
+
+                    identifier = module_object.Prefix .. identifier
+                end
+            end
+
+            return cvars_AddChangeCallback( cvar_name, fn, identifier )
+        end
+
+        ---@param cvar_name string
+        ---@param identifier? string
+        function cvars.RemoveChangeCallback( cvar_name, identifier )
+            if identifier == nil then
+                identifier = "Default"
+            end
+
+            local call_environment = getfenv( 2 )
+            if call_environment ~= nil then
+                ---@type ash.Module | nil
+                local module_object = call_environment.MODULE
+                if module_object ~= nil then
+                    local identifiers = cvar_callbacks[ module_object ][ cvar_name ]
+
+                    for i = #identifiers, 1, -1 do
+                        if identifiers[ i ] == identifier then
+                            identifier = module_object.Prefix .. identifier
+                            table_remove( identifiers, i )
+                            break
+                        end
+                    end
+                end
+            end
+
+            return cvars_RemoveChangeCallback( cvar_name, identifier )
+        end
 
     end
 
@@ -920,17 +1008,19 @@ do
             end
 
             local timer_list = timers[ self ]
-            if timer_list ~= nil then
-                for i = #timer_list, 1, -1 do
-                    timer_Remove( timer_list[ i ] )
-                end
+
+            for i = #timer_list, 1, -1 do
+                timer_Remove( timer_list[ i ] )
             end
 
-            local networks_map = networks[ self ]
-            if networks_map ~= nil then
-                for network_name, network_id in raw_pairs( networks_map ) do
-                    ---@diagnostic disable-next-line: param-type-mismatch
-                    net_Receive( network_name, nil )
+            for network_name, network_id in raw_pairs( networks[ self ] ) do
+                ---@diagnostic disable-next-line: param-type-mismatch
+                net_Receive( network_name, nil )
+            end
+
+            for cvar_name, identifiers in raw_pairs( cvar_callbacks[ self ] ) do
+                for i = 1, #identifiers, 1 do
+                    cvars_RemoveChangeCallback( cvar_name, identifiers[ i ] )
                 end
             end
         end
