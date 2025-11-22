@@ -1358,35 +1358,47 @@ do
 
     end
 
-    --- [SHARED]
-    ---
-    --- Includes and sends a module in the server and/or client.
-    ---
-    ---@param module_name string The name of the module. e.g. "ash.utils"
-    ---@param ignore_cache? boolean If true, the module will be loaded even if it is already loaded.
-    ---@return ... The result of the module.
-    function ash.require( module_name, ignore_cache )
-        local module_object = module_require( module_name, ignore_cache == true, 2 )
+    do
 
-        if module_object == nil then
-            std.errorf( 2, false, "Module '%s' not found!", module_name )
-        end
+        local table_get = table.get
 
-        ---@cast module_object ash.Module
+        --- [SHARED]
+        ---
+        --- Includes and sends a module in the server and/or client.
+        ---
+        ---@param module_name string The name of the module. e.g. "ash.utils"
+        ---@param ignore_cache? boolean If true, the module will be loaded even if it is already loaded.
+        ---@return ... The result of the module.
+        function ash.require( module_name, ignore_cache )
+            local module_object = module_require( module_name, ignore_cache == true, 2 )
 
-        local result = module_object.Result
-
-        if result ~= nil then
-            local segments, segments_count = string.byteSplit( module_name, 0x2e --[[ . ]] )
-            if segments_count > 2 then
-                return table.get( result, table_concat( segments, ".", native_modules[ segments[ 1 ] ] ~= nil and 2 or 3, segments_count ), 0x2e --[[ . ]] )
+            if module_object == nil then
+                std.errorf( 2, false, "Module '%s' not found!", module_name )
             end
+
+            ---@cast module_object ash.Module
+
+            local result = module_object.Result
+
+            if result ~= nil then
+                local segments, segment_count = string.byteSplit( module_name, 0x2e --[[ . ]] )
+                if segment_count ~= 1 then
+                    if native_modules[ module_object.Name ] == nil then
+                        if segment_count > 2 then
+                            return table_get( result, table_concat( segments, ".", 3, segment_count ), 0x2e --[[ . ]] )
+                        end
+                    else
+                        return table_get( result, table_concat( segments, ".", 2, segment_count ), 0x2e --[[ . ]] )
+                    end
+                end
+            end
+
+            return result
         end
 
-        return result
-    end
+        environment.require = ash.require
 
-    environment.require = ash.require
+    end
 
     --- [SHARED]
     ---
