@@ -1,5 +1,5 @@
 MODULE.Networks = {
-    "ash.player"
+    "player"
 }
 
 MODULE.ClientFiles = {
@@ -16,7 +16,7 @@ local math_floor = math.floor
 
 hook.Add( "PlayerInitialized", "HullSync", function( pl )
     if player_isInitialized( pl ) then
-        net.Start( "ash.player" )
+        net.Start( "player" )
 
         net.WriteUInt( 0, 8 )
         net.WritePlayer( pl )
@@ -46,7 +46,7 @@ do
         end
     }
 
-    net.Receive( "ash.player", function( len, pl )
+    net.Receive( "player", function( len, pl )
         local cmd_fn = net_commands[ net.ReadUInt( 8 ) ]
         if cmd_fn ~= nil then
             cmd_fn( pl, len )
@@ -77,7 +77,7 @@ do
             Player_SetHull( pl, mins, maxs )
         end
 
-        net.Start( "ash.player" )
+        net.Start( "player" )
         net.WriteUInt( 0, 8 )
         net.WritePlayer( pl )
         net.WriteBool( on_crouch )

@@ -25,7 +25,7 @@ do
 
     end
 
-    net.Receive( "ash.player", function()
+    net.Receive( "player", function()
         local cmd_fn = net_commands[ net.ReadUInt( 8 ) ]
         if cmd_fn ~= nil then
             cmd_fn()
@@ -56,7 +56,7 @@ do
         end
 
         if not player_isInitialized( player_entity ) then
-            net.Start( "ash.player" )
+            net.Start( "player" )
             net.WriteUInt( 0, 8 )
             net.SendToServer()
 

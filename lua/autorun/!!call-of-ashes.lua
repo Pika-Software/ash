@@ -959,6 +959,17 @@ local function path_perform( file_path, stack_level )
     return path.normalize( getfenv( stack_level ).__dir .. "/" .. file_path )
 end
 
+--- [SHARED]
+---
+--- Adds a file to the list of files to be sended to the client.
+---
+---@param file_path string
+function environment.AddCSLuaFile( file_path )
+    clientFileSend( path_perform( file_path ), 2 )
+end
+
+ash.send = environment.AddCSLuaFile
+
 local file_compile
 do
 

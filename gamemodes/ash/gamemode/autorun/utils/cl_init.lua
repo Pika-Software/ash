@@ -1,5 +1,5 @@
 ---@class ash.utils
-local utils = ash.include( "./shared.lua", true, false )
+local utils = include( "shared.lua" )
 
 local ScrW, ScrH = ScrW, ScrH
 
