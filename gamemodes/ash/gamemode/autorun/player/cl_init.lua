@@ -1,4 +1,5 @@
 ---@class ash.player
+---@field Entity Player The local player entity.
 local player = include( "shared.lua" )
 
 do
@@ -43,7 +44,8 @@ do
     local coroutine_resume = coroutine.resume
     local coroutine_yield = coroutine.yield
 
-    local player_entity = LocalPlayer()
+    local player_entity = LocalPlayer() or _G.NULL
+    player.Entity = player_entity
 
     local thread = coroutine.create( function()
         ::retry_loop::
@@ -54,6 +56,8 @@ do
             coroutine_yield( false )
             goto retry_loop
         end
+
+        player.Entity = player_entity
 
         if not player_isInitialized( player_entity ) then
             net.Start( "player" )
