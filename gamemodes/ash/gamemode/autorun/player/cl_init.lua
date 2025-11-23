@@ -1,3 +1,5 @@
+local Entity_IsValid = Entity.IsValid
+
 ---@class ash.player
 ---@field Entity Player The local player entity.
 local player_lib = include( "shared.lua" )
@@ -15,21 +17,64 @@ do
         -- player hull setup
         net_commands[ 0 ] = function()
             local pl = net.ReadPlayer()
-            if not ( pl ~= nil and pl:IsValid() ) then return end
-
-            if net.ReadBool() then
-                Player_SetHullDuck( pl, net.ReadVector(), net.ReadVector() )
-            else
-                Player_SetHull( pl, net.ReadVector(), net.ReadVector() )
+            if pl ~= nil and Entity_IsValid( pl ) then
+                if net.ReadBool() then
+                    Player_SetHullDuck( pl, net.ReadVector(), net.ReadVector() )
+                else
+                    Player_SetHull( pl, net.ReadVector(), net.ReadVector() )
+                end
             end
         end
 
     end
 
-    net.Receive( "network", function()
+    do
+
+        local Player_AddVCDSequenceToGestureSlot = Player.AddVCDSequenceToGestureSlot
+        local Player_AnimResetGestureSlot = Player.AnimResetGestureSlot
+        local Player_AnimRestartGesture = Player.AnimRestartGesture
+
+        local Entity_SelectWeightedSequence = Entity.SelectWeightedSequence
+        local Entity_LookupSequence = Entity.LookupSequence
+
+        net_commands[ 1 ] = function()
+            local pl = net.ReadPlayer()
+            if pl ~= nil and Entity_IsValid( pl ) then
+                local slot = net.ReadUInt( 3 )
+                local activity = net.ReadUInt( 32 )
+                local auto_kill = net.ReadBool()
+
+                local sequence_id = Entity_SelectWeightedSequence( pl, activity )
+                if sequence_id ~= nil and sequence_id > 0 then
+                    Player_AddVCDSequenceToGestureSlot( pl, slot, sequence_id, net.ReadFloat(), auto_kill )
+                else
+                    Player_AnimRestartGesture( pl, slot, activity, auto_kill )
+                end
+            end
+        end
+
+        net_commands[ 2 ] = function()
+            local pl = net.ReadPlayer()
+            if pl ~= nil and Entity_IsValid( pl ) then
+                local slot = net.ReadUInt( 3 )
+                local sequence_name = net.ReadString()
+                local auto_kill = net.ReadBool()
+
+                local sequence_id = Entity_LookupSequence( pl, sequence_name )
+                if sequence_id ~= nil and sequence_id > 0 then
+                    Player_AddVCDSequenceToGestureSlot( pl, slot, sequence_id, net.ReadFloat(), auto_kill )
+                else
+                    Player_AnimResetGestureSlot( pl, slot )
+                end
+            end
+        end
+
+    end
+
+    net.Receive( "network", function( length )
         local cmd_fn = net_commands[ net.ReadUInt( 8 ) ]
         if cmd_fn ~= nil then
-            cmd_fn()
+            cmd_fn( length )
         end
     end )
 
@@ -38,7 +83,6 @@ end
 do
 
     local player_isInitialized = player_lib.isInitialized
-    local Entity_IsValid = Entity.IsValid
     local LocalPlayer = _G.LocalPlayer
 
     local coroutine_resume = coroutine.resume
