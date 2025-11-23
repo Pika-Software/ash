@@ -297,7 +297,7 @@ do
     local Entity_GetBoneCount = Entity.GetBoneCount
     local Entity_GetBoneName = Entity.GetBoneName
 
-    hook.Add( "PlayerPostThink", "Footsteps", function( pl )
+    hook.Add( "PlayerPostThink", "FootstepsThink", function( pl )
         if Entity_GetMoveType( pl ) == MOVETYPE_LADDER then
             -- hook_Run( "PlayerOnLadder", pl )
             return
@@ -314,7 +314,9 @@ do
                 perform_step_sound( pl, bone_id )
             end
         end
-    end )
+
+        ---@diagnostic disable-next-line: redundant-parameter, undefined-global
+    end, PRE_HOOK )
 
     ---@param origin Vector
     ---@param shoes_type string
