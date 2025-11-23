@@ -310,7 +310,7 @@ do
 
         for bone_id = 0, Entity_GetBoneCount( pl ) - 1, 1 do
             local bone_name = Entity_GetBoneName( pl, bone_id )
-            if bone_name ~= nil and string_match( bone_name, "ValveBiped.Bip%d+_%w_Foot" ) ~= nil then
+            if bone_name ~= nil and string_match( bone_name, "^ValveBiped.Bip%d+_%w_Foot$" ) ~= nil then
                 perform_step_sound( pl, bone_id )
             end
         end
@@ -326,7 +326,7 @@ do
     ---@param dsp integer | nil
     local function emitFootstepSound( origin, shoes_type, material_name, move_type, volume, sound_level, pitch, dsp )
         sound_lib.play( shoes_type .. "." .. material_name .. "." .. move_type, origin, sound_level, pitch, volume, dsp )
-        PrintMessage( HUD_PRINTCENTER, shoes_type .. "." .. material_name .. "." .. move_type )
+        -- PrintMessage( HUD_PRINTCENTER, shoes_type .. "." .. material_name .. "." .. move_type )
     end
 
     player_lib.emitFootstepSound = emitFootstepSound
