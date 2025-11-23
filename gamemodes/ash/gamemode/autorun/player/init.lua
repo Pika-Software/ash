@@ -445,6 +445,6 @@ do
 
 end
 
-player_lib.footsteps = include( "footsteps.lua" )
+include( "footsteps.lua" )
 
 return player_lib
