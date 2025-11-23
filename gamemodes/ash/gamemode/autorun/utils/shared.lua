@@ -1,6 +1,4 @@
----@type dreamwork.std
-local dreamwork = ash.dreamwork
-local debug = dreamwork.debug
+local util = util
 
 --- [SHARED]
 ---
@@ -10,129 +8,75 @@ local debug = dreamwork.debug
 local utils = {}
 ash.utils = utils
 
-local string_gsub = string.gsub
-local string_lower = string.lower
+do
 
---- [SHARED]
----
---- Get unix time current day in 0:00 hour
----
----@param time number
----@return number
-function utils.getDayStartTime( time )
-    ---@type osdate
-    ---@diagnostic disable-next-line: assign-type-mismatch
-    local data = os.date( "*t", time or os.time() )
+    local prop_class_names = list.GetForEdit( "ash.prop.classnames" )
 
-    data.sec = 0
-    data.min = 0
-    data.hour = 0
+    prop_class_names.prop_physics_multiplayer = true
+	prop_class_names.prop_physics_override = true
+	prop_class_names.prop_dynamic_override = true
+	prop_class_names.prop_dynamic = true
+	prop_class_names.prop_ragdoll = true
+	prop_class_names.prop_physics = true
+	prop_class_names.prop_detail = true
+	prop_class_names.prop_static = true
 
-    return os.time( data )
+    --- [SHARED]
+    ---
+    --- Checks if the class name is a prop class.
+    ---
+    ---@param class_name string
+    ---@return boolean is_prop
+    function utils.isPropClass( class_name )
+        return prop_class_names[ class_name ] == true
+    end
+
 end
 
 do
 
-    local math_random = math.random
-    local raw_set = dreamwork.raw.set
+    local ragdoll_class_names = list.GetForEdit( "ash.ragdoll.classnames" )
 
-    ---@type table<string, boolean>
-    local models_cache = {}
+    ragdoll_class_names.prop_ragdoll = true
+    ragdoll_class_names.C_ClientRagdoll = true
+    ragdoll_class_names.C_HL2MPRagdoll = true
+    ragdoll_class_names.hl2mp_ragdoll = true
 
-    do
-
-        local util_PrecacheModel = _G.util.PrecacheModel
-
-        setmetatable( models_cache, {
-            __newindex = function( self, model_path, is_cached )
-                if is_cached then
-                    util_PrecacheModel( model_path )
-                    raw_set( self, model_path, true )
-                end
-            end
-        } )
-
+    --- [SHARED]
+    ---
+    --- Checks if the class name is a ragdoll class.
+    ---
+    ---@param class_name string
+    ---@return boolean is_ragdoll
+    function utils.isRagdollClass( class_name )
+        return ragdoll_class_names[ class_name ] == true
     end
 
-    local function model_path_fix( model_path )
-        return string_gsub( string_lower( model_path ), "[\\/]+", "/" )
-    end
+end
 
-    ---@param model_path string
-    ---@return string
-    local function precache_model( model_path )
-        model_path = model_path_fix( model_path )
-        models_cache[ model_path ] = true
-        return model_path
-    end
+do
 
-    utils.Model = precache_model
+    local util_TraceLine = util.TraceLine
 
-    local values = debug.getupvalues( player_manager.AddValidModel )
+    local trace_result = {}
 
-    ---@type table<string, string>
-    local model_paths = values.ModelList or {}
+    local trace = {
+        collisiongroup = _G.COLLISION_GROUP_WORLD,
+        output = trace_result
+    }
 
-    ---@type table<string, string>
-    local model_names = values.ModelListRev or {}
+    --- [SHARED]
+    ---
+    --- Checks if a position is inside the level bounds (inside the world).
+    ---
+    ---@param origin Vector
+    ---@return boolean
+    utils.isInLevelBounds = util.IsInWorld or function( origin )
+        trace.start = origin
+        trace.endpos = origin
 
-    ---@type string[]
-    local model_list = {}
-
-    ---@type integer
-    local model_count = 0
-
-    for model_name, model_path in pairs( model_paths ) do
-        model_count = model_count + 1
-        model_list[ model_count ] = model_path_fix( model_path )
-    end
-
-    setmetatable( model_paths, {
-        __newindex = function( self, model_name, model_path )
-            model_path = model_path_fix( model_path )
-
-            raw_set( model_paths, model_name, model_path )
-            raw_set( model_names, model_path, model_name )
-
-            model_count = model_count + 1
-            model_list[ model_count ] = model_path
-        end
-    } )
-
-    ---@param model_name string
-    ---@return string model_path
-    function utils.PlayerModel( model_name )
-        local model_path = model_paths[ model_name ]
-        if model_path == nil then
-            if model_count == 0 then
-                return "models/player/mossman.mdl"
-            else
-                return model_list[ math_random( 1, model_count ) ]
-            end
-        else
-            return model_path
-        end
-    end
-
-    do
-
-        local Entity_SetModel = Entity.SetModel
-
-        ---@param pl Player
-        ---@param model_path string
-        function Player.SetModel( pl, model_path )
-            model_path = model_path_fix( model_path )
-
-            if hook.Run( "CanPlayerChangeModel", pl, model_path ) == false then
-                return false
-            end
-
-            Entity_SetModel( pl, model_path )
-            hook.Run( "PlayerModelChanged", pl, model_path )
-
-            return true
-        end
-
+        util_TraceLine( trace )
+        return not trace_result.HitWorld
     end
 
 end
