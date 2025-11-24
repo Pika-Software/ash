@@ -1,6 +1,3 @@
----@type dreamwork.std.ModelClass
-local Model = dreamwork.std.Model
-
 local glua_util = _G.util
 
 local string_lower = string.lower
@@ -108,7 +105,67 @@ function model_lib.set( model_name, model_path, hands_path, extras )
     return model_info
 end
 
-model_lib.getActivityID = Model.getGlobalActivityID
-model_lib.getActivityName = Model.getGlobalActivityName
+---@type table<string, integer>
+local activity_ids = {}
+
+do
+
+    local util_GetActivityIDByName = glua_util.GetActivityIDByName
+
+    setmetatable( activity_ids, {
+        __index = function( self, name )
+            local id = util_GetActivityIDByName( name )
+            self[ name ] = id
+            return id
+        end
+    } )
+
+end
+
+---@type table<integer, string>
+local activity_names = {}
+
+do
+
+    local util_GetActivityNameByID = glua_util.GetActivityNameByID
+
+    setmetatable( activity_names, {
+        __index = function( self, id )
+            local name = util_GetActivityNameByID( id )
+            self[ id ] = name
+            return name
+        end
+    } )
+
+end
+
+--- [SHARED AND MENU]
+---
+--- Returns the ID of the activity by name.
+---
+--- Basic activities: https://developer.valvesoftware.com/wiki/Activity_List#Base_activities
+---
+--- Gmod ones: https://wiki.facepunch.com/gmod/Enums/ACT
+---
+---@param act_name string The name of the activity.
+---@return integer act_id The ID of the activity.
+function model_lib.getActivityID( act_name )
+    return activity_ids[ act_name ] or -1
+end
+
+--- [SHARED AND MENU]
+---
+--- Returns the name of the activity by ID.
+---
+--- Basic activities: https://developer.valvesoftware.com/wiki/Activity_List#Base_activities
+---
+--- Gmod ones: https://wiki.facepunch.com/gmod/Enums/ACT
+---
+---@param act_id integer The ID of the activity.
+---@return string act_name The name of the activity.
+function model_lib.getActivityName( act_id )
+    return activity_names[ act_id ] or "ACT_INVALID"
+end
+
 
 return model_lib
