@@ -13,6 +13,27 @@ local model_lib = require( "ash.model" )
 
 do
 
+    local UserCommand_ClearMovement = UserCommand.ClearMovement
+    local UserCommand_ClearButtons = UserCommand.ClearButtons
+    local UserCommand_SetImpulse = UserCommand.SetImpulse
+
+    ---@param pl Player
+    ---@param cmd CUserCmd
+    ---@diagnostic disable-next-line: redundant-parameter
+    hook.Add( "StartCommand", "MovementController", function( pl, cmd )
+        if hook_Run( "CanPlayerMove", pl, cmd ) == false then
+            UserCommand_SetImpulse( cmd, 0 )
+            UserCommand_ClearMovement( cmd )
+            UserCommand_ClearButtons( cmd )
+        end
+
+        ---@diagnostic disable-next-line: redundant-parameter, undefined-global
+    end, POST_HOOK )
+
+end
+
+do
+
     local MoveData_SetMaxClientSpeed = MoveData.SetMaxClientSpeed
     local MoveData_SetMaxSpeed = MoveData.SetMaxSpeed
 
@@ -23,14 +44,15 @@ do
 
     ---@param pl Player
     ---@param mv CMoveData
-    hook.Add( "Move", "SpeedController", function( pl, mv )
+    ---@diagnostic disable-next-line: redundant-parameter
+    hook.Add( "Move", "SpeedController", function( _, pl, mv )
         local max_speed = math_max( MoveData_GetMaxSpeed( mv ), MoveData_GetMaxClientSpeed( mv ) )
         max_speed = hook_Run( "PlayerSpeed", pl, mv, max_speed ) or 450
         MoveData_SetMaxClientSpeed( mv, max_speed )
         MoveData_SetMaxSpeed( mv, max_speed )
 
         ---@diagnostic disable-next-line: redundant-parameter, undefined-global
-    end, PRE_HOOK )
+    end, POST_HOOK )
 
 end
 

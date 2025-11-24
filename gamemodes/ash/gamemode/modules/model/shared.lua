@@ -1,5 +1,3 @@
-local glua_util = _G.util
-
 local string_lower = string.lower
 local string_gsub = string.gsub
 local rawset = rawset
@@ -12,7 +10,7 @@ local models_cache = {}
 
 do
 
-    local util_PrecacheModel = glua_util.PrecacheModel
+    local util_PrecacheModel = util.PrecacheModel
 
     setmetatable( models_cache, {
         __newindex = function( self, model_path, is_cached )
@@ -110,7 +108,7 @@ local activity_ids = {}
 
 do
 
-    local util_GetActivityIDByName = glua_util.GetActivityIDByName
+    local util_GetActivityIDByName = util.GetActivityIDByName
 
     setmetatable( activity_ids, {
         __index = function( self, name )
@@ -127,7 +125,7 @@ local activity_names = {}
 
 do
 
-    local util_GetActivityNameByID = glua_util.GetActivityNameByID
+    local util_GetActivityNameByID = util.GetActivityNameByID
 
     setmetatable( activity_names, {
         __index = function( self, id )

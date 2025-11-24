@@ -56,6 +56,24 @@ end
 
 do
 
+    local button_class_names = list.GetForEdit( "ash.button.classnames" )
+
+    button_class_names.func_button = true
+
+    --- [SHARED]
+    ---
+    --- Checks if the class name is a button class.
+    ---
+    ---@param class_name string
+    ---@return boolean is_button
+    function utils.isButtonClass( class_name )
+        return button_class_names[ class_name ] == true
+    end
+
+end
+
+do
+
     local util_TraceLine = util.TraceLine
 
     local trace_result = {}

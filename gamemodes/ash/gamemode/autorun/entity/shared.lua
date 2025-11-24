@@ -245,6 +245,22 @@ do
 
 end
 
+do
+
+    local Entity_GetNW2Bool = Entity.GetNW2Bool
+
+    --- [SHARED]
+    ---
+    --- Check if entity is button.
+    ---
+    ---@param entity Entity
+    ---@return boolean is_button
+    function entity_lib.isButton( entity )
+        return Entity_GetNW2Bool( entity, "m_bButton", false )
+    end
+
+end
+
 local Entity_GetClass = Entity.GetClass
 
 do

@@ -19,9 +19,8 @@ local entity_getHitboxBounds = entity_lib.getHitboxBounds
 ---@type ash.utils
 local utils = require( "ash.utils" )
 
-local glua_util = _G.util
-local util_TraceLine = glua_util.TraceLine
-local util_TraceHull = glua_util.TraceHull
+local util_TraceLine = util.TraceLine
+local util_TraceHull = util.TraceHull
 
 local Entity_GetBoneMatrix = Entity.GetBoneMatrix
 local Entity_IsValid = Entity.IsValid
