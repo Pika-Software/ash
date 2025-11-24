@@ -51,6 +51,7 @@ local raw_ipairs = raw.ipairs
 local raw_pairs = raw.pairs
 
 local file_Exists = glua_file.Exists
+local file_IsDir = glua_file.IsDir
 local file_Read = glua_file.Read
 
 local Color = std.Color
@@ -590,6 +591,7 @@ end
 ---@field ClientFiles? string[] The list of client files used by the module.
 ---@field Environment table The environment of the module.
 ---@field Result? any[] The result of the module execution.
+---@field Error? string The error of the module execution.
 local Module = class.base( "ash.module", false )
 
 ---@class ash.ModuleClass : ash.Module
@@ -1186,7 +1188,12 @@ function Module:load( stack_level )
     setmetatable( module_enviroment, enviroment_metatable )
     self.Environment = module_enviroment
 
-    self.Result = file_compile( self.EntryPoint, module_enviroment, stack_level )()
+    local success, result = pcall( file_compile( self.EntryPoint, module_enviroment, stack_level ) )
+    if success then
+        self.Result = result
+    else
+        self.Error = result
+    end
 end
 
 do
@@ -1284,9 +1291,9 @@ do
         end
 
         local homedir = root_name .. "/gamemode/autorun/" .. folder_name
-        if not glua_file.IsDir( homedir, "LUA" ) then
+        if not file_IsDir( homedir, "LUA" ) then
             homedir = root_name .. "/gamemode/modules/" .. folder_name
-            if not glua_file.IsDir( homedir, "LUA" ) then
+            if not file_IsDir( homedir, "LUA" ) then
                 return nil
             end
         end
@@ -1297,26 +1304,37 @@ do
 
             entrypoint_path = homedir .. init_file
 
-            if LUA_SERVER then
-                local cl_init_path = homedir .. "/cl_init.lua"
-                if file_Exists( cl_init_path, "LUA" ) then
-                    clientFileSend( cl_init_path, stack_level )
-                else
-                    cl_init_path = homedir .. "/shared.lua"
-                    if file_Exists( cl_init_path, "LUA" ) then
-                        clientFileSend( cl_init_path, stack_level )
-                    end
-                end
-            end
-
             if not file_Exists( entrypoint_path, "LUA" ) then
                 entrypoint_path = homedir .. "/shared.lua"
             end
 
         else
 
-            entrypoint_path = homedir .. "/" .. table_concat( segments, "/", 3, segments_count ) .. ".lua"
+            entrypoint_path = homedir .. "/" .. table_concat( segments, "/", 3, segments_count )
 
+            if file_IsDir( entrypoint_path, "LUA" ) then
+                homedir, entrypoint_path = entrypoint_path, entrypoint_path .. init_file
+
+                if not file_Exists( entrypoint_path, "LUA" ) then
+                    entrypoint_path = homedir .. "/shared.lua"
+                end
+            else
+                entrypoint_path = entrypoint_path .. ".lua"
+                homedir = path.getDirectory( entrypoint_path, false ) or homedir
+            end
+
+        end
+
+        if LUA_SERVER then
+            local cl_init_path = homedir .. "/cl_init.lua"
+            if file_Exists( cl_init_path, "LUA" ) then
+                clientFileSend( cl_init_path, stack_level )
+            else
+                cl_init_path = homedir .. "/shared.lua"
+                if file_Exists( cl_init_path, "LUA" ) then
+                    clientFileSend( cl_init_path, stack_level )
+                end
+            end
         end
 
         if not file_Exists( entrypoint_path, "LUA" ) then
@@ -1349,7 +1367,7 @@ do
             if client_files ~= nil then
                 for i = 1, #client_files, 1 do
                     local file_path = homedir .. "/" .. client_files[ i ]
-                    if file_Exists( file_path, "lsv" ) and not glua_file.IsDir( file_path, "lsv" ) then
+                    if file_Exists( file_path, "lsv" ) and not file_IsDir( file_path, "lsv" ) then
                         clientFileSend( file_path, stack_level )
                     else
                         logger:error( "Failed to send file '%s' to the client from '%s'.", file_path, module_object )
@@ -1435,6 +1453,11 @@ do
         end
 
         ---@cast module_object ash.Module
+
+        local err_msg = module_object.Error
+        if err_msg ~= nil then
+            std.errorf( 2, false, err_msg )
+        end
 
         return module_object.Result
     end
