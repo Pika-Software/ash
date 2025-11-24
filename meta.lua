@@ -276,3 +276,15 @@ do
     flags.lua_server = nil
 
 end
+
+--- [SHARED]
+---
+--- Includes a file.
+---
+---@param file_path string
+---@param ... any
+---@return any ...
+function include( file_path, ...  )
+end
+
+dofile = include

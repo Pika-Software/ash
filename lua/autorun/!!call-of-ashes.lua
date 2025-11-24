@@ -45,10 +45,13 @@ local table_concat = table.concat
 local string_format = string.format
 local string_lower = string.lower
 local string_match = string.match
-local string_len = string.len
+local string_byte = string.byte
 
 local raw_ipairs = raw.ipairs
 local raw_pairs = raw.pairs
+
+local file_Exists = glua_file.Exists
+local file_Read = glua_file.Read
 
 local Color = std.Color
 
@@ -59,12 +62,11 @@ local Color = std.Color
 ash = ash or {}
 
 ash.Name = "Ash"
-ash.Version = "0.1.0"
+ash.Version = "0.2.0"
 ash.Author = "Unknown Developer"
 ash.Tag = string_lower( string_match( ash.Name, "[^%s%p]+" ) ) .. "@" .. ash.Version
 
-ash.Dedicated = game.IsDedicated()
-ash.dreamwork = std
+ash.DedicatedServer = game.IsDedicated()
 
 setmetatable( ash, {
     __tostring = function( self )
@@ -143,8 +145,8 @@ do
             stack_level = stack_level + 1
         end
 
-        local content = glua_file.Read( file_path, "lsv" )
-        if content == nil or string.byte( content, 1, 1 ) == nil then
+        local content = file_Read( file_path, "lsv" )
+        if content == nil or string_byte( content, 1, 1 ) == nil then
             std.errorf( stack_level, false, "File '%s' is empty.", file_path )
         end
 
@@ -200,12 +202,12 @@ if LUA_SERVER then
     ---@return string | nil
     function ash.parse( name )
         local file_path = "gamemodes/" .. name .. "/" .. name .. ".txt"
-        if not glua_file.Exists( file_path, "GAME" ) then
+        if not file_Exists( file_path, "GAME" ) then
             return nil, string_format( "could not find file '%s'", file_path )
         end
 
-        local file_content = glua_file.Read( file_path, "GAME" )
-        if file_content == nil or string_len( file_content ) == 0 then
+        local file_content = file_Read( file_path, "GAME" )
+        if file_content == nil or string_byte( file_content, 1, 1 ) == nil then
             return nil, string_format( "file '%s' is empty", file_path )
         end
 
@@ -293,6 +295,8 @@ if LUA_SERVER then
             file_data.content = content
         end
 
+        local string_len = string.len
+
         local function build( file_path )
             ---@type File
             ---@diagnostic disable-next-line: assign-type-mismatch
@@ -376,8 +380,8 @@ if LUA_SERVER then
             local parent_files, parent_directories = glua_file.Find( parent_path .. "*", "GAME" )
 
             for _, file_name in raw_ipairs( parent_files ) do
-                if not glua_file.Exists( path_to .. file_name, "GAME" ) then
-                    add_file( path_to .. file_name, glua_file.Read( parent_path .. file_name, "GAME" ) )
+                if not file_Exists( path_to .. file_name, "GAME" ) then
+                    add_file( path_to .. file_name, file_Read( parent_path .. file_name, "GAME" ) )
                 end
             end
 
@@ -420,11 +424,11 @@ if LUA_SERVER then
                 local module_path = modules_path .. directory_name
 
                 local entrypoint_path = module_path .. "/cl_init.lua"
-                if glua_file.Exists( entrypoint_path, "LUA" ) then
+                if file_Exists( entrypoint_path, "LUA" ) then
                     clientFileSend( entrypoint_path, 2 )
                 else
                     entrypoint_path = module_path .. "/shared.lua"
-                    if glua_file.Exists( entrypoint_path, "LUA" ) then
+                    if file_Exists( entrypoint_path, "LUA" ) then
                         clientFileSend( entrypoint_path, 2 )
                     end
                 end
@@ -434,7 +438,7 @@ if LUA_SERVER then
 
 end
 
-if not glua_file.Exists( chain_file, "LUA" ) then
+if not file_Exists( chain_file, "LUA" ) then
     logger:info( "No chain file detected, skipping." )
     return
 end
@@ -1039,7 +1043,7 @@ local function path_perform( file_path, stack_level )
 
     stack_level = stack_level + 1
 
-    local uint8_1, uint8_2 = string.byte( file_path, 1, 2 )
+    local uint8_1, uint8_2 = string_byte( file_path, 1, 2 )
     if uint8_1 == 0x7E --[[ ~ ]] and uint8_2 == 0x2F --[[ / ]] then
         return path.normalize( getfenv( stack_level ).__homedir .. string.sub( file_path, 2 ) )
     elseif uint8_1 == 0x2F --[[ / ]] then
@@ -1063,8 +1067,80 @@ ash.send = environment.AddCSLuaFile
 local file_compile
 do
 
-    local CompileString = CompileString
-    local CompileFile = CompileFile
+    local compiler_fn
+
+    if LUA_SERVER then
+        local CompileString = CompileString
+
+        ---@param file_path string
+        ---@param stack_level integer
+        ---@return function
+        function compiler_fn( file_path, stack_level )
+            stack_level = stack_level + 1
+
+            local file_object, is_directory = fs.lookup( "/workspace/gamemodes/" .. file_path )
+
+            if file_object == nil then
+                std.errorf( stack_level, false, "File '%s' not found.", file_path )
+            end
+
+            if is_directory then
+                std.errorf( stack_level, false, "File '%s' is a directory.", file_path )
+            end
+
+            ---@cast file_object dreamwork.std.fs.File
+
+            local mount_point, mount_path = fs.whereis( file_object )
+            local lua_code = file_Read( mount_path, mount_point )
+
+            if lua_code == nil then
+                local success, result = pcall( CompileFile, file_path, true )
+
+                if not success or result == nil then
+                    std.errorf( stack_level, false, "File '%s' compilation failed:\n %s.", file_path, result or "unknown error" )
+                end
+
+                ---@cast result function
+
+                return result
+            end
+
+            if string_byte( lua_code, 1, 1 ) == nil then
+                std.errorf( stack_level, false, "File '%s' is empty.", file_path )
+            end
+
+            local success, result = pcall( CompileString, lua_code, file_path, false )
+
+            if not success or result == nil then
+                std.errorf( stack_level, false, "File '%s' compilation failed:\n %s.", file_path, result or "unknown error" )
+            end
+
+            ---@cast result function
+
+            return result
+        end
+
+    elseif LUA_CLIENT then
+        local CompileFile = CompileFile
+
+        ---@param file_path string
+        ---@param stack_level integer
+        ---@return function
+        function compiler_fn( file_path, stack_level )
+            stack_level = stack_level + 1
+
+            local success, result = pcall( CompileFile, file_path, true )
+
+            if not success or result == nil then
+                std.errorf( stack_level, false, "File 'garrysmod/lua/%s' compilation failed:\n %s.", file_path, result or "unknown error" )
+            end
+
+            ---@cast result function
+
+            return result
+        end
+
+    end
 
     ---@param file_path string
     ---@param file_environment table
@@ -1074,30 +1150,9 @@ do
     function file_compile( file_path, file_environment, stack_level )
         stack_level = stack_level + 1
 
-        local success, result
+        local fn = compiler_fn( file_path, stack_level )
 
-        if LUA_CLIENT and ash.Dedicated then
-            success, result = pcall( CompileFile, file_path, true )
-        else
-            local lua_code = glua_file.Read( file_path, "LUA" )
-            if lua_code == nil or string_len( lua_code ) == 0 then
-                success, result = pcall( CompileFile, file_path, true )
-            else
-                result = CompileString( lua_code, file_path, false )
-
-                if isString( result ) or result == nil then
-                    success, result = false, nil
-                else
-                    success = true
-                end
-            end
-        end
-
-        if not success or result == nil then
-            std.errorf( stack_level, false, "File '%s' compilation failed:\n %s.", file_path, result or "unknown error" )
-        end
-
-        ---@cast result function
+        ---@cast fn function
 
         local fn_environment = {
             __dir = path.getDirectory( file_path, false ),
@@ -1109,8 +1164,8 @@ do
             __newindex = file_environment
         } )
 
-        setfenv( result, fn_environment )
-        return result, fn_environment
+        setfenv( fn, fn_environment )
+        return fn, fn_environment
     end
 
 end
@@ -1179,17 +1234,6 @@ do
 
     local init_file = LUA_CLIENT and "/cl_init.lua" or "/init.lua"
 
-    ---@type table<string, ash.Module>
-    local native_modules = {}
-
-    do
-
-        local dreamwork_module = ModuleClass( "dreamwork", "dreamwork/std" )
-        native_modules.dreamwork = dreamwork_module
-        dreamwork_module.Result = std
-
-    end
-
     --- [SHARED]
     ---
     --- Includes and sends a module in the server and/or client.
@@ -1208,7 +1252,7 @@ do
         local segments, segments_count = string.byteSplit( module_path, 0x2e --[[ . ]] )
 
         if segments_count == 0 then
-            std.error( "Module name cannot be empty.", stack_level, false )
+            std.error( "Module path cannot be empty.", stack_level, false )
         end
 
         if segments_count == 1 then
@@ -1228,19 +1272,13 @@ do
         end
 
         local root_name = segments[ 1 ]
-
-        local module_object = native_modules[ root_name ]
-        if module_object ~= nil then
-            return module_object
-        end
-
         local folder_name = segments[ 2 ]
-        local module_name = root_name .. "." .. folder_name
+
+        local module_name = table.concat( segments, ".", 1, segments_count )
 
         ---@type ash.Module | nil
         ---@diagnostic disable-next-line: assign-type-mismatch
-        module_object = modules[ module_name ]
-
+        local module_object = modules[ module_name ]
         if module_object ~= nil and not ignore_cache then
             return module_object
         end
@@ -1253,24 +1291,36 @@ do
             end
         end
 
-        if LUA_SERVER then
-            local cl_init_path = homedir .. "/cl_init.lua"
-            if glua_file.Exists( cl_init_path, "LUA" ) then
-                clientFileSend( cl_init_path, stack_level )
-            else
-                cl_init_path = homedir .. "/shared.lua"
-                if glua_file.Exists( cl_init_path, "LUA" ) then
+        local entrypoint_path
+
+        if segments_count == 2 then
+
+            entrypoint_path = homedir .. init_file
+
+            if LUA_SERVER then
+                local cl_init_path = homedir .. "/cl_init.lua"
+                if file_Exists( cl_init_path, "LUA" ) then
                     clientFileSend( cl_init_path, stack_level )
+                else
+                    cl_init_path = homedir .. "/shared.lua"
+                    if file_Exists( cl_init_path, "LUA" ) then
+                        clientFileSend( cl_init_path, stack_level )
+                    end
                 end
             end
+
+            if not file_Exists( entrypoint_path, "LUA" ) then
+                entrypoint_path = homedir .. "/shared.lua"
+            end
+
+        else
+
+            entrypoint_path = homedir .. "/" .. table_concat( segments, "/", 3, segments_count ) .. ".lua"
+
         end
 
-        local entrypoint_path = homedir .. init_file
-        if not glua_file.Exists( entrypoint_path, "LUA" ) then
-            entrypoint_path = homedir .. "/shared.lua"
-            if not glua_file.Exists( entrypoint_path, "LUA" ) then
-                return nil
-            end
+        if not file_Exists( entrypoint_path, "LUA" ) then
+            return nil
         end
 
         if module_object == nil then
@@ -1299,7 +1349,7 @@ do
             if client_files ~= nil then
                 for i = 1, #client_files, 1 do
                     local file_path = homedir .. "/" .. client_files[ i ]
-                    if glua_file.Exists( file_path, "lsv" ) and not glua_file.IsDir( file_path, "lsv" ) then
+                    if file_Exists( file_path, "lsv" ) and not glua_file.IsDir( file_path, "lsv" ) then
                         clientFileSend( file_path, stack_level )
                     else
                         logger:error( "Failed to send file '%s' to the client from '%s'.", file_path, module_object )
@@ -1330,19 +1380,31 @@ do
         return module_object
     end
 
-    if LUA_SERVER then
+    if LUA_SERVER and DEBUG then
 
         ---@param fs_object dreamwork.std.fs.File
         ---@param is_directory boolean
         fs.watchdog.Modified:attach( function( fs_object, is_directory )
             if is_directory then return end
 
-            local gamemode_name, module_type, directory_name = string_match( fs_object.path, "^/garrysmod/addons/[^/]+/gamemodes/([^/]+)/gamemode/(%w+)/([^/]+)/.+$" )
+            local gamemode_name, module_type, file_path = string_match( fs_object.path, "^/garrysmod/addons/[^/]+/gamemodes/([^/]+)/gamemode/(%w+)/(.+)%.lua$" )
             if not ( module_type == "modules" or module_type == "autorun" ) then return end
-            if gamemode_name == nil or directory_name == nil then return end
+            if gamemode_name == nil or file_path == nil then return end
 
-            local module_name = gamemode_name .. "." .. directory_name
-            if modules[ module_name ] == nil and not ( LUA_SERVER and fs_object.name == "cl_init.lua" ) then return end
+            local module_name
+
+            if fs_object.name == "cl_init.lua" then
+                module_name = gamemode_name .. "." .. string.match( file_path, "^([^/]+)" ) or file_path
+            else
+
+                module_name = gamemode_name .. "." .. string.replace( file_path, "/", "." )
+
+                if modules[ module_name ] == nil then
+                    module_name = string_match( module_name, "^([%w_]+%.[%w_]+)" ) or module_name
+                    if modules[ module_name ] == nil then return end
+                end
+
+            end
 
             -- ash.resend()
 
@@ -1358,47 +1420,26 @@ do
 
     end
 
-    do
+    --- [SHARED]
+    ---
+    --- Includes and sends a module in the server and/or client.
+    ---
+    ---@param module_name string The name of the module. e.g. "ash.utils"
+    ---@param ignore_cache? boolean If true, the module will be loaded even if it is already loaded.
+    ---@return ... The result of the module.
+    function ash.require( module_name, ignore_cache )
+        local module_object = module_require( module_name, ignore_cache == true, 2 )
 
-        local table_get = table.get
-
-        --- [SHARED]
-        ---
-        --- Includes and sends a module in the server and/or client.
-        ---
-        ---@param module_name string The name of the module. e.g. "ash.utils"
-        ---@param ignore_cache? boolean If true, the module will be loaded even if it is already loaded.
-        ---@return ... The result of the module.
-        function ash.require( module_name, ignore_cache )
-            local module_object = module_require( module_name, ignore_cache == true, 2 )
-
-            if module_object == nil then
-                std.errorf( 2, false, "Module '%s' not found!", module_name )
-            end
-
-            ---@cast module_object ash.Module
-
-            local result = module_object.Result
-
-            if result ~= nil then
-                local segments, segment_count = string.byteSplit( module_name, 0x2e --[[ . ]] )
-                if segment_count ~= 1 then
-                    if native_modules[ module_object.Name ] == nil then
-                        if segment_count > 2 then
-                            return table_get( result, table_concat( segments, ".", 3, segment_count ), 0x2e --[[ . ]] )
-                        end
-                    else
-                        return table_get( result, table_concat( segments, ".", 2, segment_count ), 0x2e --[[ . ]] )
-                    end
-                end
-            end
-
-            return result
+        if module_object == nil then
+            std.errorf( 2, false, "Module '%s' not found!", module_name )
         end
 
-        environment.require = ash.require
+        ---@cast module_object ash.Module
 
+        return module_object.Result
     end
+
+    environment.require = ash.require
 
     --- [SHARED]
     ---
