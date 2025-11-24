@@ -1,5 +1,5 @@
 ---@type dreamwork.std.ModelClass
-local Model = require( "dreamwork.Model" )
+local Model = dreamwork.std.Model
 
 local glua_util = _G.util
 
@@ -31,6 +31,8 @@ end
 local function model_path_fix( model_path )
     return string_gsub( string_lower( model_path ), "[\\/]+", "/" )
 end
+
+model_lib.pathFix = model_path_fix
 
 ---@param model_path string
 ---@return string

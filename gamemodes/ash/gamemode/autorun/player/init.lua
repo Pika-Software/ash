@@ -3,6 +3,7 @@ MODULE.Networks = {
 }
 
 MODULE.ClientFiles = {
+    "animations.lua",
     "shared.lua"
 }
 
@@ -413,38 +414,38 @@ do
 
         hook.Add( "KeyRelease", "Respawn", function( pl, key )
             if awaiting_respawn[ pl ] and bit_band( key, respawn_keys[ pl ] ) ~= 0 and hook_Run( "CanPlayerRespawn", pl ) ~= false then
-                Entity_SetPos( pl, hook_Run( "PlayerSpawnPosition", pl ) or vector_origin )
                 Entity_Spawn( pl )
             end
 
             ---@diagnostic disable-next-line: redundant-parameter, undefined-global
         end, PRE_HOOK )
 
+        hook.Add( "PlayerSpawn", "SpeedController", function( pl, is_transition )
+            awaiting_respawn[ pl ] = false
+
+            hook_Run( "PrePlayerSpawn", pl, is_transition )
+
+            local max_speed = physenv.GetPerformanceSettings().MaxVelocity
+
+            pl:SetSlowWalkSpeed( max_speed )
+            pl:SetWalkSpeed( max_speed )
+            pl:SetRunSpeed( max_speed )
+            pl:SetMaxSpeed( max_speed )
+
+            pl:SetCrouchedWalkSpeed( 1 )
+
+            Entity_SetPos( pl, hook_Run( "PlayerSetupPosition", pl ) or vector_origin )
+
+            hook_Run( "PlayerSetupModel", pl, is_transition )
+            hook_Run( "PlayerSetupLoadout", pl, is_transition )
+
+            hook_Run( "PostPlayerSpawn", pl, is_transition )
+
+            ---@diagnostic disable-next-line: redundant-parameter, undefined-global
+        end, PRE_HOOK )
+
     end
 
-    hook.Add( "PlayerSpawn", "SpeedController", function( pl, is_transition )
-        awaiting_respawn[ pl ] = false
-
-        hook_Run( "PrePlayerSpawn", pl, is_transition )
-
-        local max_speed = physenv.GetPerformanceSettings().MaxVelocity
-
-        pl:SetSlowWalkSpeed( max_speed )
-        pl:SetWalkSpeed( max_speed )
-        pl:SetRunSpeed( max_speed )
-        pl:SetMaxSpeed( max_speed )
-
-        pl:SetCrouchedWalkSpeed( 1 )
-
-        hook_Run( "PlayerSetupModel", pl, is_transition )
-        hook_Run( "PlayerSetupLoadout", pl, is_transition )
-        hook_Run( "PostPlayerSpawn", pl, is_transition )
-
-        ---@diagnostic disable-next-line: redundant-parameter, undefined-global
-    end, PRE_HOOK )
-
 end
-
-include( "footsteps.lua" )
 
 return player_lib

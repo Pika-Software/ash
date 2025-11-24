@@ -277,16 +277,4 @@ do
 
 end
 
-hook.Add( "PlayerStepSoundTime", "NoMoreStepSounds", function()
-    return math.huge
-end )
-
--- PrintTable( select( 1, file.Find( "sound/player/footsteps/*", "GAME" ) ), nil )
-
-hook.Add( "PlayerFootstep", "NoMoreFootsteps", function( ... )
-    -- print( ... )
-    return true
-end )
-
-
 return player_lib

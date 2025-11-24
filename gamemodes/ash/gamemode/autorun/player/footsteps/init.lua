@@ -1,5 +1,12 @@
----@class ash.player
-local player_lib = include( "shared.lua" )
+MODULE.ClientFiles = {
+    "shared.lua",
+    "legacy.lua"
+}
+
+include( "shared.lua" )
+
+---@type ash.player
+local player_lib = require( "ash.player" )
 
 ---@type ash.entity
 local entity_lib = require( "ash.entity" )
@@ -13,9 +20,8 @@ local string_match = string.match
 local file_Find = file.Find
 local hook_Run = hook.Run
 
----@class ash.player.footsteps
-local footsteps = player_lib.footsteps or {}
-player_lib.footsteps = footsteps
+---@class ash.footsteps
+local footsteps = {}
 
 ---@type string[]
 local move_types = {
@@ -64,7 +70,10 @@ function footsteps.registerLegacy( shoes_type, directory_path, sound_data )
         sound_data.sound = footstep_sounds
 
         for j = 1, move_types_count, 1 do
-            sound_merge( shoes_type .. "." .. material_name .. "." .. move_types[ j ], sound_data )
+            local sound_name = shoes_type .. "." .. material_name .. "." .. move_types[ j ]
+            if not sound_exists( sound_name ) then
+                sound_merge( sound_name, sound_data )
+            end
         end
     end
 end
@@ -136,7 +145,10 @@ function footsteps.register( shoes_type, directory_path, sound_data )
 
             sound_data.sound = move_sounds
 
-            sound_merge( shoes_type .. "." .. material_name .. "." .. move_name, sound_data )
+            local sound_name = shoes_type .. "." .. material_name .. "." .. move_name
+            if not sound_exists( sound_name ) then
+                sound_merge( sound_name, sound_data )
+            end
         end
     end
 end
@@ -318,6 +330,12 @@ do
         ---@diagnostic disable-next-line: redundant-parameter, undefined-global
     end, PRE_HOOK )
 
+    local sound_play = sound_lib.play
+
+    --- [SHARED]
+    ---
+    --- Plays a footstep sound.
+    ---
     ---@param origin Vector
     ---@param shoes_type string
     ---@param material_name string
@@ -326,59 +344,65 @@ do
     ---@param sound_level integer | nil
     ---@param pitch integer | nil
     ---@param dsp integer | nil
-    local function emitFootstepSound( origin, shoes_type, material_name, move_type, volume, sound_level, pitch, dsp )
-        sound_lib.play( shoes_type .. "." .. material_name .. "." .. move_type, origin, sound_level, pitch, volume, dsp )
+    local function play_sound( origin, shoes_type, material_name, move_type, volume, sound_level, pitch, dsp )
+        sound_play( shoes_type .. "." .. material_name .. "." .. move_type, origin, sound_level, pitch, volume, dsp )
         -- PrintMessage( HUD_PRINTCENTER, shoes_type .. "." .. material_name .. "." .. move_type )
     end
 
-    player_lib.emitFootstepSound = emitFootstepSound
+    footsteps.play = play_sound
 
-    ---@param pl Player
-    ---@param trace_results TraceResult
-    ---@param bone_name string
-    hook.Add( "PlayerTakesFootstep", "Default", function( pl, trace_results, bone_name )
-        local move_type, volume, sound_level
+    do
 
-        if player_isCrouching( pl ) then
-            move_type = "wandering"
-            sound_level = 40
-            volume = 0.75
-        elseif player_isRunning( pl ) then
-            move_type = "running"
-            sound_level = 90
-            volume = 1.25
-        elseif player_isFalling( pl ) then
-            move_type = "landing"
-            sound_level = 100
-            volume = 1.5
-        else
-            move_type = "walking"
-            sound_level = 75
-            volume = 1
-        end
+        local util_GetSurfaceData = util.GetSurfaceData
 
-        local water_level = Entity_WaterLevel( pl )
-        if water_level == 1 or water_level == 2 then
-            emitFootstepSound( trace_results.HitPos, player_shoes[ pl ], "water", move_type, volume, sound_level, nil, 1 )
-            return
-        end
+        ---@param pl Player
+        ---@param trace_results TraceResult
+        ---@param bone_name string
+        hook.Add( "PlayerTakesFootstep", "Default", function( pl, trace_results, bone_name )
+            local move_type, volume, sound_level
 
-        local surface_data = util.GetSurfaceData( trace_results.SurfaceProps )
-        if surface_data ~= nil then
-            emitFootstepSound( trace_results.HitPos, player_shoes[ pl ], surface_data.name, move_type, volume, sound_level, nil, 1 )
-        end
-    end )
+            if player_isCrouching( pl ) then
+                move_type = "wandering"
+                sound_level = 40
+                volume = 0.75
+            elseif player_isRunning( pl ) then
+                move_type = "running"
+                sound_level = 90
+                volume = 1.25
+            elseif player_isFalling( pl ) then
+                move_type = "landing"
+                sound_level = 100
+                volume = 1.5
+            else
+                move_type = "walking"
+                sound_level = 75
+                volume = 1
+            end
+
+            local water_level = Entity_WaterLevel( pl )
+            if water_level == 1 or water_level == 2 then
+                play_sound( trace_results.HitPos, player_shoes[ pl ], "water", move_type, volume, sound_level, nil, 1 )
+                return
+            end
+
+            local surface_data = util_GetSurfaceData( trace_results.SurfaceProps )
+            if surface_data ~= nil then
+                play_sound( trace_results.HitPos, player_shoes[ pl ], surface_data.name, move_type, volume, sound_level, nil, 1 )
+            end
+        end )
+
+    end
 
 end
 
 do
 
-    ---@class ash.player.footsteps.ShoesData : ash.sound.Data
+    ---@class ash.footsteps.ShoesData : ash.sound.Data
     ---@field aliases table<string, string>
     ---@field path string | nil
 
     --- https://developer.valvesoftware.com/wiki/Material_surface_properties
-    ---@type table<string, ash.player.footsteps.ShoesData>
+    ---@type table<string, ash.footsteps.ShoesData>
     local shoes = {
         default = {
             channel = 6,
@@ -418,8 +442,8 @@ do
         for shoes_name, data in pairs( shoes ) do
             local directory_path = data.path or "player/footsteps"
 
-            footsteps.registerLegacy( shoes_name, directory_path, data )
             footsteps.register( shoes_name, directory_path, data )
+            footsteps.registerLegacy( shoes_name, directory_path, data )
 
             local aliases = data.aliases
 

@@ -120,7 +120,7 @@ do
                 return
             end
 
-            timer.Create( "await", 0.25, 0, function()
+            timer.Create( "await", 0.05, 0, function()
                 if coroutine_resume( thread ) then
                     timer.Remove( "await" )
                 end
