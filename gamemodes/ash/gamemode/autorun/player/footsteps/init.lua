@@ -28,7 +28,7 @@ local loud_move_types = {
 footsteps.LoudMoveTypes = loud_move_types
 
 ---@type table<string, boolean>
-local registry = {}
+local sound_registry = {}
 
 --- [SHARED]
 ---
@@ -60,7 +60,7 @@ function footsteps.registerLegacy( shoes_type, directory_path, sound_data )
             sound_data.sound = sounds
 
             local base_name = shoes_type .. "." .. material_name
-            registry[ base_name ] = true
+            sound_registry[ base_name ] = true
 
             for j = 1, move_types_count, 1 do
                 local sound_name = base_name .. "." .. move_types[ j ]
@@ -124,7 +124,7 @@ function footsteps.register( shoes_type, directory_path, sound_data )
             return
         end
 
-        registry[ base_name ] = true
+        sound_registry[ base_name ] = true
 
         for i = 1, move_types_count, 1 do
             local move_name = move_types[ i ]
@@ -168,7 +168,7 @@ end
 ---@param shoes_type string
 ---@param material_name string
 function footsteps.exists( shoes_type, material_name )
-    return registry[ shoes_type .. "." .. material_name ] == true
+    return sound_registry[ shoes_type .. "." .. material_name ] == true
 end
 
 --- [SHARED]
@@ -184,7 +184,7 @@ end
 function footsteps.alias( shoes_type, material_name, material_base, sound_data )
     local base_name = shoes_type .. "." .. material_base
 
-    if not registry[ base_name ] then
+    if not sound_registry[ base_name ] then
         ash.errorf( 2, true, "Footstep sounds '%s' does not exist.", base_name )
         return
     end
@@ -194,7 +194,7 @@ function footsteps.alias( shoes_type, material_name, material_base, sound_data )
     end
 
     local sound_name = shoes_type .. "." .. material_name
-    registry[ sound_name ] = true
+    sound_registry[ sound_name ] = true
 
     for i = 1, #move_types, 1 do
         local move_name = move_types[ i ]
@@ -283,7 +283,7 @@ do
 
     footsteps.Shoes = shoes
 
-    hook.Add( "Initialize", "BuildFootsteps", function()
+    timer.Simple( 0, function()
         for shoes_name, data in pairs( shoes ) do
             local directory_path = data.path or "player/footsteps"
 
@@ -338,7 +338,10 @@ do
     ---@param pitch integer | nil
     ---@param dsp integer | nil
     function footsteps.play( origin, shoes_type, material_name, move_type, volume, sound_level, pitch, dsp )
-        sound_play( shoes_type .. "." .. material_name .. "." .. move_states[ move_type ], origin, sound_level, pitch, volume, dsp )
+        local sound_name = shoes_type .. "." .. material_name
+        if sound_registry[ sound_name ] then
+            sound_play( sound_name .. "." .. move_states[ move_type ], origin, sound_level, pitch, volume, dsp )
+        end
     end
 
     ---@param pl Player
@@ -359,8 +362,10 @@ do
             sound_level, volume =  75, 1.00
         end
 
-        -- PrintMessage( 4, player_shoes .. "." .. material_name .. "." .. selected_state )
-        sound_play( player_shoes .. "." .. material_name .. "." .. selected_state, sound_position, sound_level, nil, volume, 1 )
+        local sound_name = player_shoes .. "." .. material_name
+        if sound_registry[ sound_name ] then
+            sound_play( sound_name .. "." .. selected_state, sound_position, sound_level, nil, volume, 1 )
+        end
     end )
 
 end

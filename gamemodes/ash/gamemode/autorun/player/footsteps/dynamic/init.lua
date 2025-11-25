@@ -29,6 +29,7 @@ local Entity_WaterLevel = Entity.WaterLevel
 
 local Matrix_GetTranslation = Matrix.GetTranslation
 local Vector_Normalize = Vector.Normalize
+local Vector_Distance = Vector.Distance
 
 local util_GetSurfaceData = util.GetSurfaceData
 local util_TraceHull = util.TraceHull
@@ -59,7 +60,7 @@ setmetatable( foot_states, {
 } )
 
 hook.Add( "PlayerPostThink", "FootstepsThink", function( pl )
-    if Entity_GetMoveType( pl ) == MOVETYPE_LADDER then return end
+    if Entity_GetMoveType( pl ) ~= 2 --[[ MOVETYPE_WALK ]] then return end
 
     local move_state = player_getMoveState( pl )
     if move_state == "swimming" then return end
@@ -87,7 +88,7 @@ hook.Add( "PlayerPostThink", "FootstepsThink", function( pl )
                 local bone_direction = ( root_position - bone_position )
                 Vector_Normalize( bone_direction )
 
-                trace.endpos = bone_position - bone_direction * 5
+                trace.endpos = bone_position - bone_direction * Vector_Distance( root_position, bone_position ) * 0.25 -- * 4
                 trace.filter = pl
 
                 local hitbox, hitbox_group = entity_getHitbox( pl, bone_id )
@@ -127,6 +128,4 @@ hook.Add( "PlayerPostThink", "FootstepsThink", function( pl )
             end
         end
     end
-
-    ---@diagnostic disable-next-line: redundant-parameter, undefined-global
 end, PRE_HOOK )
