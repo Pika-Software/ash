@@ -5,6 +5,10 @@ MODULE.ClientFiles = {
 ---@class ash.entity
 local entity_lib = include( "shared.lua" )
 
+---@type dreamwork.std
+local std = _G.dreamwork.std
+local math = std.math
+
 do
 
     local Entity_SetNW2Vector = Entity.SetNW2Vector
@@ -21,41 +25,75 @@ do
 
 end
 
----@type ash.utils
-local utils_lib = require( "ash.utils" )
+do
 
-local utils_isPropClass = utils_lib.isPropClass
-local utils_isButtonClass = utils_lib.isButtonClass
-local utils_isRagdollClass = utils_lib.isRagdollClass
+    local Entity_IsValid = Entity.IsValid
+    local Entity_SetName = Entity.SetName
+    local Entity_GetName = Entity.GetName
+    local Entity_Fire = Entity.Fire
 
-local hook_Run = hook.Run
+    local string_format = string.format
+    local timer_Simple = timer.Simple
+    local math_isint = math.isint
+    local uuid_v7 = std.uuid.v7
+    local tostring = tostring
 
-local Entity_GetClass = Entity.GetClass
-local Entity_SetNW2Bool = Entity.SetNW2Bool
+    local isBoolean = std.isBoolean
+    local isNumber = std.isNumber
+    local isColor = std.isColor
+    local isentity = isentity
+    local isvector = isvector
+    local isangle = isangle
+    local IsColor = IsColor
 
-hook.Add( "OnEntityCreated", "Scanner", function( entity )
-    hook_Run( "PreEntityCreated", entity )
-    hook_Run( "EntityCreated", entity )
+    --- [SERVER]
+    ---
+    --- Send input to entity.
+    ---
+    ---@param entity Entity
+    ---@param key string
+    ---@param value any | nil
+    ---@param delay number | nil
+    ---@param activator Entity | nil
+    ---@param caller Entity | nil
+    function entity_lib.sendInput( entity, key, value, delay, activator, caller )
+        if isentity( value ) then
+            if not Entity_IsValid( entity ) then
+                error( "entity is not valid", 2 )
+            end
 
-    local class_name = Entity_GetClass( entity )
+            local name, temp_name = Entity_GetName( value ), uuid_v7()
+            Entity_SetName( value, temp_name )
 
-    if class_name == "player" then
-		hook_Run( "PlayerCreated", entity )
-    elseif utils_isPropClass( class_name ) then
-        hook_Run( "PropCreated", entity )
-    elseif utils_isButtonClass( class_name ) then
-        Entity_SetNW2Bool( entity, "m_bButton", true )
-        hook_Run( "ButtonCreated", entity )
-    elseif utils_isRagdollClass( class_name ) then
-        hook_Run( "RagdollCreated", entity )
-    elseif entity:IsWeapon() then
-        hook_Run( "WeaponCreated", entity )
+            timer_Simple( 0, function()
+                if Entity_IsValid( entity ) then
+                    Entity_Fire( entity, key, temp_name, delay, activator, caller )
+                    Entity_SetName( value, name or "" )
+                end
+            end )
+
+            return
+        end
+
+        if isNumber( value ) then
+            if math_isint( value ) then
+                value = string_format( "%d", value )
+            else
+                value = string_format( "%f", value )
+            end
+        elseif IsColor( value ) or isColor( value ) then
+            value = string_format( "%d %d %d %d", value.r, value.g, value.b, value.a )
+        elseif isvector( value ) or isangle( value ) then
+            value = string_format( "%f %f %f", value[ 1 ], value[ 2 ], value[ 3 ] )
+        elseif isBoolean( value ) then
+            value = value and "1" or "0"
+        else
+            value = tostring( value )
+        end
+
+        Entity_Fire( entity, key, value, delay, activator, caller )
     end
 
-    hook_Run( "PostEntityCreated", entity )
-
-    ---@diagnostic disable-next-line: redundant-parameter, undefined-global
-end, PRE_HOOK )
-
+end
 
 return entity_lib

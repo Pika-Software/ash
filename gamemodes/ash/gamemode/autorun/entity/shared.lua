@@ -295,6 +295,66 @@ do
 
 end
 
+do
+
+    ---@type ash.utils
+    local utils_lib = require( "ash.utils" )
+
+    local utils_isRagdollClass = utils_lib.isRagdollClass
+    local utils_isButtonClass = utils_lib.isButtonClass
+    local utils_isPropClass = utils_lib.isPropClass
+    local utils_isDoorClass = utils_lib.isDoorClass
+
+    local Entity_SetNW2Bool = Entity.SetNW2Bool
+    local hook_Run = hook.Run
+
+    hook.Add( "OnEntityCreated", "Handler", function( entity )
+        hook_Run( "PreEntityCreated", entity )
+
+        local class_name = Entity_GetClass( entity )
+
+        hook_Run( "EntityCreated", entity, class_name )
+
+        if class_name == "player" then
+            hook_Run( "PlayerEntityCreated", entity, class_name )
+        elseif utils_isPropClass( class_name ) then
+            Entity_SetNW2Bool( entity, "m_bProp", true )
+            hook_Run( "PropEntityCreated", entity, class_name )
+        elseif utils_isDoorClass( class_name ) then
+            Entity_SetNW2Bool( entity, "m_bDoor", true )
+            hook_Run( "DoorEntityCreated", entity, class_name )
+        elseif utils_isButtonClass( class_name ) then
+            Entity_SetNW2Bool( entity, "m_bButton", true )
+            hook_Run( "ButtonEntityCreated", entity, class_name )
+        elseif utils_isRagdollClass( class_name ) then
+            Entity_SetNW2Bool( entity, "m_bRagdoll", true )
+            hook_Run( "RagdollEntityCreated", entity, class_name )
+        elseif entity:IsWeapon() then
+            hook_Run( "WeaponEntityCreated", entity, class_name )
+        end
+
+        hook_Run( "PostEntityCreated", entity )
+    end, PRE_HOOK )
+
+    hook.Add( "EntityRemoved", "Handler", function( entity, is_full_update )
+        local class_name = Entity_GetClass( entity )
+        if class_name == "player" then
+            hook_Run( "PlayerEntityRemoved", entity, class_name, is_full_update )
+        elseif utils_isPropClass( class_name ) then
+            hook_Run( "PropEntityRemoved", entity, class_name, is_full_update )
+        elseif utils_isDoorClass( class_name ) then
+            hook_Run( "DoorEntityRemoved", entity, class_name, is_full_update )
+        elseif utils_isButtonClass( class_name ) then
+            hook_Run( "ButtonEntityRemoved", entity, class_name, is_full_update )
+        elseif utils_isRagdollClass( class_name ) then
+            hook_Run( "RagdollEntityRemoved", entity, class_name, is_full_update )
+        elseif entity:IsWeapon() then
+            hook_Run( "WeaponEntityRemoved", entity, class_name, is_full_update )
+        end
+    end, PRE_HOOK )
+
+end
+
 entity_lib.isPlayer = Entity.IsPlayer
 
 return entity_lib
