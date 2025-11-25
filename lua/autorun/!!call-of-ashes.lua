@@ -418,22 +418,19 @@ if LUA_SERVER then
         local chain = ash.Chain
 
         for i = #chain, 1, -1 do
-            local gamemode_info = chain[ i ]
-            local name = gamemode_info.name
-
-            local modules_path = name .. "/gamemode/modules/"
+            local modules_path = chain[ i ].name .. "/gamemode/modules/"
 
             for _, directory_name in raw_ipairs( select( 2, glua_file.Find( modules_path .. "*", "LUA" ) ) ) do
                 local module_path = modules_path .. directory_name
 
-                local entrypoint_path = module_path .. "/cl_init.lua"
-                if file_Exists( entrypoint_path, "LUA" ) then
-                    clientFileSend( entrypoint_path, 2 )
-                else
-                    entrypoint_path = module_path .. "/shared.lua"
-                    if file_Exists( entrypoint_path, "LUA" ) then
-                        clientFileSend( entrypoint_path, 2 )
-                    end
+                local cl_init_path = module_path .. "/cl_init.lua"
+                if file_Exists( cl_init_path, "LUA" ) then
+                    clientFileSend( cl_init_path, 2 )
+                end
+
+                local shared_path = module_path .. "/shared.lua"
+                if file_Exists( shared_path, "LUA" ) then
+                    clientFileSend( shared_path, 2 )
                 end
             end
         end
@@ -1332,11 +1329,11 @@ do
             local cl_init_path = homedir .. "/cl_init.lua"
             if file_Exists( cl_init_path, "LUA" ) then
                 clientFileSend( cl_init_path, stack_level )
-            else
-                cl_init_path = homedir .. "/shared.lua"
-                if file_Exists( cl_init_path, "LUA" ) then
-                    clientFileSend( cl_init_path, stack_level )
-                end
+            end
+
+            local shared_path = homedir .. "/shared.lua"
+            if file_Exists( shared_path, "LUA" ) then
+                clientFileSend( shared_path, stack_level )
             end
         end
 

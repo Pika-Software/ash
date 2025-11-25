@@ -1,7 +1,3 @@
-MODULE.ClientFiles = {
-    "shared.lua"
-}
-
 ---@class ash.entity
 local entity_lib = include( "shared.lua" )
 

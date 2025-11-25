@@ -1,7 +1,3 @@
-MODULE.ClientFiles = {
-    "shared.lua"
-}
-
 include( "shared.lua" )
 
 ---@type ash.sound

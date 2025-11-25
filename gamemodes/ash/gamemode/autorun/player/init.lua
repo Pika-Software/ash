@@ -2,11 +2,6 @@ MODULE.Networks = {
     "network"
 }
 
-MODULE.ClientFiles = {
-    "animations.lua",
-    "shared.lua"
-}
-
 ---@class ash.player
 local player_lib = include( "shared.lua" )
 local player_isInitialized = player_lib.isInitialized
