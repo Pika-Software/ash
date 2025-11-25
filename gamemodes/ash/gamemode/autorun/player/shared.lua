@@ -169,6 +169,7 @@ do
     local MoveData_GetVelocity = MoveData.GetVelocity
     local MoveData_GetButtons = MoveData.GetButtons
     local Entity_IsOnGround = Entity.IsOnGround
+    local Entity_WaterLevel = Entity.WaterLevel
     local Vector = Vector
 
     local player_isAlive = player_lib.isAlive
@@ -192,94 +193,81 @@ do
         end
     } )
 
-    ---@type table<Player, integer>
+    ---@alias ash.player.MoveState "standing" | "crouching" | "jumping" | "falling" | "swimming" | "wandering" | "running" | "walking" | string
+
+    ---@type table<Player, ash.player.MoveState>
     local move_states = {}
 
     setmetatable( move_states, {
         __index = function()
-            return 0
-        end
+            return "standing"
+        end,
+        __mode = "k"
     } )
 
     --- [SHARED]
     ---
-    --- Checks if the player is crouching.
+    --- Gets the player's current move state.
     ---
     ---@param pl Player
-    ---@return boolean
-    function player_lib.isCrouching( pl )
-        return move_states[ pl ] == 0
+    ---@return ash.player.MoveState move_state
+    function player_lib.getMoveState( pl )
+        return move_states[ pl ]
     end
 
-    --- [SHARED]
-    ---
-    --- Checks if the player is walking.
-    ---
-    ---@param pl Player
-    ---@return boolean
-    function player_lib.isWandering( pl )
-        return move_states[ pl ] == 1
-    end
-
-    --- [SHARED]
-    ---
-    --- Checks if the player is running.
-    ---
-    ---@param pl Player
-    ---@return boolean
-    function player_lib.isWalking( pl )
-        return move_states[ pl ] == 2
-    end
-
-    --- [SHARED]
-    ---
-    --- Checks if the player is sprinting.
-    ---
-    ---@param pl Player
-    ---@return boolean
-    function player_lib.isRunning( pl )
-        return move_states[ pl ] == 3
-    end
-
-    --- [SHARED]
-    ---
-    --- Checks if the player is falling.
-    ---
-    ---@param pl Player
-    ---@return boolean
-    function player_lib.isFalling( pl )
-        return move_states[ pl ] == 4
-    end
-
-    local move_keys = bit_bor( IN_FORWARD, IN_MOVELEFT, IN_MOVERIGHT, IN_BACK )
-
-    hook.Add( "FinishMove", "Movement", function( pl, mv )
+    hook.Add( "FinishMove", "MovementController", function( pl, mv )
         if player_isAlive( pl ) then
             velocities[ pl ] = MoveData_GetVelocity( mv )
-
-            if Entity_IsOnGround( pl ) then
-                local buttons = MoveData_GetButtons( mv )
-
-                if bit_band( buttons, move_keys ) ~= 0 then
-                    if bit_band( buttons, IN_DUCK ) ~= 0 then
-                        move_states[ pl ] = 0
-                    elseif bit_band( buttons, IN_WALK ) ~= 0 then
-                        move_states[ pl ] = 1
-                    elseif bit_band( buttons, IN_SPEED ) ~= 0 then
-                        move_states[ pl ] = 3
-                    else
-                        move_states[ pl ] = 2
-                    end
-                end
-
-                return
-            end
+            move_states[ pl ] = hook_Run( "PlayerSelectMoveState", pl, mv )
         end
-
-        move_states[ pl ] = 4
 
         ---@diagnostic disable-next-line: redundant-parameter, undefined-global
     end, PRE_HOOK )
+
+    local IN_JUMP = IN_JUMP
+    local IN_DUCK = IN_DUCK
+    local IN_WALK = IN_WALK
+    local IN_SPEED = IN_SPEED
+
+    local IN_MOVE = bit_bor( IN_FORWARD, IN_MOVELEFT, IN_MOVERIGHT, IN_BACK )
+
+    ---@param arguments string[]
+    ---@param pl Player
+    ---@param mv CMoveData
+    hook.Add( "PlayerSelectMoveState", "DefaultStates", function( arguments, pl, mv )
+        ---@type ash.player.MoveState | nil
+        local move_state = arguments[ 1 ]
+
+        if move_state == nil then
+            if Entity_IsOnGround( pl ) then
+                local buttons = MoveData_GetButtons( mv )
+
+                if bit_band( buttons, IN_DUCK ) ~= 0 then
+                    move_state = "crouching"
+                elseif bit_band( buttons, IN_JUMP ) ~= 0 then
+                    move_state = "jumping"
+                elseif bit_band( buttons, IN_MOVE ) ~= 0 then
+                    if bit_band( buttons, IN_WALK ) ~= 0 then
+                        move_state = "wandering"
+                    elseif bit_band( buttons, IN_SPEED ) ~= 0 then
+                        move_state = "running"
+                    else
+                        move_state = "walking"
+                    end
+                else
+                    move_state = "standing"
+                end
+            elseif Entity_WaterLevel( pl ) ~= 0 then
+                move_state = "swimming"
+            else
+                move_state = "falling"
+            end
+        end
+
+        return move_state
+
+        ---@diagnostic disable-next-line: redundant-parameter, undefined-global
+    end, POST_HOOK_RETURN )
 
 end
 

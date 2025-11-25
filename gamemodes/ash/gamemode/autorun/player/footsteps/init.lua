@@ -1,16 +1,3 @@
-MODULE.ClientFiles = {
-    "shared.lua",
-    "legacy.lua"
-}
-
-include( "shared.lua" )
-
----@type ash.player
-local player_lib = require( "ash.player" )
-
----@type ash.entity
-local entity_lib = require( "ash.entity" )
-
 ---@type ash.sound
 local sound_lib = require( "ash.sound" )
 local sound_exists = sound_lib.exists
@@ -18,7 +5,6 @@ local sound_merge = sound_lib.merge
 
 local string_match = string.match
 local file_Find = file.Find
-local hook_Run = hook.Run
 
 ---@class ash.footsteps
 local footsteps = {}
@@ -41,6 +27,9 @@ local loud_move_types = {
 
 footsteps.LoudMoveTypes = loud_move_types
 
+---@type table<string, boolean>
+local registry = {}
+
 --- [SHARED]
 ---
 --- Register legacy footsteps for a shoes type and a directory path.
@@ -60,19 +49,24 @@ function footsteps.registerLegacy( shoes_type, directory_path, sound_data )
     for _, file_name in ipairs( file_Find( "sound/" .. directory_path .. "/*", "GAME" ) ) do
         local material_name = string_match( file_name, "^(%l+)" ) or "default"
 
-        local footstep_sounds = file_Find( "sound/" .. directory_path .. "/" .. material_name .. "*", "GAME" )
-        local footstep_sounds_count = #footstep_sounds
+        local sounds = file_Find( "sound/" .. directory_path .. "/" .. material_name .. "*", "GAME" )
+        local sound_count = #sounds
 
-        for j = 1, footstep_sounds_count, 1 do
-            footstep_sounds[ j ] = ")^" .. directory_path .. "/" .. footstep_sounds[ j ]
-        end
+        if sound_count ~= 0 then
+            for j = 1, sound_count, 1 do
+                sounds[ j ] = ")^" .. directory_path .. "/" .. sounds[ j ]
+            end
 
-        sound_data.sound = footstep_sounds
+            sound_data.sound = sounds
 
-        for j = 1, move_types_count, 1 do
-            local sound_name = shoes_type .. "." .. material_name .. "." .. move_types[ j ]
-            if not sound_exists( sound_name ) then
-                sound_merge( sound_name, sound_data )
+            local base_name = shoes_type .. "." .. material_name
+            registry[ base_name ] = true
+
+            for j = 1, move_types_count, 1 do
+                local sound_name = base_name .. "." .. move_types[ j ]
+                if not sound_exists( sound_name ) then
+                    sound_merge( sound_name, sound_data )
+                end
             end
         end
     end
@@ -101,22 +95,36 @@ function footsteps.register( shoes_type, directory_path, sound_data )
         local material_name = materials[ k ]
         local material_path = shoes_path .. material_name .. "/"
 
+        local base_name = shoes_type .. "." .. material_name
+        local is_empty = true
+
         local types, type_counts = {}, {}
 
         for i = 1, move_types_count, 1 do
             local move_name = move_types[ i ]
-
             local move_path = material_path .. move_name .. "/"
+
             local sounds = file.Find( "sound/" .. move_path .. "*", "GAME" )
             local sound_count = #sounds
 
-            for j = 1, sound_count, 1 do
-                sounds[ j ] = ")^" .. move_path .. sounds[ j ]
+            if sound_count ~= 0 then
+                is_empty = false
+
+                for j = 1, sound_count, 1 do
+                    sounds[ j ] = ")^" .. move_path .. sounds[ j ]
+                end
             end
 
             type_counts[ move_name ] = sound_count
             types[ move_name ] = sounds
         end
+
+        if is_empty then
+            ash.Logger:warn( "Directory 'sound/%s' does not contain any files, footsteps will not be registered.", material_path )
+            return
+        end
+
+        registry[ base_name ] = true
 
         for i = 1, move_types_count, 1 do
             local move_name = move_types[ i ]
@@ -145,7 +153,7 @@ function footsteps.register( shoes_type, directory_path, sound_data )
 
             sound_data.sound = move_sounds
 
-            local sound_name = shoes_type .. "." .. material_name .. "." .. move_name
+            local sound_name = base_name .. "." .. move_name
             if not sound_exists( sound_name ) then
                 sound_merge( sound_name, sound_data )
             end
@@ -160,13 +168,7 @@ end
 ---@param shoes_type string
 ---@param material_name string
 function footsteps.exists( shoes_type, material_name )
-    for i = 1, #move_types, 1 do
-        if not sound_exists( shoes_type .. "." .. material_name .. "." .. move_types[ i ] ) then
-            return false
-        end
-    end
-
-    return true
+    return registry[ shoes_type .. "." .. material_name ] == true
 end
 
 --- [SHARED]
@@ -180,217 +182,60 @@ end
 ---@param material_base string
 ---@param sound_data ash.sound.Data | nil
 function footsteps.alias( shoes_type, material_name, material_base, sound_data )
-    local base_half_name = shoes_type .. "." .. material_base
-    local sound_half_name = shoes_type .. "." .. material_name
+    local base_name = shoes_type .. "." .. material_base
+
+    if not registry[ base_name ] then
+        ash.errorf( 2, true, "Footstep sounds '%s' does not exist.", base_name )
+        return
+    end
 
     if sound_data == nil then
         sound_data = {}
     end
 
+    local sound_name = shoes_type .. "." .. material_name
+    registry[ sound_name ] = true
+
     for i = 1, #move_types, 1 do
         local move_name = move_types[ i ]
-        sound_data.name = sound_half_name .. "." .. move_name
-        sound_merge( base_half_name .. "." .. move_name, sound_data )
+
+        sound_data.name = sound_name .. "." .. move_name
+        sound_merge( base_name .. "." .. move_name, sound_data )
     end
-end
-
----@type table<Player, string>
-local player_shoes = {}
-
-setmetatable( player_shoes, {
-    __mode = "k",
-    __index = function( self, pl )
-        local shoes_type = "default"
-        self[ pl ] = shoes_type
-        return shoes_type
-    end
-} )
-
---- [SHARED]
----
---- Gets the player's shoes type.
----
----@param pl Player
----@return string shoes_type
-function footsteps.getShoesType( pl )
-    return player_shoes[ pl ]
-end
-
---- [SHARED]
----
---- Sets the player's shoes type.
----
----@param pl Player
----@param shoes_type string
-function footsteps.setShoesType( pl, shoes_type )
-    player_shoes[ pl ] = shoes_type
 end
 
 do
 
-    local Entity_GetBoneMatrix = Entity.GetBoneMatrix
-    local Entity_GetMoveType = Entity.GetMoveType
-    local Entity_WaterLevel = Entity.WaterLevel
+    ---@type table<Player, string>
+    local player_shoes_registry = {}
 
-    local entity_getHitboxBounds = entity_lib.getHitboxBounds
-    local entity_getHitbox = entity_lib.getHitbox
-
-    local util = util
-    local util_TraceLine = util.TraceLine
-    local util_TraceHull = util.TraceHull
-
-    ---@type TraceResult
-    local trace_results = {}
-
-    ---@type HullTrace | Trace
-    local trace = {
-        output = trace_results
-    }
-
-    ---@type table<Player, table<string, boolean>>
-    local footstates = {}
-
-    setmetatable( footstates, {
+    setmetatable( player_shoes_registry, {
         __mode = "k",
         __index = function( self, pl )
-            local bones = {}
-            self[ pl ] = bones
-            return bones
+            local shoes_type = "default"
+            self[ pl ] = shoes_type
+            return shoes_type
         end
     } )
 
+    --- [SHARED]
+    ---
+    --- Gets the player's shoes type.
+    ---
     ---@param pl Player
-    ---@param bone_id integer
-    local function perform_step_sound( pl, bone_id )
-        local matrix = Entity_GetBoneMatrix( pl, bone_id )
-        if matrix == nil then return end
-
-        trace.filter = pl
-
-        local origin = matrix:GetTranslation()
-        local angles = matrix:GetAngles()
-
-        local direction = -angles:Right() * 6
-
-        trace.start = origin
-        trace.endpos = origin + direction
-
-        local hitbox, hitbox_group = entity_getHitbox( pl, bone_id )
-
-        if hitbox == nil then
-            trace.mins, trace.maxs = nil, nil
-        else
-            ---@diagnostic disable-next-line: assign-type-mismatch
-            trace.mins, trace.maxs = entity_getHitboxBounds( pl, hitbox, hitbox_group )
-        end
-
-        if trace.mins == nil then
-            ---@cast trace Trace
-            util_TraceLine( trace )
-        else
-            ---@cast trace HullTrace
-            util_TraceHull( trace )
-        end
-
-        local state = trace_results.Hit
-
-        if state == footstates[ pl ][ bone_id ] then return end
-        footstates[ pl ][ bone_id ] = state
-
-        if state then
-            hook_Run( "PlayerTakesFootstep", pl, trace_results, bone_id )
-        end
+    ---@return string shoes_type
+    function footsteps.getShoesType( pl )
+        return player_shoes_registry[ pl ]
     end
-
-    local player_isCrouching = player_lib.isCrouching
-    local player_isRunning = player_lib.isRunning
-    local player_isFalling = player_lib.isFalling
-
-    local Entity_GetBoneCount = Entity.GetBoneCount
-    local Entity_GetBoneName = Entity.GetBoneName
-
-    hook.Add( "PlayerPostThink", "FootstepsThink", function( pl )
-        if Entity_GetMoveType( pl ) == MOVETYPE_LADDER then
-            -- hook_Run( "PlayerOnLadder", pl )
-            return
-        end
-
-        if Entity_WaterLevel( pl ) == 3 then
-            -- hook_Run( "PlayerInWater", pl )
-            return
-        end
-
-        for bone_id = 0, Entity_GetBoneCount( pl ) - 1, 1 do
-            local bone_name = Entity_GetBoneName( pl, bone_id )
-            if bone_name ~= nil and string_match( bone_name, "^ValveBiped.Bip%d+_%w_Foot$" ) ~= nil then
-                perform_step_sound( pl, bone_id )
-            end
-        end
-
-        ---@diagnostic disable-next-line: redundant-parameter, undefined-global
-    end, PRE_HOOK )
-
-    local sound_play = sound_lib.play
 
     --- [SHARED]
     ---
-    --- Plays a footstep sound.
+    --- Sets the player's shoes type.
     ---
-    ---@param origin Vector
+    ---@param pl Player
     ---@param shoes_type string
-    ---@param material_name string
-    ---@param move_type string
-    ---@param volume number | nil
-    ---@param sound_level integer | nil
-    ---@param pitch integer | nil
-    ---@param dsp integer | nil
-    local function play_sound( origin, shoes_type, material_name, move_type, volume, sound_level, pitch, dsp )
-        sound_play( shoes_type .. "." .. material_name .. "." .. move_type, origin, sound_level, pitch, volume, dsp )
-        -- PrintMessage( HUD_PRINTCENTER, shoes_type .. "." .. material_name .. "." .. move_type )
-    end
-
-    footsteps.play = play_sound
-
-    do
-
-        local util_GetSurfaceData = util.GetSurfaceData
-
-        ---@param pl Player
-        ---@param trace_results TraceResult
-        ---@param bone_name string
-        hook.Add( "PlayerTakesFootstep", "Default", function( pl, trace_results, bone_name )
-            local move_type, volume, sound_level
-
-            if player_isCrouching( pl ) then
-                move_type = "wandering"
-                sound_level = 40
-                volume = 0.75
-            elseif player_isRunning( pl ) then
-                move_type = "running"
-                sound_level = 90
-                volume = 1.25
-            elseif player_isFalling( pl ) then
-                move_type = "landing"
-                sound_level = 100
-                volume = 1.5
-            else
-                move_type = "walking"
-                sound_level = 75
-                volume = 1
-            end
-
-            local water_level = Entity_WaterLevel( pl )
-            if water_level == 1 or water_level == 2 then
-                play_sound( trace_results.HitPos, player_shoes[ pl ], "water", move_type, volume, sound_level, nil, 1 )
-                return
-            end
-
-            local surface_data = util_GetSurfaceData( trace_results.SurfaceProps )
-            if surface_data ~= nil then
-                play_sound( trace_results.HitPos, player_shoes[ pl ], surface_data.name, move_type, volume, sound_level, nil, 1 )
-            end
-        end )
-
+    function footsteps.setShoesType( pl, shoes_type )
+        player_shoes_registry[ pl ] = shoes_type
     end
 
 end
@@ -456,6 +301,66 @@ do
                 end
             end
         end
+    end )
+
+end
+
+do
+
+    local sound_play = sound_lib.play
+
+    ---@type table<string, string>
+    local move_states = {
+        crouching = "wandering",
+        wandering = "walking",
+        standing = "walking",
+        jumping = "landing",
+        falling = "landing"
+    }
+
+    setmetatable( move_states, {
+        __index = function( self, move_state )
+            self[ move_state ] = move_state
+            return move_state
+        end
+    } )
+
+    --- [SHARED]
+    ---
+    --- Plays a footstep sound.
+    ---
+    ---@param origin Vector
+    ---@param shoes_type string
+    ---@param material_name string
+    ---@param move_type string
+    ---@param volume number | nil
+    ---@param sound_level integer | nil
+    ---@param pitch integer | nil
+    ---@param dsp integer | nil
+    function footsteps.play( origin, shoes_type, material_name, move_type, volume, sound_level, pitch, dsp )
+        sound_play( shoes_type .. "." .. material_name .. "." .. move_states[ move_type ], origin, sound_level, pitch, volume, dsp )
+    end
+
+    ---@param pl Player
+    ---@param sound_position Vector
+    ---@param move_state string
+    ---@param bone_id integer
+    hook.Add( "PlayerFootDown", "Sounds", function( pl, sound_position, player_shoes, material_name, move_state, bone_id )
+        local selected_state = move_states[ move_state ]
+        local sound_level, volume
+
+        if selected_state == "wandering" then
+            sound_level, volume =  40, 0.75
+        elseif selected_state == "running" then
+            sound_level, volume =  90, 1.25
+        elseif selected_state == "falling" then
+            sound_level, volume = 100, 1.50
+        else
+            sound_level, volume =  75, 1.00
+        end
+
+        -- PrintMessage( 4, player_shoes .. "." .. material_name .. "." .. selected_state )
+        sound_play( player_shoes .. "." .. material_name .. "." .. selected_state, sound_position, sound_level, nil, volume, 1 )
     end )
 
 end
