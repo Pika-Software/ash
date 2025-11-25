@@ -26,8 +26,6 @@ do
             UserCommand_ClearMovement( cmd )
             UserCommand_ClearButtons( cmd )
         end
-
-        ---@diagnostic disable-next-line: redundant-parameter, undefined-global
     end, POST_HOOK )
 
 end
@@ -50,8 +48,6 @@ do
         max_speed = hook_Run( "PlayerSpeed", pl, mv, max_speed ) or 450
         MoveData_SetMaxClientSpeed( mv, max_speed )
         MoveData_SetMaxSpeed( mv, max_speed )
-
-        ---@diagnostic disable-next-line: redundant-parameter, undefined-global
     end, POST_HOOK )
 
 end
@@ -220,8 +216,6 @@ do
             velocities[ pl ] = MoveData_GetVelocity( mv )
             move_states[ pl ] = hook_Run( "PlayerSelectMoveState", pl, mv )
         end
-
-        ---@diagnostic disable-next-line: redundant-parameter, undefined-global
     end, PRE_HOOK )
 
     local IN_JUMP = IN_JUMP
@@ -265,8 +259,6 @@ do
         end
 
         return move_state
-
-        ---@diagnostic disable-next-line: redundant-parameter, undefined-global
     end, POST_HOOK_RETURN )
 
 end

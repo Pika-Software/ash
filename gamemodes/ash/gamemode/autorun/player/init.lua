@@ -394,16 +394,12 @@ do
             if hook_Run( "CanPlayerRagdoll", pl ) ~= false then
                 player_lib.ragdollCreate( pl )
             end
-
-            ---@diagnostic disable-next-line: redundant-parameter, undefined-global
         end, PRE_HOOK )
 
     end
 
     hook.Add( "PostPlayerDeath", "Respawn", function( pl )
         awaiting_respawn[ pl ] = true
-
-        ---@diagnostic disable-next-line: redundant-parameter, undefined-global
     end, PRE_HOOK )
 
     do
@@ -415,8 +411,6 @@ do
             if awaiting_respawn[ pl ] and bit_band( key, respawn_keys[ pl ] ) ~= 0 and hook_Run( "CanPlayerRespawn", pl ) ~= false then
                 Entity_Spawn( pl )
             end
-
-            ---@diagnostic disable-next-line: redundant-parameter, undefined-global
         end, PRE_HOOK )
 
         hook.Add( "PlayerSpawn", "SpeedController", function( pl, is_transition )
@@ -439,8 +433,6 @@ do
             hook_Run( "PlayerSetupLoadout", pl, is_transition )
 
             hook_Run( "PostPlayerSpawn", pl, is_transition )
-
-            ---@diagnostic disable-next-line: redundant-parameter, undefined-global
         end, PRE_HOOK )
 
     end

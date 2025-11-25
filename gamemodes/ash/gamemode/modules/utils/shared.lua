@@ -74,6 +74,46 @@ end
 
 do
 
+    local door_class_names = list.GetForEdit( "ash.door.classnames" )
+
+    door_class_names.prop_door_rotating_checkpoint = true
+    door_class_names.prop_door_rotating = true
+    door_class_names.func_door_rotating = true
+    door_class_names.func_door = true
+
+    --- [SHARED]
+    ---
+    --- Checks if the class name is a door class.
+    ---
+    ---@param class_name string
+    ---@return boolean is_door
+    function utils.isDoorClass( class_name )
+        return door_class_names[ class_name ] == true
+    end
+
+end
+
+do
+
+    local breakable_class_names = list.GetForEdit( "ash.breakable.classnames" )
+
+    breakable_class_names.func_breakable_surf = true
+    breakable_class_names.func_breakable = true
+
+    --- [SHARED]
+    ---
+    --- Checks if the class name is a breakable class.
+    ---
+    ---@param class_name string
+    ---@return boolean is_breakable
+    function utils.isBreakableClass( class_name )
+        return breakable_class_names[ class_name ] == true
+    end
+
+end
+
+do
+
     local util_TraceLine = util.TraceLine
 
     local trace_result = {}
