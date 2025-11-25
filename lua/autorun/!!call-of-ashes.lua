@@ -69,6 +69,8 @@ ash.Tag = string_lower( string_match( ash.Name, "[^%s%p]+" ) ) .. "@" .. ash.Ver
 
 ash.DedicatedServer = game.IsDedicated()
 
+ash.errorf = std.errorf
+
 setmetatable( ash, {
     __tostring = function( self )
         return string_format( "%s: %p", self.Tag, self )
@@ -1189,10 +1191,11 @@ function Module:load( stack_level )
     self.Environment = module_enviroment
 
     local success, result = pcall( file_compile( self.EntryPoint, module_enviroment, stack_level ) )
+
     if success then
         self.Result = result
     else
-        self.Error = result
+        self.Error = self.EntryPoint .. ":0: " .. ( string_match( result, "^[^:]+:%d+: (.*)$" ) or result )
     end
 end
 
@@ -1398,6 +1401,52 @@ do
         return module_object
     end
 
+    local module_client_reload
+
+    if LUA_SERVER then
+
+        ---@param module_name string
+        function module_client_reload( module_name )
+            local timer_name = "ash.reload::" .. module_name
+
+            glua_timer.Create( timer_name, 2, 1, function()
+                glua_timer.Remove( timer_name )
+
+                glua_net.Start( "ash.reload" )
+                glua_net.WriteUInt( 1, 1 )
+                glua_net.WriteString( module_name )
+                glua_net.Broadcast()
+            end )
+        end
+
+    end
+
+    --- [SHARED]
+    ---
+    --- Reloads the module.
+    ---
+    function Module:reload()
+        logger:debug( "'%s' is being reloaded.", self )
+
+        local module_name = self.Name
+        local module_object = module_require( module_name, true, 2 )
+
+        if module_object == nil then
+            logger:error( "Failed to reload module '%s', module not found.", module_name )
+            return
+        end
+
+        local error_msg = module_object.Error
+        if error_msg ~= nil then
+            ErrorNoHalt( error_msg .. "\n" )
+            return
+        end
+
+        if LUA_SERVER then
+            module_client_reload( module_name )
+        end
+    end
+
     if LUA_SERVER and DEBUG then
 
         ---@param fs_object dreamwork.std.fs.File
@@ -1405,35 +1454,24 @@ do
         fs.watchdog.Modified:attach( function( fs_object, is_directory )
             if is_directory then return end
 
-            local gamemode_name, module_type, file_path = string_match( fs_object.path, "^/garrysmod/addons/[^/]+/gamemodes/([^/]+)/gamemode/(%w+)/(.+)%.lua$" )
-            if not ( module_type == "modules" or module_type == "autorun" ) then return end
-            if gamemode_name == nil or file_path == nil then return end
+            local gamemode_name, module_type, directory_path, file_name = string_match( fs_object.path, "^/garrysmod/addons/[^/]+/gamemodes/([^/]+)/gamemode/(%w+)/(.+)/(.+%.lua)$" )
+            if gamemode_name == nil or not ( module_type == "modules" or module_type == "autorun" ) or directory_path == nil then return end
 
-            local module_name
+            local segments, segment_count = string.byteSplit( directory_path, 0x2F --[[ / ]] )
+            if segment_count == 0 then return end
 
-            if fs_object.name == "cl_init.lua" then
-                module_name = gamemode_name .. "." .. string.match( file_path, "^([^/]+)" ) or file_path
-            else
-
-                module_name = gamemode_name .. "." .. string.replace( file_path, "/", "." )
-
-                if modules[ module_name ] == nil then
-                    module_name = string_match( module_name, "^([%w_]+%.[%w_]+)" ) or module_name
-                    if modules[ module_name ] == nil then return end
+            for i = segment_count, 1, -1 do
+                local module_object = modules[ gamemode_name .. "." .. table_concat( segments, ".", 1, i ) ]
+                if module_object ~= nil then
+                    ---@cast module_object ash.Module
+                    module_object:reload()
+                    return
                 end
-
             end
 
-            -- ash.resend()
-
-            xpcall( module_require, ErrorNoHaltWithStack, module_name, true, 2 )
-
-            glua_timer.Create( "ash.reload.1", 2, 1, function()
-                glua_net.Start( "ash.reload" )
-                glua_net.WriteUInt( 1, 1 )
-                glua_net.WriteString( module_name )
-                glua_net.Broadcast()
-            end )
+            if file_name == "cl_init.lua" then
+                module_client_reload( gamemode_name .. "." .. table_concat( segments, ".", 1, segment_count ) )
+            end
         end )
 
     end
@@ -1456,7 +1494,7 @@ do
 
         local err_msg = module_object.Error
         if err_msg ~= nil then
-            std.errorf( 2, false, err_msg )
+            error( err_msg, 2 )
         end
 
         return module_object.Result
@@ -1512,7 +1550,7 @@ do
             ash.resend()
             ash.reload()
 
-            glua_timer.Create( "ash.reload.0", 1, 1, function()
+            glua_timer.Create( "ash.reload", 1, 1, function()
                 glua_net.Start( "ash.reload" )
                 glua_net.WriteUInt( 0, 1 )
                 glua_net.Broadcast()
@@ -1526,11 +1564,13 @@ do
         glua_net.Receive( "ash.reload", function()
             local uint1_1 = glua_net.ReadUInt( 1 )
             if uint1_1 == 0 then
-                glua_timer.Create( "ash.reload.0", 1, 1, ash.reload )
+                glua_timer.Create( "ash.reload", 1, 1, ash.reload )
             elseif uint1_1 == 1 then
                 local module_name = glua_net.ReadString()
+                local timer_name = "ash.reload." .. module_name
 
-                glua_timer.Create( "ash.reload.1", 1, 1, function()
+                glua_timer.Create( timer_name, 1, 1, function()
+                    glua_timer.Remove( timer_name )
                     xpcall( module_require, ErrorNoHaltWithStack, module_name, true, 2 )
                 end )
             end
