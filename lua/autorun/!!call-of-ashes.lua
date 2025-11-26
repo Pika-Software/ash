@@ -1639,7 +1639,9 @@ do
     ---@diagnostic disable-next-line: param-type-mismatch
     environment.Entity = addMetatable( "Entity", _G.Entity )
     environment.Weapon = addMetatable( "Weapon", LUA_SERVER and ents.Create or ents.CreateClientside )
-    environment.Player = addMetatable( "Player", player.CreateNextBot )
+
+    ---@diagnostic disable-next-line: param-type-mismatch
+    environment.Player = addMetatable( "Player", Player )
 
     ---@diagnostic disable-next-line: param-type-mismatch
     environment.Vector = addMetatable( "Vector", Vector )
