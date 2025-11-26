@@ -150,8 +150,10 @@ do
                 end
             end
 
-            hook_Run( "PostPlayerRagdoll", pl, ragdoll_entity )
+            hook_Run( "PlayerSetupRagdoll", pl, ragdoll_entity )
         end
+
+        hook_Run( "PostPlayerRagdoll", pl, ragdoll_entity )
 
         return ragdoll_entity
     end
@@ -168,7 +170,7 @@ do
         [ 0 ] = function( pl )
             if not player_isInitialized( pl ) then
                 Entity_SetNWBool( pl, "m_bInitialized", true )
-                hook.Run( "PlayerInitialized", pl )
+                hook_Run( "PlayerInitialized", pl )
             end
         end
     }
@@ -380,6 +382,19 @@ do
         ragdoll_entity:Spawn()
         return ragdoll_entity
     end )
+
+    do
+
+        local entity_getPlayerColor = entity_lib.getPlayerColor
+        local entity_setPlayerColor = entity_lib.setPlayerColor
+
+        ---@param pl Player
+        ---@param ragdoll_entity Entity
+        hook.Add( "PlayerSetupRagdoll", "DefaultSetup", function( pl, ragdoll_entity )
+            entity_setPlayerColor( ragdoll_entity, entity_getPlayerColor( pl ) )
+        end )
+
+    end
 
     do
 

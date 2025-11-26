@@ -224,23 +224,29 @@ end
 do
 
     local Entity_GetNW2Vector = Entity.GetNW2Vector
+    local math_floor = math.floor
 
-    do
+    local default_color = Vector( 0.33, 0.33, 0.33 )
 
-        local default_color = Vector( 0.33, 0.33, 0.33 )
+    --- [SHARED]
+    ---
+    --- Get player color.
+    ---
+    ---@param entity Entity
+    ---@return Vector color_vec3
+    function Entity.GetPlayerColor( entity )
+        return Entity_GetNW2Vector( entity, "m_vPlayerColor", default_color )
+    end
 
-        --- [SHARED]
-        ---
-        --- Get player color.
-        ---
-        ---@param entity Entity
-        ---@return Vector color_vec3
-        function Entity.GetPlayerColor( entity )
-            return Entity_GetNW2Vector( entity, "m_vPlayerColor", default_color )
-        end
-
-        entity_lib.getPlayerColor = Entity.GetPlayerColor
-
+    --- [SHARED]
+    ---
+    --- Get player color.
+    ---
+    ---@param entity Entity
+    ---@return Color color
+    function entity_lib.getPlayerColor( entity )
+        local vector = Entity_GetNW2Vector( entity, "m_vPlayerColor", default_color )
+        return Color( math_floor( vector[ 1 ] * 255 ), math_floor( vector[ 2 ] * 255 ), math_floor( vector[ 3 ] * 255 ), 255 )
     end
 
 end
