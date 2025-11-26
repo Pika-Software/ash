@@ -81,7 +81,7 @@ hook.Add( "PlayerPostThink", "FootstepsThink", function( pl )
                 local bone_direction = ( root_position - bone_position )
                 Vector_Normalize( bone_direction )
 
-                trace.endpos = bone_position - bone_direction * Vector_Distance( root_position, bone_position ) * 0.25 -- * 4
+                trace.endpos = bone_position - bone_direction * 5 -- Vector_Distance( root_position, bone_position ) * 0.25
                 trace.filter = pl
 
                 local hitbox, hitbox_group = entity_getHitbox( pl, bone_id )
@@ -101,21 +101,22 @@ hook.Add( "PlayerPostThink", "FootstepsThink", function( pl )
                 if hit_ground ~= foot_states[ pl ][ bone_id ] then
                     foot_states[ pl ][ bone_id ] = hit_ground
 
-                    local material_name = "unknown"
+                    local material_name, fallback_sound
 
                     if water_level == 0 then
                         local surface_data = util_GetSurfaceData( trace_result.SurfaceProps )
                         if surface_data ~= nil then
                             material_name = surface_data.name
+                            fallback_sound = surface_data.impactSoftSound
                         end
                     else
                         material_name = "water"
                     end
 
                     if hit_ground then
-                        hook_Run( "PlayerFootDown", pl, trace_result.HitPos, player_shoes, material_name, move_state, bone_id )
+                        hook_Run( "PlayerFootDown", pl, trace_result.HitPos, player_shoes, material_name, move_state, bone_id, fallback_sound )
                     else
-                        hook_Run( "PlayerFootUp", pl, trace_result.HitPos, player_shoes, material_name, move_state, bone_id )
+                        hook_Run( "PlayerFootUp", pl, trace_result.HitPos, player_shoes, material_name, move_state, bone_id, fallback_sound )
                     end
                 end
             end

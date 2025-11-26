@@ -365,9 +365,6 @@ local MOVETYPE_WALK = MOVETYPE_WALK
 
 local FL_ANIMDUCKING = FL_ANIMDUCKING
 
--- ---@type ash.entity
--- local entity_lib = require( "ash.entity" )
-
 local Vector_Length2DSqr = Vector.Length2DSqr
 local Vector_LengthSqr = Vector.LengthSqr
 -- local Vector_Length2D = Vector.Length2D

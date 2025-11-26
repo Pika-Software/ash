@@ -263,6 +263,7 @@ do
                 { "gravel", "concrete" },
                 { "rock", "concrete" },
                 { "plastic", "concrete" },
+                { "antlionsand", "sand" },
                 -- { "metal", "metalbar" },
                 { "solidmetal", "metal" },
                 { "metalbox", "metal" },
@@ -308,6 +309,7 @@ end
 do
 
     local sound_play = sound_lib.play
+    local math_random = math.random
 
     ---@type table<string, string>
     local move_states = {
@@ -348,7 +350,8 @@ do
     ---@param sound_position Vector
     ---@param move_state string
     ---@param bone_id integer
-    hook.Add( "PlayerFootDown", "Sounds", function( pl, sound_position, player_shoes, material_name, move_state, bone_id )
+    ---@param fallback_sound string
+    hook.Add( "PlayerFootDown", "Sounds", function( pl, sound_position, player_shoes, material_name, move_state, bone_id, fallback_sound )
         local selected_state = move_states[ move_state ]
         local sound_level, volume
 
@@ -362,9 +365,16 @@ do
             sound_level, volume =  75, 1.00
         end
 
-        local sound_name = player_shoes .. "." .. material_name
-        if sound_registry[ sound_name ] then
-            sound_play( sound_name .. "." .. selected_state, sound_position, sound_level, nil, volume, 1 )
+        if material_name ~= nil then
+            local sound_name = player_shoes .. "." .. material_name
+            if sound_registry[ sound_name ] then
+                sound_play( sound_name .. "." .. selected_state, sound_position, sound_level, nil, volume, 1 )
+                return
+            end
+        end
+
+        if fallback_sound ~= nil then
+            sound_play( fallback_sound, sound_position, sound_level, math_random( 118, 138 ), volume, 1 )
         end
     end )
 

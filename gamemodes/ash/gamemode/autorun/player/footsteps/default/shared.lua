@@ -16,14 +16,7 @@ hook.Add( "PlayerStepSoundTime", "StopNativeSounds", function( pl, step_type, is
     else
 
         -- normal walking
-        local vertical_speed = Vector_Length2D( Entity_GetVelocity( pl ) )
-        if vertical_speed <= 100 then
-            step_time = 400
-        elseif vertical_speed <= 300 then
-            step_time = 350
-        else
-            step_time = 250
-        end
+        step_time = 70000 / Vector_Length2D( Entity_GetVelocity( pl ) )
 
     end
 
@@ -34,7 +27,7 @@ hook.Add( "PlayerStepSoundTime", "StopNativeSounds", function( pl, step_type, is
 
     -- crouching
     if Player_Crouching( pl ) then
-		step_time = step_time * 1.2
+		step_time = step_time * 1.25
 	end
 
 	return step_time
