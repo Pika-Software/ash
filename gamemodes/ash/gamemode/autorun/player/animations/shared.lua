@@ -175,7 +175,7 @@ end
 ---
 ---@return integer activity
 local function getFallingActivity( pl )
-    return Entity_GetNW2Int( pl, "m_iFallingActivity", ACT_MP_JUMP )
+    return Entity_GetNW2Int( pl, "m_iFallingActivity", ACT_MP_SWIM )
 end
 
 animation.getFallingActivity = getFallingActivity
@@ -533,10 +533,10 @@ do
 
             goto activity_selected
         elseif walk_move_types[ move_type ] then
+            local vertical_speed = Vector_Length2DSqr( velocity )
             local water_level = Entity_WaterLevel( pl )
 
             if Entity_IsOnGround( pl ) then
-                local vertical_speed = Vector_Length2DSqr( velocity )
                 if water_level == 3 then
                     activity = getSwimActivity( pl )
                     goto activity_selected
@@ -560,9 +560,7 @@ do
                         end
 
                         goto activity_selected
-                    end
-
-                    if vertical_speed < 0.25 then
+                    elseif vertical_speed < 0.25 then
                         activity = getStandActivity( pl )
                     else
                         activity = getWalkActivity( pl )
@@ -585,13 +583,9 @@ do
                 end
 
                 activity = getCrouchActivity( pl )
-                goto activity_selected
             elseif water_level ~= 0 then
                 activity = getSwimActivity( pl )
-                goto activity_selected
-            end
-
-            if Vector_LengthSqr( velocity ) > 62500 then
+            elseif vertical_speed > 62500 then
                 activity = getFallingActivity( pl )
             elseif is_standing then
                 activity = getJumpActivity( pl )
@@ -609,8 +603,6 @@ do
         sequences[ pl ] = sequence_id
 
         return activity, sequence_id
-
-        ---@diagnostic disable-next-line: redundant-parameter, undefined-global
     end, POST_HOOK_RETURN )
 
 end
@@ -619,14 +611,32 @@ do
 
     local Entity_SetPlaybackRate = Entity.SetPlaybackRate
     -- local Vector_Length = Vector.Length
+
     ---@param pl Player
     ---@param velocity Vector
     ---@param max_seq_ground_speed number
     hook.Add( "UpdateAnimation", "Animations", function( pl, velocity, max_seq_ground_speed )
-        local speed = Vector_Length2DSqr( velocity ) * 0.75
+        -- local speed = Vector_Length2DSqr( velocity ) * 0.75
         local water_level = Entity_WaterLevel( pl )
         local move_type = Entity_GetMoveType( pl )
         local on_ground = Entity_IsOnGround( pl )
+
+        local rate = 1
+
+        if flight_move_types[ move_type ] then
+            if Vector_LengthSqr( velocity ) > 22500 then
+                rate = 0
+            else
+                rate = 0.25
+            end
+        elseif move_type == MOVETYPE_LADDER then
+            rate = 0.25
+        elseif Entity_IsOnGround( pl ) then
+            -- rate =
+        end
+
+        Entity_SetPlaybackRate( pl, rate )
+
 
         -- local rate = 1.0
         -- if flight_move_types[ Entity_GetMoveType( pl ) ] then
@@ -646,14 +656,6 @@ do
         -- 	end
         -- end
 
-        local rate = 1
-
-        if move_type == MOVETYPE_LADDER then
-            rate = 0.5
-        end
-
-        Entity_SetPlaybackRate( pl, rate )
-
         -- if CLIENT and not pl:IsBot() then
         -- 	if not pl:IsLocalPlayer() then
         -- 		Run( "PerformPlayerVoice", pl )
@@ -663,7 +665,7 @@ do
         -- 		return Run( "GrabEarAnimation", pl )
         -- 	end
         -- end
-    end )
+    end, PRE_HOOK )
 
 end
 
