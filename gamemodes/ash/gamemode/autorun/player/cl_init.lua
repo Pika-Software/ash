@@ -134,4 +134,20 @@ do
 
 end
 
+do
+
+    gameevent.Listen( "player_spawn" )
+
+    local hook_Run = hook.Run
+    local Player = Player
+
+    hook.Add( "player_spawn", "ClientSideSpawn", function( data )
+        local pl = Player( data.userid )
+        if pl ~= nil and Entity_IsValid( pl ) then
+            hook_Run( "PlayerSpawn", pl, false )
+        end
+    end, PRE_HOOK )
+
+end
+
 return player_lib
