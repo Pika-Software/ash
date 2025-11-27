@@ -1,4 +1,7 @@
+local coroutine_resume = coroutine.resume
+local coroutine_yield = coroutine.yield
 local Entity_IsValid = Entity.IsValid
+local timer_Simple = timer.Simple
 
 ---@class ash.player
 ---@field Entity Player The local player entity.
@@ -85,9 +88,6 @@ do
     local player_isInitialized = player_lib.isInitialized
     local LocalPlayer = _G.LocalPlayer
 
-    local coroutine_resume = coroutine.resume
-    local coroutine_yield = coroutine.yield
-
     local player_entity = LocalPlayer() or _G.NULL
     player_lib.Entity = player_entity
 
@@ -102,6 +102,7 @@ do
         end
 
         player_lib.Entity = player_entity
+        -- player_entity:SetIK( true )
 
         if not player_isInitialized( player_entity ) then
             net.Start( "network" )
@@ -136,16 +137,84 @@ end
 
 do
 
+    gameevent.Listen( "player_activate" )
     gameevent.Listen( "player_spawn" )
 
     local hook_Run = hook.Run
     local Player = Player
 
+    ---@type table<integer, boolean>
+    local player_initial_spawns = {}
+
+    ---@type integer[]
+    local player_spawns = {}
+
+    ---@type integer
+    local player_spawns_count = 0
+
+    hook.Add( "player_activate", "ClientSideInitialSpawn", function( data )
+        local user_id = data.userid
+        player_initial_spawns[ user_id ] = true
+        player_spawns_count = player_spawns_count + 1
+        player_spawns[ player_spawns_count ] = user_id
+    end, PRE_HOOK )
+
+
     hook.Add( "player_spawn", "ClientSideSpawn", function( data )
-        local pl = Player( data.userid )
-        if pl ~= nil and Entity_IsValid( pl ) then
-            hook_Run( "PlayerSpawn", pl, false )
+        player_spawns_count = player_spawns_count + 1
+        player_spawns[ player_spawns_count ] = data.userid
+    end, PRE_HOOK )
+
+    hook.Add( "Tick", "ClientSideSpawn", function()
+        for i = player_spawns_count, 1, -1 do
+            local user_id = player_spawns[ i ]
+
+            local pl = Player( user_id )
+            if pl ~= nil and Entity_IsValid( pl ) then
+                player_spawns_count = player_spawns_count - 1
+                table.remove( player_spawns, i )
+
+                hook_Run( "PlayerSpawn", pl, false )
+
+                if player_initial_spawns[ user_id ] then
+                    player_initial_spawns[ user_id ] = nil
+                    hook_Run( "PlayerInitialSpawn", pl, false )
+                end
+            end
         end
+    end, PRE_HOOK )
+
+end
+
+do
+
+    local Player_isSpeaking = Player.IsSpeaking
+
+    ---@type table<Player, boolean>
+    local voice_statuses = {}
+
+    setmetatable( voice_statuses, {
+        __index = function( self, pl )
+            return Player_isSpeaking( pl )
+        end,
+        __mode = "k"
+    } )
+
+    --- [CLIENT]
+    ---
+    --- Checks if the player is speaking (using voice chat).
+    ---
+    ---@return boolean
+    function player_lib.isSpeaking( pl )
+        return voice_statuses[ pl ]
+    end
+
+    hook.Add( "PlayerStartVoice", "Voice", function( pl, index )
+        voice_statuses[ pl ] = true
+    end, PRE_HOOK )
+
+    hook.Add( "PlayerEndVoice", "Voice", function( pl )
+        voice_statuses[ pl ] = false
     end, PRE_HOOK )
 
 end

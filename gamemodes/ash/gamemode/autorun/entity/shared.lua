@@ -312,6 +312,7 @@ do
     local utils_isDoorClass = utils_lib.isDoorClass
 
     local Entity_SetNW2Bool = Entity.SetNW2Bool
+    local Entity_GetModel = Entity.GetModel
     local hook_Run = hook.Run
 
     hook.Add( "OnEntityCreated", "Handler", function( entity )
@@ -322,10 +323,10 @@ do
         hook_Run( "EntityCreated", entity, class_name )
 
         if class_name == "player" then
-            hook_Run( "PlayerEntityCreated", entity, class_name )
+            hook_Run( "PlayerEntityCreated", entity )
         elseif utils_isPropClass( class_name ) then
             Entity_SetNW2Bool( entity, "m_bProp", true )
-            hook_Run( "PropEntityCreated", entity, class_name )
+            hook_Run( "PropEntityCreated", entity, class_name, Entity_GetModel( entity ) )
         elseif utils_isDoorClass( class_name ) then
             Entity_SetNW2Bool( entity, "m_bDoor", true )
             hook_Run( "DoorEntityCreated", entity, class_name )
