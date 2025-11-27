@@ -164,6 +164,19 @@ do
 
     local Entity_SetNWBool = Entity.SetNWBool
 
+    do
+
+        local player_isNextBot = player_lib.isNextBot
+
+        hook.Add( "PlayerInitialSpawn", "Respawn", function( pl )
+            if player_isNextBot( pl ) then
+                Entity_SetNWBool( pl, "m_bInitialized", true )
+                hook_Run( "PlayerInitialized", pl )
+            end
+        end, PRE_HOOK )
+
+    end
+
     ---@type table<integer, fun( pl: Player, len: integer )>
     local net_commands = {
         -- player initialized
