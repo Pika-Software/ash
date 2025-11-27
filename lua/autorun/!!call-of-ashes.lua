@@ -1399,6 +1399,8 @@ end
 
 do
 
+    local ErrorNoHalt = _G.ErrorNoHalt
+
     ---@type table<string, ash.Module> | table<integer, string>
     ---@diagnostic disable-next-line: assign-type-mismatch
     local modules = ash.Modules or {}
@@ -1703,7 +1705,13 @@ do
                         end
                     end
 
-                    xpcall( module_require, ErrorNoHaltWithStack, root_name .. "." .. directory_name, true, 2 )
+                    local module_object = module_require( root_name .. "." .. directory_name, true, 2 )
+                    if module_object ~= nil then
+                        local err_msg = module_object.Error
+                        if err_msg ~= nil then
+                            ErrorNoHalt( err_msg .. "\n" )
+                        end
+                    end
                 end
             end
         end
@@ -1748,7 +1756,14 @@ do
 
                 glua_timer.Create( timer_name, 1, 1, function()
                     glua_timer.Remove( timer_name )
-                    xpcall( module_require, ErrorNoHaltWithStack, module_name, true, 2 )
+
+                    local module_object = module_require( module_name, true, 2 )
+                    if module_object ~= nil then
+                        local err_msg = module_object.Error
+                        if err_msg ~= nil then
+                            ErrorNoHalt( err_msg .. "\n" )
+                        end
+                    end
                 end )
             end
         end )

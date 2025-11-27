@@ -19,7 +19,7 @@ local Entity_SetNW2String = Entity.SetNW2String
 
 local string_byte = string.byte
 
----@class ash.animation
+---@class ash.animations
 local animation = {}
 
 --- [SHARED]
