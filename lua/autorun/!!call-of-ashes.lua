@@ -1571,7 +1571,7 @@ do
         function module_client_reload( module_name )
             local timer_name = "ash.reload::" .. module_name
 
-            glua_timer.Create( timer_name, 2, 1, function()
+            glua_timer.Create( timer_name, 1, 1, function()
                 glua_timer.Remove( timer_name )
 
                 glua_net.Start( "ash.network" )
