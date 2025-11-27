@@ -124,7 +124,8 @@ if not fs.isDirectory( "/workspace/lua/" .. active_gamemode .. "/gamemode" ) the
     return
 end
 
-local chain_file = "ash/" .. active_gamemode .. "_chain.lua"
+ash.ChainFile = "ash/" .. active_gamemode .. "_chain.lua"
+ash.WorkshopFile = "ash/" .. active_gamemode .. "_workshop.lua"
 
 local clientFileSend
 do
@@ -179,6 +180,100 @@ end
 ---@field Maps string
 ---@field Logger dreamwork.std.console.Logger
 
+--- [SERVER]
+---
+--- Build the injection file.
+---
+---@param name string
+---@param description string
+function ash.pack( name, description )
+    local files_map = {}
+    local file_list = {}
+    local file_count = 0
+
+    local function add_file( file_path, content )
+        file_path = string_lower( file_path )
+
+        local file_data = files_map[ file_path ]
+        if file_data == nil then
+            file_data = {
+                path = file_path,
+                content = content
+            }
+
+            file_count = file_count + 1
+            file_list[ file_count ] = file_data
+            files_map[ file_path ] = file_data
+
+            file_data.index = file_count
+            return
+        end
+
+        file_data.content = content
+    end
+
+    local string_len = string.len
+
+    local function build( file_path )
+        if file_count == 0 then
+            return nil, "no files to inject (gma would be empty)"
+        end
+
+        ---@type File
+        ---@diagnostic disable-next-line: assign-type-mismatch
+        local injection_handler = glua_file.Open( file_path, "wb", "DATA" )
+
+        injection_handler:Write( "GMAD\3" )
+        injection_handler:WriteUInt64( "76561198100459279" )
+
+        injection_handler:Write( "\0\0\0\0" )
+        injection_handler:WriteULong( os.time() )
+
+        -- TODO: insert ash here ( required content )
+        injection_handler:Write( "\0" )
+
+        injection_handler:Write( name .. "\0" )
+        injection_handler:Write( description .. "\0" )
+
+        injection_handler:Write( "Unknown Developer\0" )
+        injection_handler:WriteULong( 1 )
+
+        -- Start of file list
+
+        for i = 1, file_count, 1 do
+            local file_info = file_list[ i ]
+            local info_path = file_info.path
+
+            injection_handler:WriteULong( i ) -- index
+            injection_handler:Write( info_path .."\0" ) -- file_path
+
+            local info_content = file_info.content
+
+            injection_handler:WriteULong( string_len( info_content ) ) -- size
+            injection_handler:Write( "\0\0\0\0" )
+
+            injection_handler:WriteULong( tonumber( glua_util.CRC( info_content ), 10 ) ) -- crc32
+
+            logger:debug( "File '%s' (%d) will be injected.", info_path, i )
+        end
+
+        -- End of file list
+        injection_handler:WriteULong( 0 )
+
+        for i = 1, file_count, 1 do
+            injection_handler:Write( file_list[ i ].content )
+        end
+
+        injection_handler:WriteULong( 0 ) -- no crc :c
+
+        injection_handler:Close()
+
+        return "data/" .. file_path
+    end
+
+    return add_file, build
+end
+
 if LUA_SERVER then
 
     fs.makeDirectory( "/garrysmod/data/ash/injections", true )
@@ -187,6 +282,16 @@ if LUA_SERVER then
         glua_file.Delete( "ash/injections/" .. file_name )
     end
 
+    ---@class ash.gamemode.Settings
+    ---@field name string The name of ConVar.
+    ---@field text string The title to show in game to describe this convar.
+    ---@field help string The description text to show on the convar (in the console).
+    ---@field type "Text" | "CheckBox" | "Numeric" VGUI element type. These are case-sensitive!
+    ---@field replicate boolean Whether this convar should be replicated (networked) to clients automatically.
+    ---@field dontcreate boolean Whether this convar should not be created, but still listed in the UI. Useful for engine convars.
+    ---@field singleplayer boolean Whether this convar should show up for singleplayer, just having this key will enable it, it doesn't matter what the value is.
+    ---@field default string The default value for the convar.
+
     ---@class ash.gamemode.Info
     ---@field name string
     ---@field title string
@@ -194,7 +299,10 @@ if LUA_SERVER then
     ---@field maps string
     ---@field author string
     ---@field version string
-    ---@field menusystem integer
+    ---@field category "rp" | "pvp" | "pve" | "other" | string
+    ---@field workshopid string
+    ---@field menusystem boolean
+    ---@field settings ash.gamemode.Settings[]
 
     --- [SERVER]
     ---
@@ -219,6 +327,46 @@ if LUA_SERVER then
             return nil, string_format( "Could not parse file '%s'", file_path )
         end
 
+        gamemode_info.name = name
+
+        if gamemode_info.title == nil then
+            gamemode_info.title = name
+        end
+
+        if gamemode_info.base == nil then
+            gamemode_info.base = "base"
+        end
+
+        if gamemode_info.maps == nil then
+            gamemode_info.maps = "[%w_]+"
+        end
+
+        if gamemode_info.author == nil then
+            gamemode_info.author = "unknown"
+        end
+
+        if gamemode_info.version == nil then
+            gamemode_info.version = "0.1.0"
+        end
+
+        if gamemode_info.category == nil then
+            gamemode_info.category = "other"
+        end
+
+        if gamemode_info.workshopid == nil then
+            gamemode_info.workshopid = 0
+        else
+            gamemode_info.workshopid = tostring( gamemode_info.workshopid )
+        end
+
+        if gamemode_info.menusystem == nil then
+            gamemode_info.menusystem = false
+        else
+            gamemode_info.menusystem = std.toboolean( gamemode_info.menusystem )
+        end
+
+        -- TODO: settings
+
         return gamemode_info
     end
 
@@ -241,9 +389,6 @@ if LUA_SERVER then
             return nil, err_msg
         end
 
-        gamemode_info.version = gamemode_info.version or "0.1.0"
-        gamemode_info.author = gamemode_info.author or "unknown"
-        gamemode_info.name = gamemode_base
         gamemode_base = gamemode_info.base
 
         if gamemode_base == "base" then
@@ -270,145 +415,20 @@ if LUA_SERVER then
         return chain, nil
     end
 
-    --- [SERVER]
-    ---
-    --- Build the injection file.
-    ---
-    ---@param name string
-    ---@param description string
-    function ash.pack( name, description )
-        local files = {}
-        local files_map = {}
+    do
 
-        local function add_file( file_path, content )
-            file_path = string_lower( file_path )
-
-            local file_data = files_map[ file_path ]
-            if file_data == nil then
-                file_data = {
-                    path = file_path,
-                    content = content
-                }
-
-                file_data.index = table_insert( files, file_data )
-                files_map[ file_path ] = file_data
-                return
-            end
-
-            file_data.content = content
-        end
-
-        local string_len = string.len
-
-        local function build( file_path )
-            ---@type File
-            ---@diagnostic disable-next-line: assign-type-mismatch
-            local injection_handler = glua_file.Open( file_path, "wb", "DATA" )
-
-            injection_handler:Write( "GMAD\3" )
-            injection_handler:WriteUInt64( "76561198100459279" )
-
-            injection_handler:Write( "\0\0\0\0" )
-            injection_handler:WriteULong( os.time() )
-
-            -- TODO: insert ash here ( required content )
-            injection_handler:Write( "\0" )
-
-            injection_handler:Write( name .. "\0" )
-            injection_handler:Write( description .. "\0" )
-
-            injection_handler:Write( "Unknown Developer\0" )
-            injection_handler:WriteULong( 1 )
-
-            -- Start of file list
-
-            for i = 1, #files, 1 do
-                local file_info = files[ i ]
-                local info_path = file_info.path
-
-                injection_handler:WriteULong( i ) -- index
-                injection_handler:Write( info_path .."\0" ) -- file_path
-
-                local info_content = file_info.content
-
-                injection_handler:WriteULong( string_len( info_content ) ) -- size
-                injection_handler:Write( "\0\0\0\0" )
-
-                injection_handler:WriteULong( tonumber( glua_util.CRC( info_content ), 10 ) ) -- crc32
-
-                logger:debug( "File '%s' (%d) will be injected.", info_path, i )
-            end
-
-            -- End of file list
-            injection_handler:WriteULong( 0 )
-
-            for i = 1, #files, 1 do
-                injection_handler:Write( files[ i ].content )
-            end
-
-            injection_handler:WriteULong( 0 ) -- no crc :c
-
-            injection_handler:Close()
-
-            return "data/" .. file_path
-        end
-
-        return add_file, build
-    end
-
-    --- [SERVER]
-    ---
-    --- Rebuild ash gamemode.
-    ---
-    function ash.rebuild()
         local chain, err_msg = ash.chain( active_gamemode )
         if chain == nil then
             logger:warn( "Tethering failed: %s", err_msg )
             return
         end
 
-        logger:info( "Tethering completed, injecting...", active_gamemode )
+        logger:info( "Tethering completed, chain is ready!" )
+        ---@cast chain ash.gamemode.Info[]
 
-        local injection_name = string_format( "%s_%s.gma.dat", active_gamemode, std.uuid.v7() )
-        local add_file, build = ash.pack( injection_name, "A magical injection into the game to bang greedy, fat f*ck Garry Newman." )
+        ash.Chain = chain
 
-        add_file( "lua/" .. chain_file, "return \"" .. glua_util.Base64Encode( glua_util.Compress( glua_util.TableToJSON( chain, false ) ), true ) .. "\"" )
-        add_file( "lua/" .. active_gamemode .. "/gamemode/cl_init.lua", "include( \"ash/loader.lua\" )" )
-        add_file( "lua/" .. active_gamemode .. "/gamemode/init.lua", "include( \"ash/loader.lua\" )" )
-
-        ---@param name string
-        ---@param path_to string
-        local function bake_content( name, path_to )
-            local parent_path = "gamemodes/" .. name .. "/content/" .. path_to
-            local parent_files, parent_directories = glua_file.Find( parent_path .. "*", "GAME" )
-
-            for _, file_name in raw_ipairs( parent_files ) do
-                if not file_Exists( path_to .. file_name, "GAME" ) then
-                    add_file( path_to .. file_name, file_Read( parent_path .. file_name, "GAME" ) )
-                end
-            end
-
-            for _, directory_name in raw_ipairs( parent_directories ) do
-                bake_content( name, path_to .. directory_name .. "/" )
-            end
-        end
-
-        for i = 1, #chain, 1 do
-            local info_name = chain[ i ].name
-            bake_content( info_name, "maps/" )
-            bake_content( info_name, "sound/" )
-            bake_content( info_name, "models/" )
-            bake_content( info_name, "materials/" )
-        end
-
-        if not game.MountGMA( build( "ash/injections/" .. injection_name ) ) then
-            std.errorf( 2, false, "failed to inject '%s'", injection_name )
-        end
-
-        logger:info( "Gamemode info for '%s' successfully injected!", active_gamemode )
     end
-
-    ash.rebuild()
 
     --- [SERVER]
     ---
@@ -438,48 +458,201 @@ if LUA_SERVER then
 
 end
 
-if not file_Exists( chain_file, "LUA" ) then
-    logger:info( "No chain file detected, skipping." )
-    return
+if LUA_SERVER then
+
+    --- [SERVER]
+    ---
+    --- Rebuild ash gamemode.
+    ---
+    ---@param is_workshop boolean
+    function ash.rebuild( is_workshop )
+        local chain = ash.Chain
+
+        local injection_name = string_format( "%s_%s.gma.dat", active_gamemode, std.uuid.v7() )
+        local add_file, build = ash.pack( injection_name, "A magical injection into the game to bang greedy, fat f*ck Garry Newman." )
+
+        if LUA_SERVER then
+            if is_workshop then
+                add_file( "lua/" .. ash.WorkshopFile, "return \"" .. glua_util.Base64Encode( glua_util.Compress( glua_util.TableToJSON( ash.getWorkshopDL(), false ) ), true ) .. "\"" )
+            else
+                add_file( "lua/" .. active_gamemode .. "/gamemode/init.lua", "include( \"ash/init.lua\" )" )
+                add_file( "lua/" .. active_gamemode .. "/gamemode/cl_init.lua", "include( \"ash/cl_init.lua\" )" )
+                add_file( "lua/" .. ash.ChainFile, "return \"" .. glua_util.Base64Encode( glua_util.Compress( glua_util.TableToJSON( chain, false ) ), true ) .. "\"" )
+            end
+        end
+
+        if not is_workshop then
+
+            ---@param name string
+            ---@param path_to string
+            local function bake_content( name, path_to )
+                local parent_path = "gamemodes/" .. name .. "/content/" .. path_to
+                local parent_files, parent_directories = glua_file.Find( parent_path .. "*", "GAME" )
+
+                for _, file_name in raw_ipairs( parent_files ) do
+                    if not file_Exists( path_to .. file_name, "GAME" ) then
+                        add_file( path_to .. file_name, file_Read( parent_path .. file_name, "GAME" ) )
+                    end
+                end
+
+                for _, directory_name in raw_ipairs( parent_directories ) do
+                    bake_content( name, path_to .. directory_name .. "/" )
+                end
+            end
+
+            for i = 1, #chain, 1 do
+                local info_name = chain[ i ].name
+                bake_content( info_name, "maps/" )
+                bake_content( info_name, "sound/" )
+                bake_content( info_name, "models/" )
+                bake_content( info_name, "materials/" )
+            end
+
+        end
+
+        local file_path, err_msg = build( "ash/injections/" .. injection_name )
+
+        if file_path ~= nil and not game.MountGMA( file_path ) then
+            file_path, err_msg = nil, "could not mount injection"
+        end
+
+        if file_path == nil then
+            if LUA_SERVER then
+                logger:error( "Failed to build injection '%s', %s.", injection_name, err_msg )
+            else
+                logger:warn( "Failed to build injection '%s', %s.", injection_name, err_msg )
+            end
+        else
+            logger:info( "Injection '%s' successfully injected!", injection_name )
+        end
+    end
+
+    ---@type string[]
+    local workshop_list = {}
+
+    ---@type integer
+    local workshop_length = 0
+
+    --- [SERVER]
+    ---
+    --- Checks if a workshop item is in the content watcher list.
+    ---
+    ---@param wsid string
+    ---@return boolean exists
+    ---@return integer index
+    function ash.isInWorkshopDL( wsid )
+        for i = 1, workshop_length, 1 do
+            if workshop_list[ i ] == wsid then
+                return true, i
+            end
+        end
+
+        return false, -1
+    end
+
+    --- [SERVER]
+    ---
+    --- Adds/removes a workshop item from the content watcher list.
+    ---
+    ---@param wsid string
+    function ash.setWorkshopDL( wsid, item_state )
+        if item_state then
+            if not ash.isInWorkshopDL( wsid ) then
+                logger:info( "Workshop item '%s' added to content watcher list.", wsid )
+                workshop_length = workshop_length + 1
+                workshop_list[ workshop_length ] = wsid
+            end
+
+            return
+        end
+
+        local exists, index = ash.isInWorkshopDL( wsid )
+        if exists then
+            logger:info( "Workshop item '%s' removed from content watcher list.", wsid )
+            table.remove( workshop_list, index )
+        end
+    end
+
+    local resource_AddWorkshop = _G.resource.AddWorkshop
+
+    --- [SERVER]
+    ---
+    --- Adds workshop items to the content watcher list.
+    ---
+    function ash.performWorkshopDL()
+        for i = 1, workshop_length, 1 do
+            local wsid = workshop_list[ i ]
+            resource_AddWorkshop( wsid )
+            logger:info( "Workshop item '%s' added to content watcher list.", wsid )
+        end
+    end
+
+    --- [SERVER]
+    ---
+    --- Returns the content watcher list.
+    ---
+    ---@return string[] workshop_list
+    ---@return integer workshop_length
+    function ash.getWorkshopDL()
+        return workshop_list, workshop_length
+    end
+
+    ash.rebuild( false )
+
 end
 
-do
+if LUA_CLIENT then
 
-    local fn = CompileFile( chain_file, false )
-    if fn == nil then
-        logger:error( "Failed to compile '%s'.", chain_file )
-        return
+    --- [CLIENT]
+    ---
+    --- Decode an info file.
+    ---
+    ---@param file_path string
+    ---@return table | nil, string | nil
+    function ash.infoFileDecode( file_path )
+        if not file_Exists( file_path, "LUA" ) then
+            return nil, string_format( "file '%s' does not exist", file_path )
+        end
+
+        local fn = CompileFile( file_path, false )
+        if fn == nil then
+            return nil, string_format( "failed to compile file '%s'", file_path )
+        end
+
+        -- script kiddy protection :p
+        setfenv( fn, {} )
+
+        local data_str = fn()
+
+        if data_str == nil then
+            return nil, string_format( "failed to run file '%s', no data :c", file_path )
+        end
+
+        if not isString( data_str ) then
+            return nil, string_format( "failed to read file '%s', invalid data >:c", file_path )
+        end
+
+        local decoded_data = glua_util.Base64Decode( data_str )
+        if decoded_data == nil then
+            return nil, string_format( "failed to decode file '%s', invalid data >:c", file_path )
+        end
+
+        local compressed_data = glua_util.Decompress( decoded_data )
+        if compressed_data == nil then
+            return nil, string_format( "failed to decompress file '%s', possibly data corruption :-c", file_path )
+        end
+
+        local data = glua_util.JSONToTable( compressed_data, true, true )
+        if data == nil or not istable( data ) then
+            return nil, string_format( "failed to parse file '%s', possibly data corruption x_x", file_path )
+        end
+
+        return data
     end
 
-    -- script kiddy protection :p
-    setfenv( fn, {} )
-
-    local chain_data = fn()
-    if chain_data == nil then
-        logger:error( "Failed to run '%s', no data :c", chain_file )
-        return
-    end
-
-    if not isString( chain_data ) then
-        logger:error( "Failed to read '%s', invalid data >:c", chain_file )
-        return
-    end
-
-    local decoded_data = glua_util.Base64Decode( chain_data )
-    if decoded_data == nil then
-        logger:error( "Failed to decode '%s', invalid data >:c", chain_file )
-        return
-    end
-
-    local compressed_data = glua_util.Decompress( decoded_data )
-    if compressed_data == nil then
-        logger:error( "Failed to decompress '%s', possibly data corruption :-c", chain_file )
-        return
-    end
-
-    local chain = glua_util.JSONToTable( compressed_data, true, true )
-    if chain == nil or not istable( chain ) then
-        logger:error( "Failed to parse '%s', possibly data corruption x_x", chain_file )
+    local chain, err_msg = ash.infoFileDecode( ash.ChainFile )
+    if chain == nil then
+        logger:error( "Satellite failed to receive gamemode '%s' information, %s", active_gamemode, err_msg )
         return
     end
 
@@ -492,51 +665,43 @@ do
     ---@type ash.gamemode.Info[]
     ash.Chain = chain
 
-    local active_link = chain[ 1 ]
-    local active_name = active_link.name
-
-    if _G[ active_name ] == nil then
-        local active_title = active_link.title
-        local active_author = active_link.author
-
-        _G[ active_name ] = {
-            Version = active_link.version,
-            Author = active_author,
-            Title = active_title,
-            Maps = active_link.maps,
-            Name = active_name,
-            Logger = std.console.Logger( {
-                title = active_name .. "@" .. active_link.version,
-                color = Color( 255, 255, 255 ),
-                interpolation = false
-            } )
-        }
-
-        glua_hook.Add( "PostGamemodeLoaded", "ash.gamemode", function()
-            ---@type GM
-            local GM = GM or GAMEMODE
-
-            local folder_name = GM.FolderName
-            local folder = GM.Folder
-
-            table.clearKeys( GM )
-
-            GM.Name = active_title
-            GM.Author = active_author
-
-            GM.FolderName = folder_name
-            GM.Folder = folder
-
-            ---@diagnostic disable-next-line: undefined-field, redundant-parameter
-        end, _G.PRE_HOOK )
-    end
-
 end
 
-if LUA_SERVER then
-    clientFileSend( "ash/loader.lua" )
-    clientFileSend( chain_file )
-    ash.resend()
+if _G[ active_gamemode ] == nil then
+    local active_link = ash.Chain[ 1 ]
+    local active_title = active_link.title
+    local active_author = active_link.author
+
+    _G[ active_gamemode ] = {
+        Version = active_link.version,
+        Author = active_author,
+        Title = active_title,
+        Maps = active_link.maps,
+        Name = active_link.name,
+        Logger = std.console.Logger( {
+            title = active_gamemode .. "@" .. active_link.version,
+            color = Color( 255, 255, 255 ),
+            interpolation = false
+        } )
+    }
+
+    glua_hook.Add( "PostGamemodeLoaded", "ash.gamemode", function()
+        ---@type GM
+        local GM = GM or GAMEMODE
+
+        local folder_name = GM.FolderName
+        local folder = GM.Folder
+
+        table.clearKeys( GM )
+
+        GM.Name = active_title
+        GM.Author = active_author
+
+        GM.FolderName = folder_name
+        GM.Folder = folder
+
+        ---@diagnostic disable-next-line: undefined-field, redundant-parameter
+    end, _G.PRE_HOOK )
 end
 
 ---@class ash.Environment
@@ -1409,8 +1574,8 @@ do
             glua_timer.Create( timer_name, 2, 1, function()
                 glua_timer.Remove( timer_name )
 
-                glua_net.Start( "ash.reload" )
-                glua_net.WriteUInt( 1, 1 )
+                glua_net.Start( "ash.network" )
+                glua_net.WriteUInt( 1, 2 )
                 glua_net.WriteString( module_name )
                 glua_net.Broadcast()
             end )
@@ -1499,44 +1664,55 @@ do
 
     environment.require = ash.require
 
-    --- [SHARED]
-    ---
-    --- Reloads all modules.
-    ---
-    function ash.reload()
-        local chain = ash.Chain
+    do
 
-        for i = #chain, 1, -1 do
-            local gamemode_info = chain[ i ]
-            local root_name = gamemode_info.name
+        local raw_tonumber = raw.tonumber
 
-            local modules_path = root_name .. "/gamemode/autorun/"
+        --- [SHARED]
+        ---
+        --- Reloads all modules.
+        ---
+        function ash.reload()
+            local chain = ash.Chain
 
-            for _, directory_name in raw_ipairs( select( 2, glua_file.Find( modules_path .. "*", "LUA" ) ) ) do
-                if DEBUG and LUA_SERVER then
-                    local workspace_object, is_directory = fs.lookup( "/workspace/gamemodes/" .. modules_path .. directory_name )
-                    ---@cast workspace_object dreamwork.std.fs.File
+            for i = #chain, 1, -1 do
+                local gamemode_info = chain[ i ]
+                local root_name = gamemode_info.name
 
-                    local mount_point, mount_path = fs.whereis( workspace_object )
-
-                    if is_directory and mount_point == "MOD" then
-                        local file_object
-                        file_object, is_directory = fs.lookup( "/garrysmod/" .. mount_path )
-
-                        if is_directory and file_object ~= nil and fs.watchdog.watch( file_object ) then
-                            logger:debug( "'%s' being watched for changes.", file_object.path )
-                        end
-                    end
+                local workshopid = gamemode_info.workshopid
+                if workshopid ~= nil and ( raw_tonumber( workshopid, 10 ) or 0 ) > 0 then
+                    ash.setWorkshopDL( workshopid, true )
                 end
 
-                xpcall( module_require, ErrorNoHaltWithStack, root_name .. "." .. directory_name, true, 2 )
+                local modules_path = root_name .. "/gamemode/autorun/"
+
+                for _, directory_name in raw_ipairs( select( 2, glua_file.Find( modules_path .. "*", "LUA" ) ) ) do
+                    if DEBUG and LUA_SERVER then
+                        local workspace_object, is_directory = fs.lookup( "/workspace/gamemodes/" .. modules_path .. directory_name )
+                        ---@cast workspace_object dreamwork.std.fs.File
+
+                        local mount_point, mount_path = fs.whereis( workspace_object )
+
+                        if is_directory and mount_point == "MOD" then
+                            local file_object
+                            file_object, is_directory = fs.lookup( "/garrysmod/" .. mount_path )
+
+                            if is_directory and file_object ~= nil and fs.watchdog.watch( file_object ) then
+                                logger:debug( "'%s' being watched for changes.", file_object.path )
+                            end
+                        end
+                    end
+
+                    xpcall( module_require, ErrorNoHaltWithStack, root_name .. "." .. directory_name, true, 2 )
+                end
             end
         end
+
     end
 
     if LUA_SERVER then
 
-        glua_util.AddNetworkString( "ash.reload" )
+        glua_util.AddNetworkString( "ash.network" )
 
         concommand.Add( "ash.reload", function( pl )
             local is_player = pl and pl:IsValid()
@@ -1548,18 +1724,22 @@ do
             ash.reload()
 
             glua_timer.Create( "ash.reload", 1, 1, function()
-                glua_net.Start( "ash.reload" )
-                glua_net.WriteUInt( 0, 1 )
+                glua_net.Start( "ash.network" )
+                glua_net.WriteUInt( 0, 2 )
                 glua_net.Broadcast()
             end )
+        end )
+
+        glua_net.Receive( "ash.network", function( len, pl )
+            pl:Kick( "WorkshopDL is corrupted, please reconnect to the server!" )
         end )
 
     end
 
     if LUA_CLIENT then
 
-        glua_net.Receive( "ash.reload", function()
-            local uint1_1 = glua_net.ReadUInt( 1 )
+        glua_net.Receive( "ash.network", function()
+            local uint1_1 = glua_net.ReadUInt( 2 )
             if uint1_1 == 0 then
                 glua_timer.Create( "ash.reload", 1, 1, ash.reload )
             elseif uint1_1 == 1 then
