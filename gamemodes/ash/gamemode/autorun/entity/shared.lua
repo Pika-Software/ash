@@ -1,6 +1,8 @@
 ---@class ash.entity
 local entity_lib = {}
 
+entity_lib.isPlayer = Entity.IsPlayer
+
 ---@type ash.utils
 local utils = require( "ash.utils" )
 
@@ -303,13 +305,10 @@ end
 
 do
 
-    ---@type ash.utils
-    local utils_lib = require( "ash.utils" )
-
-    local utils_isRagdollClass = utils_lib.isRagdollClass
-    local utils_isButtonClass = utils_lib.isButtonClass
-    local utils_isPropClass = utils_lib.isPropClass
-    local utils_isDoorClass = utils_lib.isDoorClass
+    local utils_isRagdollClass = utils.isRagdollClass
+    local utils_isButtonClass = utils.isButtonClass
+    local utils_isPropClass = utils.isPropClass
+    local utils_isDoorClass = utils.isDoorClass
 
     local Entity_SetNW2Bool = Entity.SetNW2Bool
     local Entity_GetModel = Entity.GetModel

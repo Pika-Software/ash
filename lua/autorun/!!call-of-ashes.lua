@@ -1572,6 +1572,7 @@ do
         ---@param module_name string
         function module_client_reload( module_name )
             local timer_name = "ash.reload::" .. module_name
+            module_require( module_name, true, 2 )
 
             glua_timer.Create( timer_name, 1, 1, function()
                 glua_timer.Remove( timer_name )

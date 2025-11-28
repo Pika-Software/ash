@@ -2,6 +2,9 @@ MODULE.Networks = {
     "network"
 }
 
+---@type ash.animation
+local animation_lib = require( "ash.player.animation" )
+
 ---@class ash.player
 local player_lib = include( "shared.lua" )
 local player_isInitialized = player_lib.isInitialized
@@ -90,8 +93,7 @@ do
     local Entity_GetPhysicsObjectCount = Entity.GetPhysicsObjectCount
     local Entity_GetPhysicsObjectNum = Entity.GetPhysicsObjectNum
 
-    local player_getVelocity = player_lib.getVelocity
-
+    local animation_getVelocity = animation_lib.getVelocity
     local utils_isInLevelBounds = utils.isInLevelBounds
 
     local trace_result = {}
@@ -112,7 +114,7 @@ do
         local ragdoll_entity = hook_Run( "PlayerRagdoll", pl ) or NULL
 
         if ragdoll_entity ~= nil and Entity_IsValid( ragdoll_entity ) then
-            local player_velocity = player_getVelocity( pl )
+            local player_velocity = animation_getVelocity( pl )
             player_lib.setRagdoll( pl, ragdoll_entity )
 
             for i = 0, Entity_GetPhysicsObjectCount( ragdoll_entity ) - 1 do

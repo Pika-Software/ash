@@ -170,24 +170,25 @@ do
 
     local player_isAlive = player_lib.isAlive
 
-    ---@type table<Player, Vector>
-    local velocities = {}
+    -- ---@type table<Player, Vector>
+    -- local velocities = {}
 
-    --- [SHARED]
-    ---
-    --- Gets the player's current velocity.
-    ---
-    ---@param pl Player
-    ---@return Vector velocity
-    function player_lib.getVelocity( pl )
-        return velocities[ pl ]
-    end
+    -- --- [SHARED]
+    -- ---
+    -- --- Gets the player's current velocity.
+    -- ---
+    -- ---@param pl Player
+    -- ---@return Vector velocity
+    -- function player_lib.getVelocity( pl )
+    --     return velocities[ pl ]
+    -- end
 
-    setmetatable( velocities, {
-        __index = function()
-            return Vector( 0, 0, 0 )
-        end
-    } )
+    -- setmetatable( velocities, {
+    --     __index = function()
+    --         return Vector( 0, 0, 0 )
+    --     end,
+    --     __mode = "k"
+    -- } )
 
     ---@alias ash.player.MoveState "standing" | "crouching" | "jumping" | "falling" | "swimming" | "wandering" | "running" | "walking" | string
 
@@ -213,7 +214,7 @@ do
 
     hook.Add( "FinishMove", "MovementController", function( pl, mv )
         if player_isAlive( pl ) then
-            velocities[ pl ] = MoveData_GetVelocity( mv )
+            -- velocities[ pl ] = MoveData_GetVelocity( mv )
             move_states[ pl ] = hook_Run( "PlayerSelectMoveState", pl, mv )
         end
     end, PRE_HOOK )

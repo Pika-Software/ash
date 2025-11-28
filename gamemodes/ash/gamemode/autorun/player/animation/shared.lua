@@ -19,7 +19,7 @@ local Entity_SetNW2String = Entity.SetNW2String
 
 local string_byte = string.byte
 
----@class ash.animations
+---@class ash.animation
 local animation = {}
 
 --- [SHARED]
@@ -707,6 +707,10 @@ do
     hook.Add( "TranslateActivity", "TranslationCacher", function( arguments, pl, activity )
         return arguments[ 1 ] or translation_cache[ pl ][ activity ]
     end, POST_HOOK_RETURN )
+
+    hook.Add( "PlayerSwitchWeapon", "TranslationCacher", function( pl )
+        translation_cache[ pl ] = nil
+    end, PRE_HOOK )
 
 end
 
