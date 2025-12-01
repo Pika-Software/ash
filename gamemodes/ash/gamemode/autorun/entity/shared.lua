@@ -1,7 +1,7 @@
 ---@class ash.entity
-local entity_lib = {}
+local ash_entity = {}
 
-entity_lib.isPlayer = Entity.IsPlayer
+ash_entity.isPlayer = Entity.IsPlayer
 
 ---@type ash.utils
 local utils = require( "ash.utils" )
@@ -24,7 +24,7 @@ do
     ---
     ---@param entity Entity
     ---@return integer
-    function entity_lib.getHitboxGroupCount( entity )
+    function ash_entity.getHitboxGroupCount( entity )
         return Entity_GetHitboxSetCount( entity )
     end
 
@@ -35,7 +35,7 @@ do
     ---@param entity Entity
     ---@param hitbox_group integer
     ---@return integer
-    function entity_lib.getHitboxCount( entity, hitbox_group )
+    function ash_entity.getHitboxCount( entity, hitbox_group )
         return Entity_GetHitBoxCount( entity, ( hitbox_group or 0 ) - 1 )
     end
 
@@ -46,7 +46,7 @@ do
     ---@param entity Entity
     ---@return string[] groups
     ---@return integer group_count
-    function entity_lib.getHitboxGroups( entity )
+    function ash_entity.getHitboxGroups( entity )
         local initial_hitbox_group = Entity_GetHitboxSet( entity )
         local groups, group_count = {}, 0
 
@@ -69,7 +69,7 @@ do
     ---
     ---@param entity Entity
     ---@return integer hitbox_group
-    function entity_lib.getHitboxGroup( entity )
+    function ash_entity.getHitboxGroup( entity )
         return Entity_GetHitboxSet( entity ) + 1
     end
 
@@ -79,7 +79,7 @@ do
     ---
     ---@param entity Entity
     ---@param hitbox_group integer
-    function entity_lib.setHitboxGroup( entity, hitbox_group )
+    function ash_entity.setHitboxGroup( entity, hitbox_group )
         return Entity_SetHitboxSet( entity, hitbox_group - 1 )
     end
 
@@ -91,7 +91,7 @@ do
     ---@param bone_id integer
     ---@return integer | nil hitbox
     ---@return integer hitbox_group
-    function entity_lib.getHitbox( entity, bone_id )
+    function ash_entity.getHitbox( entity, bone_id )
         local hitbox_group = Entity_GetHitboxSet( entity )
 
         for hitbox = 0, Entity_GetHitBoxCount( entity, hitbox_group ) - 1, 1 do
@@ -111,7 +111,7 @@ do
     ---@param hitbox integer
     ---@param hitbox_group integer
     ---@return integer | nil
-    function entity_lib.getHitboxBone( entity, hitbox, hitbox_group )
+    function ash_entity.getHitboxBone( entity, hitbox, hitbox_group )
         return Entity_GetHitBoxBone( entity, hitbox - 1, hitbox_group - 1 )
     end
 
@@ -124,7 +124,7 @@ do
     ---@param hitbox_group integer
     ---@return Vector | nil mins
     ---@return Vector | nil maxs
-    function entity_lib.getHitboxBounds( entity, hitbox, hitbox_group )
+    function ash_entity.getHitboxBounds( entity, hitbox, hitbox_group )
         return Entity_GetHitBoxBounds( entity, hitbox - 1, hitbox_group - 1 )
     end
 
@@ -136,7 +136,7 @@ do
     ---@param hitbox integer
     ---@param hitbox_group integer
     ---@return integer | nil
-    function entity_lib.getHitboxHitGroup( entity, hitbox, hitbox_group )
+    function ash_entity.getHitboxHitGroup( entity, hitbox, hitbox_group )
         return Entity_GetHitBoxHitGroup( entity, hitbox - 1, hitbox_group - 1 )
     end
 
@@ -152,7 +152,7 @@ do
     ---
     ---@param entity Entity
     ---@param activity integer
-    function entity_lib.isActivityExists( entity, activity )
+    function ash_entity.isActivityExists( entity, activity )
         local sequence_id = Entity_SelectWeightedSequence( entity, activity )
         return sequence_id ~= nil and sequence_id > 0
     end
@@ -181,7 +181,7 @@ do
         return attachment_id
     end
 
-    entity_lib.getAttachmentID = getAttachmentID
+    ash_entity.getAttachmentID = getAttachmentID
 
     --- [SHARED]
     ---
@@ -206,7 +206,7 @@ do
         return attachment_data.Pos, attachment_data.Ang, attachment_data.Bone
     end
 
-    entity_lib.getAttachmentByID = getAttachmentByID
+    ash_entity.getAttachmentByID = getAttachmentByID
 
     --- [SHARED]
     ---
@@ -217,7 +217,7 @@ do
     ---@return Vector | nil attachment_origin
     ---@return Angle | nil attachment_angles
     ---@return integer | nil bone_id
-    function entity_lib.getAttachmentByName( entity, attachment_name )
+    function ash_entity.getAttachmentByName( entity, attachment_name )
         return getAttachmentByID( entity, getAttachmentID( entity, attachment_name ) )
     end
 
@@ -246,7 +246,7 @@ do
     ---
     ---@param entity Entity
     ---@return Color color
-    function entity_lib.getPlayerColor( entity )
+    function ash_entity.getPlayerColor( entity )
         local vector = Entity_GetNW2Vector( entity, "m_vPlayerColor", default_color )
         return Color( math_floor( vector[ 1 ] * 255 ), math_floor( vector[ 2 ] * 255 ), math_floor( vector[ 3 ] * 255 ), 255 )
     end
@@ -263,7 +263,7 @@ do
     ---
     ---@param entity Entity
     ---@return boolean is_button
-    function entity_lib.isButton( entity )
+    function ash_entity.isButton( entity )
         return Entity_GetNW2Bool( entity, "m_bButton", false )
     end
 
@@ -281,7 +281,7 @@ do
     ---
     ---@param entity Entity
     ---@return boolean is_prop
-    function entity_lib.isProp( entity )
+    function ash_entity.isProp( entity )
         return utils_isRagdollClass( Entity_GetClass( entity ) )
     end
 
@@ -297,7 +297,7 @@ do
     ---
     ---@param entity Entity
     ---@return boolean is_ragdoll
-    function entity_lib.isRagdoll( entity )
+    function ash_entity.isRagdoll( entity )
         return utils_isRagdollClass( Entity_GetClass( entity ) )
     end
 
@@ -361,6 +361,4 @@ do
 
 end
 
-entity_lib.isPlayer = Entity.IsPlayer
-
-return entity_lib
+return ash_entity

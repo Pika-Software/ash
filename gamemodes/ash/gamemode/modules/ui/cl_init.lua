@@ -98,7 +98,7 @@ do
 
     local map_metatable = {
         __index = function( self, name )
-            return unit_values[ unit_sizes[ name ] ]
+            return unit_values[ unit_sizes[ name ] or 0 ] or 0
         end
     }
 
@@ -106,9 +106,8 @@ do
     ---
     --- Creates a size map.
     ---
-    ---@generic size: string
-    ---@param map_params table<size, string>
-    ---@return table<size, integer> map_obj
+    ---@param map_params table<string, string>
+    ---@return table<string, integer> map_obj
     function ui.scaleMap( map_params )
         local map = {}
 

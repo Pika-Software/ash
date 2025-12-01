@@ -14,15 +14,15 @@ local entity_SetNW2Var = Entity.SetNW2Var
 ---@class ash.team
 ---@field List ash.team.TeamData[] A list of all teams.
 ---@field Count integer The number of teams.
-local team_lib = ash.team
+local ash_team = ash.team
 
-if team_lib == nil then
-	team_lib = {
+if ash_team == nil then
+	ash_team = {
 		List = {},
 		Count = 0
 	}
 
-	ash.team = team_lib
+	ash.team = ash_team
 end
 
 ---@class ash.team.TeamData
@@ -41,14 +41,14 @@ end
 --- A list of all teams.
 ---
 ---@type ash.team.TeamData[]
-local team_list = team_lib.List
+local team_list = ash_team.List
 
 --- [SHARED]
 ---
 --- The number of teams.
 ---
 ---@type integer
-local team_count = team_lib.Count
+local team_count = ash_team.Count
 
 ---@type ash.team.TeamData
 ---@diagnostic disable-next-line: missing-fields
@@ -60,7 +60,7 @@ local team_metatable = {}
 ---
 ---@return string[] team_list
 ---@return integer team_count
-function team_lib.GetAll()
+function ash_team.GetAll()
 	return team_list, team_count
 end
 
@@ -69,7 +69,7 @@ end
 --- Gets the number of teams.
 ---
 ---@return integer team_count
-function team_lib.GetCount()
+function ash_team.GetCount()
 	return team_count
 end
 
@@ -88,7 +88,7 @@ local function team_init( team_name )
 	end
 
 	team_count = team_count + 1
-	team_lib.Count = team_count
+	ash_team.Count = team_count
 
 	---@diagnostic disable-next-line: missing-fields
 	local team_data = setmetatable( {
@@ -272,7 +272,7 @@ local function getScore( team_name )
 	return GetGlobal2Int( "ash.team." .. team_name .. ".score", 0 )
 end
 
-team_lib.GetScore = getScore
+ash_team.GetScore = getScore
 
 --- [SHARED]
 ---
@@ -280,7 +280,7 @@ team_lib.GetScore = getScore
 ---
 ---@param entity Entity
 ---@return string | "none" team_name The team name of the player or "none" if not set.
-function team_lib.GetTeam( entity )
+function ash_team.GetTeam( entity )
 	return entity_GetNW2Var( entity, "ash.team", "none" )
 end
 
@@ -292,7 +292,7 @@ if SERVER then
 	---
 	---@param entity Entity
 	---@param team_name string The team name to set for the player.
-	function team_lib.SetTeam( entity, team_name )
+	function ash_team.SetTeam( entity, team_name )
 		entity_SetNW2Var( entity, "ash.team", team_name or "none" )
 	end
 
@@ -306,7 +306,7 @@ if SERVER then
 		SetGlobal2Int( "ash.team." .. team_name .. ".score", score )
 	end
 
-	team_lib.SetScore = setScore
+	ash_team.SetScore = setScore
 
 	--- [SERVER]
 	---
@@ -320,7 +320,7 @@ if SERVER then
 		return setScore( team_name, math_min( 0, getScore( team_name ) + score ) )
 	end
 
-	team_lib.AddScore = addScore
+	ash_team.AddScore = addScore
 
 	--- [SERVER]
 	---
@@ -330,7 +330,7 @@ if SERVER then
 	---
 	---@param team_name string
 	---@param score integer
-	function team_lib.TakeScore( team_name, score )
+	function ash_team.TakeScore( team_name, score )
 		return addScore( team_name, -score )
 	end
 
@@ -342,7 +342,7 @@ end
 ---
 ---@param team_name string
 ---@return Player[]
-function team_lib.GetMembers( team_name )
+function ash_team.GetMembers( team_name )
 	return players[ team_name ]
 end
 
@@ -353,7 +353,7 @@ end
 ---@param team_name string
 ---@param filter fun( ply: Player ): boolean
 ---@return Player[], integer
-function team_lib.GetMates( team_name, filter )
+function ash_team.GetMates( team_name, filter )
 	---@type Player[]
 	local team_mates = {}
 
@@ -402,7 +402,7 @@ end
 ---@param team_name string
 ---@param mate_team_name string
 ---@return boolean is_mate
-function team_lib.IsMate( team_name, mate_team_name )
+function ash_team.IsMate( team_name, mate_team_name )
 	return is_mates[ team_name ][ mate_team_name ] == true or team_name == mate_team_name
 end
 
@@ -412,7 +412,7 @@ end
 ---
 ---@param team_name string
 ---@return Color clr
-function team_lib.GetColor( team_name )
+function ash_team.GetColor( team_name )
 	return colors[ team_name ]
 end
 
@@ -422,7 +422,7 @@ end
 ---
 ---@param team_name string
 ---@param color Color
-function team_lib.SetColor( team_name, color )
+function ash_team.SetColor( team_name, color )
 	colors[ team_name ] = color
 end
 
@@ -460,13 +460,13 @@ end
 ---
 ---@param team_options ash.team.TeamOptions
 ---@return ash.team.TeamData team_data
-function team_lib.Register( team_options )
+function ash_team.Register( team_options )
 	local team_name = team_options.name
 
 	colors[ team_name ] = team_options.color
 
 	if SERVER then
-		team_lib.SetScore( team_name, team_options.score or 0 )
+		ash_team.SetScore( team_name, team_options.score or 0 )
 	end
 
 	local mate_lst = team_options.mates
@@ -515,4 +515,4 @@ function team_lib.Register( team_options )
 	return team_data
 end
 
-return team_lib
+return ash_team

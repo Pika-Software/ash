@@ -573,20 +573,6 @@ if LUA_SERVER then
         end
     end
 
-    local resource_AddWorkshop = _G.resource.AddWorkshop
-
-    --- [SERVER]
-    ---
-    --- Adds workshop items to the content watcher list.
-    ---
-    function ash.performWorkshopDL()
-        for i = 1, workshop_length, 1 do
-            local wsid = workshop_list[ i ]
-            resource_AddWorkshop( wsid )
-            logger:info( "Workshop item '%s' added to content watcher list.", wsid )
-        end
-    end
-
     --- [SERVER]
     ---
     --- Returns the content watcher list.
@@ -978,8 +964,8 @@ do
 
     end
 
-    local hook_lib = {}
-    environment.hook = hook_lib
+    local ash_hook = {}
+    environment.hook = ash_hook
 
     do
 
@@ -989,7 +975,7 @@ do
         ---@param identifier any
         ---@param fn function
         ---@param priority? integer
-        function hook_lib.Add( event_name, identifier, fn, priority )
+        function ash_hook.Add( event_name, identifier, fn, priority )
             if isString( identifier ) then
                 local call_environment = getfenv( 2 )
                 if call_environment ~= nil then
@@ -1019,12 +1005,12 @@ do
 
     end
 
-    hook_lib.Run = glua_hook.Run
+    ash_hook.Run = glua_hook.Run
 
-    local timer_lib = {}
-    environment.timer = timer_lib
+    local ash_timer = {}
+    environment.timer = ash_timer
 
-    setmetatable( timer_lib, {
+    setmetatable( ash_timer, {
         __index = glua_timer,
         __newindex = glua_timer
     } )
@@ -1037,7 +1023,7 @@ do
         ---@param delay number
         ---@param repetitions integer
         ---@param event_fn function
-        function timer_lib.Create( identifier, delay, repetitions, event_fn )
+        function ash_timer.Create( identifier, delay, repetitions, event_fn )
             local call_environment = getfenv( 2 )
             if call_environment ~= nil then
                 ---@type ash.Module | nil
@@ -1088,19 +1074,19 @@ do
             end
         end
 
-        timer_lib.Adjust = timer_fn( glua_timer.Adjust )
-        timer_lib.Create = timer_fn( glua_timer.Create )
-        timer_lib.Exists = timer_fn( glua_timer.Exists )
+        ash_timer.Adjust = timer_fn( glua_timer.Adjust )
+        ash_timer.Create = timer_fn( glua_timer.Create )
+        ash_timer.Exists = timer_fn( glua_timer.Exists )
 
-        timer_lib.Start = timer_fn( glua_timer.Start )
-        timer_lib.Stop = timer_fn( glua_timer.Stop )
+        ash_timer.Start = timer_fn( glua_timer.Start )
+        ash_timer.Stop = timer_fn( glua_timer.Stop )
 
-        timer_lib.Pause = timer_fn( glua_timer.Pause )
-        timer_lib.UnPause = timer_fn( glua_timer.UnPause )
-        timer_lib.Toggle = timer_fn( glua_timer.Toggle )
+        ash_timer.Pause = timer_fn( glua_timer.Pause )
+        ash_timer.UnPause = timer_fn( glua_timer.UnPause )
+        ash_timer.Toggle = timer_fn( glua_timer.Toggle )
 
-        timer_lib.RepsLeft = timer_fn( glua_timer.RepsLeft )
-        timer_lib.TimeLeft = timer_fn( glua_timer.TimeLeft )
+        ash_timer.RepsLeft = timer_fn( glua_timer.RepsLeft )
+        ash_timer.TimeLeft = timer_fn( glua_timer.TimeLeft )
 
     end
 
@@ -1110,7 +1096,7 @@ do
 
         ---@param event_name string
         ---@param identifier any
-        function hook_lib.Remove( event_name, identifier )
+        function ash_hook.Remove( event_name, identifier )
             if isString( identifier ) then
                 local call_environment = getfenv( 2 )
                 if call_environment ~= nil then
@@ -1135,7 +1121,7 @@ do
         local timer_Remove = glua_timer.Remove
 
         ---@param timer_name string
-        function timer_lib.Remove( timer_name )
+        function ash_timer.Remove( timer_name )
             local call_environment = getfenv( 2 )
             if call_environment ~= nil then
                 ---@type ash.Module | nil

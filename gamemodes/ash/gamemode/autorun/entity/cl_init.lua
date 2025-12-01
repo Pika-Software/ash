@@ -1,4 +1,4 @@
 ---@class ash.entity
-local entity_lib = include( "shared.lua" )
+local ash_entity = include( "shared.lua" )
 
-return entity_lib
+return ash_entity

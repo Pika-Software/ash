@@ -1,5 +1,5 @@
 ---@class ash.player
-local player_lib = {}
+local ash_player = {}
 
 ---@class ash.Player
 local Player = Player
@@ -9,7 +9,7 @@ local bit_band = bit.band
 local bit_bor = bit.bor
 
 ---@type ash.model
-local model_lib = require( "ash.model" )
+local ash_model = require( "ash.model" )
 
 do
 
@@ -54,7 +54,7 @@ end
 
 local Player_Alive = Player.Alive
 
-player_lib.isAlive = Player_Alive
+ash_player.isAlive = Player_Alive
 
 --- [SHARED]
 ---
@@ -62,7 +62,7 @@ player_lib.isAlive = Player_Alive
 ---
 ---@param pl Player
 ---@return boolean
-function player_lib.isDead( pl )
+function ash_player.isDead( pl )
     return not Player_Alive( pl )
 end
 
@@ -70,7 +70,7 @@ do
 
     local Player_IsBot = Player.IsBot
 
-    player_lib.isNextBot = Player_IsBot
+    ash_player.isNextBot = Player_IsBot
 
     --- [SHARED]
     ---
@@ -78,7 +78,7 @@ do
     ---
     ---@param pl Player
     ---@return boolean
-    function player_lib.isHuman( pl )
+    function ash_player.isHuman( pl )
         return not Player_IsBot( pl )
     end
 
@@ -86,7 +86,7 @@ end
 
 do
 
-    local model_precache = model_lib.precache
+    local model_precache = ash_model.precache
     local Entity_SetModel = Entity.SetModel
 
     --- [SERVER]
@@ -121,7 +121,7 @@ do
     ---
     ---@param pl Player
     ---@return boolean
-    function player_lib.isInitialized( pl )
+    function ash_player.isInitialized( pl )
         return Entity_GetNWBool( pl, "m_bInitialized", false )
     end
 
@@ -140,7 +140,7 @@ do
     ---@param on_crouch boolean
     ---@return Vector mins
     ---@return Vector maxs
-    function player_lib.getHull( pl, on_crouch )
+    function ash_player.getHull( pl, on_crouch )
         return ( on_crouch and Player_GetHullDuck or Player_GetHull )( pl )
     end
 
@@ -153,8 +153,8 @@ do
     ---@return integer width
     ---@return integer depth
     ---@return integer height
-    function player_lib.getHullSize( pl, on_crouch )
-        local mins, maxs = player_lib.getHull( pl, on_crouch )
+    function ash_player.getHullSize( pl, on_crouch )
+        local mins, maxs = ash_player.getHull( pl, on_crouch )
         return maxs[ 1 ] - mins[ 1 ], maxs[ 2 ] - mins[ 2 ], maxs[ 3 ] - mins[ 3 ]
     end
 
@@ -168,7 +168,7 @@ do
     local Entity_WaterLevel = Entity.WaterLevel
     local Vector = Vector
 
-    local player_isAlive = player_lib.isAlive
+    local player_isAlive = ash_player.isAlive
 
     -- ---@type table<Player, Vector>
     -- local velocities = {}
@@ -179,7 +179,7 @@ do
     -- ---
     -- ---@param pl Player
     -- ---@return Vector velocity
-    -- function player_lib.getVelocity( pl )
+    -- function ash_player.getVelocity( pl )
     --     return velocities[ pl ]
     -- end
 
@@ -208,7 +208,7 @@ do
     ---
     ---@param pl Player
     ---@return ash.player.MoveState move_state
-    function player_lib.getMoveState( pl )
+    function ash_player.getMoveState( pl )
         return move_states[ pl ]
     end
 
@@ -274,10 +274,10 @@ do
     ---
     ---@param pl Player
     ---@return Entity ragdoll
-    function player_lib.getRagdoll( pl )
+    function ash_player.getRagdoll( pl )
         return Entity_GetNWEntity( pl, "m_eRagdoll", NULL )
     end
 
 end
 
-return player_lib
+return ash_player

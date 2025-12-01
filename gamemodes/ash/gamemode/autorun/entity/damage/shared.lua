@@ -1,6 +1,6 @@
 
 ---@class ash.entity.damage
-local damage_lib = {}
+local ash_damage = {}
 
 local bit_band = bit.band
 local bit_bor = bit.bor
@@ -29,61 +29,61 @@ local isFall = make_is_function( DMG_FALL )
 ---
 --- Checks if the damage is non-physical.
 ---
-damage_lib.isNonPhysical = isNonPhysical
+ash_damage.isNonPhysical = isNonPhysical
 
 --- [SHARED]
 ---
 --- Checks if the damage is close range.
 ---
-damage_lib.isCloseRange = isCloseRange
+ash_damage.isCloseRange = isCloseRange
 
 --- [SHARED]
 ---
 --- Checks if the damage is from a bullet.
 ---
-damage_lib.isBullet = isBullet
+ash_damage.isBullet = isBullet
 
 --- [SHARED]
 ---
 --- Checks if the damage is from a bullet.
 ---
-damage_lib.isNeverGib = isNeverGib
+ash_damage.isNeverGib = isNeverGib
 
 --- [SHARED]
 ---
 --- Checks if the damage is from a dissolve.
 ---
-damage_lib.isDissolve = isDissolve
+ash_damage.isDissolve = isDissolve
 
 --- [SHARED]
 ---
 --- Checks if the damage is from an explosion.
 ---
-damage_lib.isExplosion = isExplosion
+ash_damage.isExplosion = isExplosion
 
 --- [SHARED]
 ---
 --- Checks if the damage is from a crush.
 ---
-damage_lib.isCrush = isCrush
+ash_damage.isCrush = isCrush
 
 --- [SHARED]
 ---
 --- Checks if the damage is from a shock.
 ---
-damage_lib.isShock = isShock
+ash_damage.isShock = isShock
 
 --- [SHARED]
 ---
 --- Checks if the damage is from a burn.
 ---
-damage_lib.isBurn = isBurn
+ash_damage.isBurn = isBurn
 
 --- [SHARED]
 ---
 --- Checks if the damage is from a fall.
 ---
-damage_lib.isFall = isFall
+ash_damage.isFall = isFall
 
 
-return damage_lib
+return ash_damage

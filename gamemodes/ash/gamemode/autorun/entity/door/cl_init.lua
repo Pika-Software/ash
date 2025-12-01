@@ -1,5 +1,5 @@
 ---@class ash.entity.door
-local door_lib = {}
+local ash_door = {}
 
 local Entity_GetNW2Bool = Entity.GetNW2Bool
 local Entity_GetNW2Int = Entity.GetNW2Int
@@ -10,7 +10,7 @@ local Entity_GetNW2Int = Entity.GetNW2Int
 ---
 ---@param entity Entity
 ---@return boolean is_locked
-function door_lib.isLocked( entity )
+function ash_door.isLocked( entity )
     return Entity_GetNW2Bool( entity, "m_bLocked", false )
 end
 
@@ -20,8 +20,8 @@ end
 ---
 ---@param entity Entity
 ---@return ash.entity.door.State state
-function door_lib.getState( entity )
+function ash_door.getState( entity )
     return Entity_GetNW2Int( entity, "m_eDoorState", 0 )
 end
 
-return door_lib
+return ash_door

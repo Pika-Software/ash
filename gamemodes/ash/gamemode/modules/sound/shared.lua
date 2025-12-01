@@ -6,7 +6,7 @@ local sound_GetTable = sound.GetTable
 local sound_GetProperties = sound.GetProperties
 
 ---@class ash.sound
-local sound_lib = {}
+local ash_sound = {}
 
 ---@class ash.sound.Data.pitch
 ---@field [1] integer Minimal pitch value of the sound.
@@ -20,14 +20,14 @@ local sound_lib = {}
 ---@field level integer | nil
 ---@field sound string | string[] | nil
 
-sound_lib.getNames = sound_GetTable
+ash_sound.getNames = sound_GetTable
 
 --- [SHARED]
 ---
 --- Returns all registered sounds.
 ---
 ---@return ash.sound.Data[], integer
-function sound_lib.getAll()
+function ash_sound.getAll()
     local names = sound_GetTable()
     local sounds, sound_count = {}, 0
 
@@ -48,7 +48,7 @@ end
 ---
 ---@param sound_name string
 ---@return ash.sound.Data | nil
-function sound_lib.get( sound_name )
+function ash_sound.get( sound_name )
     ---@diagnostic disable-next-line: return-type-mismatch
     return sound_GetProperties( sound_name )
 end
@@ -59,18 +59,18 @@ end
 ---
 ---@param sound_name string
 ---@return boolean is_exists
-function sound_lib.exists( sound_name )
+function ash_sound.exists( sound_name )
     return sound_GetProperties( sound_name ) ~= nil
 end
 
--- sound_lib.setActorGender = sound.SetActorGender
+-- ash_sound.setActorGender = sound.SetActorGender
 
 --- [SHARED]
 ---
 --- Registers a sound.
 ---
 ---@param sound_data ash.sound.Data
-function sound_lib.register( sound_data )
+function ash_sound.register( sound_data )
     if sound_data.name == nil then
         error( "sound name cannot be nil", 2 )
     end
@@ -99,7 +99,7 @@ function sound_lib.register( sound_data )
     sound_Add( sound_data )
 end
 
-sound_lib.loadScript = sound.AddSoundOverrides
+ash_sound.loadScript = sound.AddSoundOverrides
 
 --- [SHARED]
 ---
@@ -107,7 +107,7 @@ sound_lib.loadScript = sound.AddSoundOverrides
 ---
 ---@param sound_name string
 ---@param sound_data ash.sound.Data
-function sound_lib.merge( sound_name, sound_data )
+function ash_sound.merge( sound_name, sound_data )
     local data = sound_GetProperties( sound_name ) or {}
 
     local name = sound_data.name
@@ -194,8 +194,8 @@ function sound_lib.merge( sound_name, sound_data )
     sound_Add( data )
 end
 
-sound_lib.generate = sound.Generate
-sound_lib.play = sound.Play
-sound_lib.emit = EmitSound
+ash_sound.generate = sound.Generate
+ash_sound.play = sound.Play
+ash_sound.emit = EmitSound
 
-return sound_lib
+return ash_sound

@@ -2,10 +2,10 @@ local hook_Run = hook.Run
 local util = util
 
 ---@class ash.entity.damage
-local damage_lib = include( "shared.lua" )
+local ash_damage = include( "shared.lua" )
 
 ---@type ash.utils
-local utils_lib = require( "ash.utils" )
+local ash_utils = require( "ash.utils" )
 
 do
 
@@ -14,7 +14,7 @@ do
     local EffectData = EffectData
     local math_ceil = math.ceil
 
-	function damage_lib.explosion( origin, radius, damage, attacker, inflictor )
+	function ash_damage.explosion( origin, radius, damage, attacker, inflictor )
         if inflictor == nil then
             inflictor = attacker
         end
@@ -41,16 +41,16 @@ local DamageInfo_GetDamageType = DamageInfo.GetDamageType
 local DamageInfo_GetDamage = DamageInfo.GetDamage
 local DamageInfo_SetDamage = DamageInfo.SetDamage
 
-local damage_isExplosion = damage_lib.isExplosion
-local damage_isNeverGib = damage_lib.isNeverGib
+local damage_isExplosion = ash_damage.isExplosion
+local damage_isNeverGib = ash_damage.isNeverGib
 
 local Entity_GetClass = Entity.GetClass
 local Vector_Length = Vector.Length
 
-local utils_isRagdollClass = utils_lib.isRagdollClass
-local utils_isButtonClass = utils_lib.isButtonClass
-local utils_isPropClass = utils_lib.isPropClass
-local utils_isDoorClass = utils_lib.isDoorClass
+local utils_isRagdollClass = ash_utils.isRagdollClass
+local utils_isButtonClass = ash_utils.isButtonClass
+local utils_isPropClass = ash_utils.isPropClass
+local utils_isDoorClass = ash_utils.isDoorClass
 
 local vector_origin = vector_origin
 
@@ -145,4 +145,4 @@ hook.Add( "EntityTakeDamage", "DamageHandler", function( arguments, entity, dama
 	return false
 end, POST_HOOK_RETURN )
 
-return damage_lib
+return ash_damage

@@ -1,17 +1,17 @@
 include( "shared.lua" )
 
 ---@type ash.footsteps
-local footsteps_lib = require( "ash.player.footsteps" )
-local footplayer_getShoesType = footsteps_lib.getShoesType
+local ash_footsteps = require( "ash.player.footsteps" )
+local footplayer_getShoesType = ash_footsteps.getShoesType
 
 ---@type ash.entity
-local entity_lib = require( "ash.entity" )
-local entity_getHitbox = entity_lib.getHitbox
-local entity_getHitboxBounds = entity_lib.getHitboxBounds
+local ash_entity = require( "ash.entity" )
+local entity_getHitbox = ash_entity.getHitbox
+local entity_getHitboxBounds = ash_entity.getHitboxBounds
 
 ---@type ash.player
-local player_lib = require( "ash.player" )
-local player_getMoveState = player_lib.getMoveState
+local ash_player = require( "ash.player" )
+local player_getMoveState = ash_player.getMoveState
 
 local Entity_GetBonePosition = Entity.GetBonePosition
 local Entity_GetBoneMatrix = Entity.GetBoneMatrix

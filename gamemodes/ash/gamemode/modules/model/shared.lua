@@ -3,7 +3,7 @@ local string_gsub = string.gsub
 local rawset = rawset
 
 ---@class ash.model
-local model_lib = {}
+local ash_model = {}
 
 ---@type table<string, boolean>
 local models_cache = {}
@@ -27,7 +27,7 @@ local function model_path_fix( model_path )
     return string_gsub( string_lower( model_path ), "[\\/]+", "/" )
 end
 
-model_lib.pathFix = model_path_fix
+ash_model.pathFix = model_path_fix
 
 ---@param model_path string
 ---@return string
@@ -37,7 +37,7 @@ local function precache_model( model_path )
     return model_path
 end
 
-model_lib.precache = precache_model
+ash_model.precache = precache_model
 
 ---@class ash.model.Info
 ---@field name string
@@ -62,7 +62,7 @@ local fallback_info = {
 ---
 ---@param model_name string
 ---@return ash.model.Info model_info
-function model_lib.get( model_name )
+function ash_model.get( model_name )
     return models_map[ model_name ] or fallback_info
 end
 
@@ -75,7 +75,7 @@ end
 ---@param hands_path string | nil
 ---@param extras table<string, any> | nil
 ---@return ash.model.Info model_info
-function model_lib.set( model_name, model_path, hands_path, extras )
+function ash_model.set( model_name, model_path, hands_path, extras )
     if model_path ~= nil then
         model_path = model_path_fix( model_path )
     end
@@ -147,7 +147,7 @@ end
 ---
 ---@param act_name string The name of the activity.
 ---@return integer act_id The ID of the activity.
-function model_lib.getActivityID( act_name )
+function ash_model.getActivityID( act_name )
     return activity_ids[ act_name ] or -1
 end
 
@@ -161,9 +161,9 @@ end
 ---
 ---@param act_id integer The ID of the activity.
 ---@return string act_name The name of the activity.
-function model_lib.getActivityName( act_id )
+function ash_model.getActivityName( act_id )
     return activity_names[ act_id ] or "ACT_INVALID"
 end
 
 
-return model_lib
+return ash_model

@@ -1,7 +1,7 @@
 ---@type ash.sound
-local sound_lib = require( "ash.sound" )
-local sound_exists = sound_lib.exists
-local sound_merge = sound_lib.merge
+local ash_sound = require( "ash.sound" )
+local sound_exists = ash_sound.exists
+local sound_merge = ash_sound.merge
 
 local string_match = string.match
 local file_Find = file.Find
@@ -308,7 +308,7 @@ end
 
 do
 
-    local sound_play = sound_lib.play
+    local sound_play = ash_sound.play
     local math_random = math.random
 
     ---@type table<string, string>

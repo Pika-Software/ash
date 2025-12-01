@@ -1,5 +1,5 @@
 ---@class ash.entity
-local entity_lib = include( "shared.lua" )
+local ash_entity = include( "shared.lua" )
 
 ---@type dreamwork.std
 local std = _G.dreamwork.std
@@ -15,7 +15,7 @@ do
     ---
     ---@param entity Entity
     ---@param color Color
-    function entity_lib.setPlayerColor( entity, color )
+    function ash_entity.setPlayerColor( entity, color )
         Entity_SetNW2Vector( entity, "m_vPlayerColor", Vector( color.r / 255, color.g / 255, color.b / 255 ) )
     end
 
@@ -52,7 +52,7 @@ do
     ---@param delay number | nil
     ---@param activator Entity | nil
     ---@param caller Entity | nil
-    function entity_lib.sendInput( entity, key, value, delay, activator, caller )
+    function ash_entity.sendInput( entity, key, value, delay, activator, caller )
         if isentity( value ) then
             if not Entity_IsValid( entity ) then
                 error( "entity is not valid", 2 )
@@ -92,4 +92,4 @@ do
 
 end
 
-return entity_lib
+return ash_entity

@@ -1,5 +1,5 @@
 ---@class ash.entity.door
-local door_lib = {}
+local ash_door = {}
 
 local Entity_IsFlagSet, Entity_AddFlags, Entity_RemoveFlags = Entity.IsFlagSet, Entity.AddFlags, Entity.RemoveFlags
 local Entity_GetNW2Int, Entity_SetNW2Int = Entity.GetNW2Int, Entity.SetNW2Int
@@ -9,8 +9,8 @@ local Entity_GetClass = Entity.GetClass
 local hook_Run = hook.Run
 
 ---@type ash.entity
-local entity_lib = require( "ash.entity" )
-local entity_sendInput = entity_lib.sendInput
+local ash_entity = require( "ash.entity" )
+local entity_sendInput = ash_entity.sendInput
 
 --- [SHARED]
 ---
@@ -18,7 +18,7 @@ local entity_sendInput = entity_lib.sendInput
 ---
 ---@param entity Entity
 ---@return boolean is_locked
-function door_lib.isLocked( entity )
+function ash_door.isLocked( entity )
     return Entity_GetInternalVariable( entity, "m_bLocked" )
 end
 
@@ -28,7 +28,7 @@ end
 ---
 ---@param entity Entity
 ---@param locked boolean
-function door_lib.setLocked( entity, locked )
+function ash_door.setLocked( entity, locked )
     if locked then
         if Entity_GetInternalVariable( entity, "m_bLocked" ) then
             return
@@ -53,7 +53,7 @@ end
 ---
 ---@param entity Entity
 ---@return ash.entity.door.State state
-function door_lib.getState( entity )
+function ash_door.getState( entity )
     if Entity_GetClass( entity ) == "prop_door_rotating" then
         return Entity_GetInternalVariable( entity, "m_eDoorState" )
     end
@@ -69,7 +69,7 @@ end
 ---@param delay number | nil
 ---@param activator Entity | nil
 ---@param caller Entity | nil
-function door_lib.open( entity, delay, activator, caller )
+function ash_door.open( entity, delay, activator, caller )
     entity_sendInput( entity, "Open", nil, delay, activator, caller )
 end
 
@@ -81,7 +81,7 @@ end
 ---@param delay number | nil
 ---@param activator Entity | nil
 ---@param caller Entity | nil
-function door_lib.close( entity, delay, activator, caller )
+function ash_door.close( entity, delay, activator, caller )
     entity_sendInput( entity, "Close", nil, delay, activator, caller )
 end
 
@@ -93,7 +93,7 @@ end
 ---@param delay number | nil
 ---@param activator Entity | nil
 ---@param caller Entity | nil
-function door_lib.toggle( entity, delay, activator, caller )
+function ash_door.toggle( entity, delay, activator, caller )
     entity_sendInput( entity, "Toggle", nil, delay, activator, caller )
 end
 
@@ -105,7 +105,7 @@ end
 ---@param delay number | nil
 ---@param activator Entity | nil
 ---@param caller Entity | nil
-function door_lib.lock( entity, delay, activator, caller )
+function ash_door.lock( entity, delay, activator, caller )
     entity_sendInput( entity, "Lock", nil, delay, activator, caller )
 end
 
@@ -117,7 +117,7 @@ end
 ---@param delay number | nil
 ---@param activator Entity | nil
 ---@param caller Entity | nil
-function door_lib.unlock( entity, delay, activator, caller )
+function ash_door.unlock( entity, delay, activator, caller )
     entity_sendInput( entity, "Unlock", nil, delay, activator, caller )
 end
 
@@ -130,7 +130,7 @@ end
 ---@param delay number | nil
 ---@param activator Entity | nil
 ---@param caller Entity | nil
-function door_lib.openAwayFrom( entity, away_entity, delay, activator, caller )
+function ash_door.openAwayFrom( entity, away_entity, delay, activator, caller )
     entity_sendInput( entity, "OpenAwayFrom", away_entity, delay, activator, caller )
 end
 
@@ -140,7 +140,7 @@ end
 ---
 ---@param entity Entity
 ---@return number distance
-function door_lib.getRotationDistance( entity )
+function ash_door.getRotationDistance( entity )
     return Entity_GetInternalVariable( entity, "distance" )
 end
 
@@ -153,7 +153,7 @@ end
 ---@param entity Entity
 ---@param distance number
 ---@param delay number | nil
-function door_lib.setRotationDistance( entity, distance, delay )
+function ash_door.setRotationDistance( entity, distance, delay )
     entity_sendInput( entity, "SetRotationDistance", distance, delay )
 end
 
@@ -166,7 +166,7 @@ end
 ---@param delay number | nil
 ---@param activator Entity | nil
 ---@param caller Entity | nil
-function door_lib.moveTo( entity, distance, delay, activator, caller )
+function ash_door.moveTo( entity, distance, delay, activator, caller )
     entity_sendInput( entity, "MoveToRotationDistance", distance, delay, activator, caller )
 end
 
@@ -176,7 +176,7 @@ end
 ---
 ---@param entity Entity
 ---@return number
-function door_lib.getSpeed( entity )
+function ash_door.getSpeed( entity )
     return Entity_GetInternalVariable( entity, "speed" )
 end
 
@@ -186,7 +186,7 @@ end
 ---
 ---@param entity Entity
 ---@param speed number
-function door_lib.setSpeed( entity, speed )
+function ash_door.setSpeed( entity, speed )
     Entity_SetKeyValue( entity, "speed", speed )
     -- entity_sendInput( entity, "SetSpeed", speed, delay, activator, caller )
 end
@@ -202,7 +202,7 @@ end
 ---
 ---@param entity Entity
 ---@return ash.entity.door.OpenDirection direction
-function door_lib.getOpenDirection( entity )
+function ash_door.getOpenDirection( entity )
     return Entity_GetInternalVariable( entity, "opendir" )
 end
 
@@ -212,7 +212,7 @@ end
 ---
 ---@param entity Entity
 ---@param direction ash.entity.door.OpenDirection
-function door_lib.setOpenDirection( entity, direction )
+function ash_door.setOpenDirection( entity, direction )
     Entity_SetKeyValue( entity, "opendir", direction )
 end
 
@@ -222,7 +222,7 @@ end
 ---
 ---@param entity Entity
 ---@return boolean is_silent
-function door_lib.isSilent( entity )
+function ash_door.isSilent( entity )
     return Entity_IsFlagSet( entity, 4096 )
 end
 
@@ -232,7 +232,7 @@ end
 ---
 ---@param entity Entity
 ---@param silent boolean
-function door_lib.setSilent( entity, silent )
+function ash_door.setSilent( entity, silent )
     if silent then
         if Entity_IsFlagSet( entity, 4096 ) then
             return
@@ -252,7 +252,7 @@ end
 ---@param delay number | nil
 ---@param activator Entity | nil
 ---@param caller Entity | nil
-function door_lib.destroy( entity, delay, activator, caller )
+function ash_door.destroy( entity, delay, activator, caller )
     entity_sendInput( entity, "Break", nil, delay, activator, caller )
 end
 
@@ -299,4 +299,4 @@ do
 
 end
 
-return door_lib
+return ash_door

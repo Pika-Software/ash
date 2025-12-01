@@ -5,7 +5,7 @@ local timer_Simple = timer.Simple
 
 ---@class ash.player
 ---@field Entity Player The local player entity.
-local player_lib = include( "shared.lua" )
+local ash_player = include( "shared.lua" )
 
 do
 
@@ -85,11 +85,11 @@ end
 
 do
 
-    local player_isInitialized = player_lib.isInitialized
+    local player_isInitialized = ash_player.isInitialized
     local LocalPlayer = _G.LocalPlayer
 
     local player_entity = LocalPlayer() or _G.NULL
-    player_lib.Entity = player_entity
+    ash_player.Entity = player_entity
 
     local thread = coroutine.create( function()
         ::retry_loop::
@@ -101,7 +101,7 @@ do
             goto retry_loop
         end
 
-        player_lib.Entity = player_entity
+        ash_player.Entity = player_entity
         -- player_entity:SetIK( true )
 
         if not player_isInitialized( player_entity ) then
@@ -129,7 +129,7 @@ do
         end )
     end
 
-    function player_lib.isLocal( pl )
+    function ash_player.isLocal( pl )
         return pl == player_entity
     end
 
@@ -205,7 +205,7 @@ do
     --- Checks if the player is speaking (using voice chat).
     ---
     ---@return boolean
-    function player_lib.isSpeaking( pl )
+    function ash_player.isSpeaking( pl )
         return voice_statuses[ pl ]
     end
 
@@ -219,4 +219,4 @@ do
 
 end
 
-return player_lib
+return ash_player

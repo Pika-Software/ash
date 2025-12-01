@@ -3,16 +3,16 @@ MODULE.Networks = {
 }
 
 ---@type ash.animation
-local animation_lib = require( "ash.player.animation" )
+local ash_animation = require( "ash.player.animation" )
 
 ---@class ash.player
-local player_lib = include( "shared.lua" )
-local player_isInitialized = player_lib.isInitialized
+local ash_player = include( "shared.lua" )
+local player_isInitialized = ash_player.isInitialized
 
 ---@type ash.entity
-local entity_lib = require( "ash.entity" )
-local entity_getHitbox = entity_lib.getHitbox
-local entity_getHitboxBounds = entity_lib.getHitboxBounds
+local ash_entity = require( "ash.entity" )
+local entity_getHitbox = ash_entity.getHitbox
+local entity_getHitboxBounds = ash_entity.getHitboxBounds
 
 ---@type ash.utils
 local utils = require( "ash.utils" )
@@ -55,7 +55,7 @@ do
     ---
     ---@param pl Player
     ---@param ragdoll Entity
-    function player_lib.setRagdoll( pl, ragdoll )
+    function ash_player.setRagdoll( pl, ragdoll )
         Entity_SetNWEntity( pl, "m_eRagdoll", ragdoll )
     end
 
@@ -63,14 +63,14 @@ end
 
 do
 
-    local player_getRagdoll = player_lib.getRagdoll
+    local player_getRagdoll = ash_player.getRagdoll
 
     --- [SERVER]
     ---
     --- Removes the player's ragdoll entity.
     ---
     ---@param pl Player
-    function player_lib.ragdollRemove( pl )
+    function ash_player.ragdollRemove( pl )
         local ragdoll = player_getRagdoll( pl )
         if ragdoll ~= nil and Entity_IsValid( ragdoll ) and hook_Run( "PrePlayerRagdollRemove", pl, ragdoll ) ~= false then
             hook_Run( "PlayerRagdollRemove", pl, ragdoll )
@@ -83,7 +83,7 @@ do
         ragdoll:Remove()
     end )
 
-    hook.Add( "PrePlayerRagdoll", "DefaultRagdoll", player_lib.ragdollRemove )
+    hook.Add( "PrePlayerRagdoll", "DefaultRagdoll", ash_player.ragdollRemove )
 
 end
 
@@ -93,7 +93,7 @@ do
     local Entity_GetPhysicsObjectCount = Entity.GetPhysicsObjectCount
     local Entity_GetPhysicsObjectNum = Entity.GetPhysicsObjectNum
 
-    local animation_getVelocity = animation_lib.getVelocity
+    local animation_getVelocity = ash_animation.getVelocity
     local utils_isInLevelBounds = utils.isInLevelBounds
 
     local trace_result = {}
@@ -108,14 +108,14 @@ do
     ---
     ---@param pl Player
     ---@return Entity ragdoll
-    function player_lib.ragdollCreate( pl )
+    function ash_player.ragdollCreate( pl )
         hook_Run( "PrePlayerRagdoll", pl )
 
         local ragdoll_entity = hook_Run( "PlayerRagdoll", pl ) or NULL
 
         if ragdoll_entity ~= nil and Entity_IsValid( ragdoll_entity ) then
             local player_velocity = animation_getVelocity( pl )
-            player_lib.setRagdoll( pl, ragdoll_entity )
+            ash_player.setRagdoll( pl, ragdoll_entity )
 
             for i = 0, Entity_GetPhysicsObjectCount( ragdoll_entity ) - 1 do
                 local physics_object = Entity_GetPhysicsObjectNum( ragdoll_entity, i )
@@ -168,7 +168,7 @@ do
 
     do
 
-        local player_isNextBot = player_lib.isNextBot
+        local player_isNextBot = ash_player.isNextBot
 
         hook.Add( "PlayerInitialSpawn", "Respawn", function( pl )
             if player_isNextBot( pl ) then
@@ -213,7 +213,7 @@ do
     ---@param on_crouch boolean
     ---@param mins Vector
     ---@param maxs Vector
-    function player_lib.setHull( pl, on_crouch, mins, maxs )
+    function ash_player.setHull( pl, on_crouch, mins, maxs )
         if on_crouch then
             Player_SetHullDuck( pl, mins, maxs )
         else
@@ -238,9 +238,9 @@ do
     ---@param width integer
     ---@param depth integer
     ---@param height integer
-    function player_lib.setHullSize( pl, on_crouch, width, depth, height )
+    function ash_player.setHullSize( pl, on_crouch, width, depth, height )
         local width_half, depth_half = math_floor( width * 0.5 ), math_floor( depth * 0.5 )
-        player_lib.setHull( pl, on_crouch, Vector( -width_half, -depth_half, 0 ), Vector( width_half, depth_half, height ) )
+        ash_player.setHull( pl, on_crouch, Vector( -width_half, -depth_half, 0 ), Vector( width_half, depth_half, height ) )
     end
 
 end
@@ -272,7 +272,7 @@ do
     ---@param activity integer
     ---@param cycle number
     ---@param auto_kill boolean
-    function player_lib.startGestureByActivity( pl, slot, activity, cycle, auto_kill )
+    function ash_player.startGestureByActivity( pl, slot, activity, cycle, auto_kill )
         net.Start( "network" )
         net.WriteUInt( 1, 8 )
         net.WritePlayer( pl )
@@ -299,7 +299,7 @@ do
     ---@param sequence_name string
     ---@param cycle number
     ---@param auto_kill boolean
-    function player_lib.startGestureBySequence( pl, slot, sequence_name, cycle, auto_kill )
+    function ash_player.startGestureBySequence( pl, slot, sequence_name, cycle, auto_kill )
         net.Start( "network" )
         net.WriteUInt( 2, 8 )
         net.WritePlayer( pl )
@@ -323,7 +323,7 @@ do
     ---
     ---@param pl Player
     ---@param slot ash.player.GESTURE_SLOT
-    function player_lib.stopGesture( pl, slot )
+    function ash_player.stopGesture( pl, slot )
         return Player_AnimResetGestureSlot( pl, slot )
     end
 
@@ -355,7 +355,7 @@ do
     ---
     ---@param pl Player
     ---@return integer key
-    function player_lib.getRespawnKey( pl )
+    function ash_player.getRespawnKey( pl )
         return respawn_keys[ pl ]
     end
 
@@ -365,7 +365,7 @@ do
     ---
     ---@param pl Player
     ---@param key integer
-    function player_lib.setRespawnKey( pl, key )
+    function ash_player.setRespawnKey( pl, key )
         respawn_keys[ pl ] = key
     end
 
@@ -374,7 +374,7 @@ do
 
     do
 
-        local player_isDead = player_lib.isDead
+        local player_isDead = ash_player.isDead
 
         setmetatable( awaiting_respawn, {
             __index = function( _, pl )
@@ -400,8 +400,8 @@ do
 
     do
 
-        local entity_getPlayerColor = entity_lib.getPlayerColor
-        local entity_setPlayerColor = entity_lib.setPlayerColor
+        local entity_getPlayerColor = ash_entity.getPlayerColor
+        local entity_setPlayerColor = ash_entity.setPlayerColor
 
         ---@param pl Player
         ---@param ragdoll_entity Entity
@@ -417,7 +417,7 @@ do
             hook_Run( "PrePlayerDeath", pl, attacker, dmg_info )
 
             if hook_Run( "CanPlayerRagdoll", pl ) ~= false then
-                player_lib.ragdollCreate( pl )
+                ash_player.ragdollCreate( pl )
             end
         end, PRE_HOOK )
 
@@ -464,4 +464,4 @@ do
 
 end
 
-return player_lib
+return ash_player
