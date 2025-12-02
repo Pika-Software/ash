@@ -1,3 +1,10 @@
+---@type dreamwork.std
+local std = _G.dreamwork.std
+local math = std.math
+
+local Variable = std.console.Variable
+local hook_Run = hook.Run
+
 ---@class ash.entity
 local ash_entity = {}
 
@@ -312,12 +319,17 @@ do
 
     local Entity_SetNW2Bool = Entity.SetNW2Bool
     local Entity_GetModel = Entity.GetModel
-    local hook_Run = hook.Run
 
     hook.Add( "OnEntityCreated", "Handler", function( entity )
-        hook_Run( "PreEntityCreated", entity )
-
         local class_name = Entity_GetClass( entity )
+
+        if hook_Run( "AllowEntityCreation", entity, class_name ) == false then
+            if entity ~= nil and entity:IsValid() then
+                entity:Remove()
+            end
+
+            return false
+        end
 
         hook_Run( "EntityCreated", entity, class_name )
 
@@ -338,8 +350,6 @@ do
         elseif entity:IsWeapon() then
             hook_Run( "WeaponEntityCreated", entity, class_name )
         end
-
-        hook_Run( "PostEntityCreated", entity )
     end, PRE_HOOK )
 
     hook.Add( "EntityRemoved", "Handler", function( entity, is_full_update )
@@ -358,6 +368,54 @@ do
             hook_Run( "WeaponEntityRemoved", entity, class_name, is_full_update )
         end
     end, PRE_HOOK )
+
+end
+
+do
+
+	local sv_cheats, host_timescale = Variable.get( "sv_cheats", "boolean" ), Variable.get( "host_timescale", "float" )
+	local engine_GetDemoPlaybackTimeScale = engine.GetDemoPlaybackTimeScale
+	local game_GetTimeScale = game.GetTimeScale
+	local math_clamp = math.clamp
+
+    hook.Add( "EntityEmitSound", "Handler", function( arguments, data )
+        local result = arguments[ 1 ]
+        if result ~= nil then
+            return result
+        end
+
+		local time_scale = game_GetTimeScale()
+
+        if sv_cheats ~= nil and sv_cheats.value and host_timescale ~= nil then
+            time_scale = time_scale * host_timescale.value
+        end
+
+        if CLIENT then
+            time_scale = time_scale * engine_GetDemoPlaybackTimeScale()
+		end
+
+        local start_pitch = data.Pitch
+
+        data.Pitch = math_clamp( start_pitch * time_scale, 0, 255 )
+
+		local entity = data.Entity
+		if entity ~= nil and entity:IsValid() then
+			if entity:IsPlayer() then
+				result = hook_Run( "PlayerEmitSound", entity, data )
+				if result ~= nil then return result end
+			else
+				result = hook_Run( "ValidEntityEmitSound", entity, data )
+				if result ~= nil then return result end
+			end
+		elseif entity:IsWorld() then
+			result = hook_Run( "WorldEmitSound", entity, data )
+			if result ~= nil then return result end
+		end
+
+		if data.Pitch ~= start_pitch then
+			return true
+		end
+	end, POST_HOOK_RETURN )
 
 end
 
