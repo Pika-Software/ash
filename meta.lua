@@ -314,3 +314,5 @@ POST_HOOK = {4}
 ---@diagnostic disable-next-line: redundant-parameter
 function hook.Add( event_name, identifier, func, priority )
 end
+
+class = _G.dreamwork.class

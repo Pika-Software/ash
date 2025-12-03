@@ -710,6 +710,7 @@ setmetatable( environment, {
 
 local DEBUG = glua_cvars.Number( "developer", 0 ) ~= 0
 environment.DEBUG = DEBUG
+environment.class = class
 environment._G = _G
 
 local enviroment_metatable = {
@@ -1433,6 +1434,8 @@ do
             if segments[ 1 ] == nil then
                 segments[ 1 ] = active_gamemode
             end
+
+            segments_count = 2
         end
 
         local root_name = segments[ 1 ]
