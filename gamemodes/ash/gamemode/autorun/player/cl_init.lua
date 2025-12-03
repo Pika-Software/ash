@@ -115,14 +115,19 @@ do
         coroutine_yield( true )
     end )
 
-    if not coroutine_resume( thread ) then
+    local function player_find()
+        local success, is_finded = coroutine_resume( thread )
+        return not success or is_finded
+    end
+
+    if not player_find() then
         hook.Add( "InitPostEntity", "PlayerInit", function()
-            if coroutine_resume( thread ) then
+            if player_find() then
                 return
             end
 
             timer.Create( "await", 0.05, 0, function()
-                if coroutine_resume( thread ) then
+                if player_find() then
                     timer.Remove( "await" )
                 end
             end )

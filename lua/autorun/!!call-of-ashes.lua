@@ -430,30 +430,39 @@ if LUA_SERVER then
 
     end
 
-    --- [SERVER]
-    ---
-    --- Resend all files to clients.
-    ---
-    function ash.resend()
-        local chain = ash.Chain
+    do
 
-        for i = #chain, 1, -1 do
-            local modules_path = chain[ i ].name .. "/gamemode/modules/"
+        ---@param folder_path string
+        local function folder_send( folder_path )
+            for _, directory_name in raw_ipairs( select( 2, glua_file.Find( folder_path .. "*", "LUA" ) ) ) do
+                local directory_path = folder_path .. directory_name
 
-            for _, directory_name in raw_ipairs( select( 2, glua_file.Find( modules_path .. "*", "LUA" ) ) ) do
-                local module_path = modules_path .. directory_name
-
-                local cl_init_path = module_path .. "/cl_init.lua"
+                local cl_init_path = directory_path .. "/cl_init.lua"
                 if file_Exists( cl_init_path, "LUA" ) then
                     clientFileSend( cl_init_path, 2 )
                 end
 
-                local shared_path = module_path .. "/shared.lua"
+                local shared_path = directory_path .. "/shared.lua"
                 if file_Exists( shared_path, "LUA" ) then
                     clientFileSend( shared_path, 2 )
                 end
+
+                folder_send( directory_path .. "/" )
             end
         end
+
+        --- [SERVER]
+        ---
+        --- Resend all files to clients.
+        ---
+        function ash.resend()
+            local chain = ash.Chain
+
+            for i = #chain, 1, -1 do
+                folder_send( chain[ i ].name .. "/gamemode/modules/" )
+            end
+        end
+
     end
 
 end

@@ -37,10 +37,15 @@ hook.Add( "PlayerInitialized", "HullSync", function( pl )
 
         local mins, maxs = pl:GetHull()
         net.WriteVector( mins ); net.WriteVector( maxs )
+        net.Broadcast()
+
+        net.Start( "network" )
+
+        net.WriteUInt( 0, 8 )
+        net.WritePlayer( pl )
 
         local mins_ducked, maxs_ducked = pl:GetHullDuck()
         net.WriteVector( mins_ducked ); net.WriteVector( maxs_ducked )
-
         net.Broadcast()
     end
 end )
