@@ -1263,6 +1263,10 @@ do
 
             local success, result = pcall( CompileString, lua_code, file_path, false )
 
+            if isString( result ) then
+                success = false
+            end
+
             if not success or result == nil then
                 std.errorf( stack_level, false, "File '%s' compilation failed:\n %s.", file_path, result or "unknown error" )
             end
