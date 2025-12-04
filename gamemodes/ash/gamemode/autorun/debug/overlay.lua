@@ -1,5 +1,7 @@
 local std = _G.dreamwork.std
 local angle_zero = angle_zero
+
+local system_HasFocus = system.HasFocus
 local os_clock = os.clock
 local assert = std.assert
 local arg = std.arg
@@ -16,29 +18,33 @@ local cam_IgnoreZ = cam.IgnoreZ
 ---@class ash.debug.overlay
 local overlay = {}
 
-
 ---@type function[]
-local queue = {}
+local render_queue = {}
 
 ---@type integer
-local queue_size = 0
+local render_queue_size = 0
+
+---@type number[]
+local death_times = {}
 
 local function gen( lifetime, fn )
-    local death_time = os_clock() + math.max( lifetime or 0, 0.5 )
-
-    local index = queue_size + 1
-    queue_size = index
-
-    queue[ index ] = function()
-        if os_clock() > death_time then
-            table.remove( queue, index )
-            queue_size = queue_size - 1
-            return
-        end
-
-        fn()
+    if system_HasFocus() then
+        render_queue_size = render_queue_size + 1
+        death_times[ render_queue_size ] = os_clock() + math.max( lifetime or 0, 0.5 )
+        render_queue[ render_queue_size ] = fn
     end
 end
+
+timer.Create( "OverlayTicks", 0.1, 0, function()
+    local now = os_clock()
+
+    for i = render_queue_size, 1, -1 do
+        if now > death_times[ i ] then
+            table.remove( render_queue, i )
+            render_queue_size = render_queue_size - 1
+        end
+    end
+end )
 
 ---@param start_position Vector
 ---@param end_position Vector
@@ -164,20 +170,20 @@ function overlay.text( str, origin, size, r, g, b, write_depth, lifetime )
     local text_x, text_y = text_width * 0.5, text_height * 0.5
 
     return gen( lifetime, function()
-        cam.Start3D2D( origin, angle_zero, 0.25 )
+        cam_Start3D2D( origin, angle_zero, 0.25 )
             surface.SetFont( "DermaLarge" )
             surface.SetDrawColor( color )
             surface.SetTextPos( text_x, text_y )
             surface.DrawText( str )
-        cam.End3D2D()
+        cam_End3D2D()
     end )
 end
 
 hook.Add( "PostDrawTranslucentRenderables", "Render", function( is_depth, is_skybox, is_3d_skybox )
     if is_skybox then return end
 
-    for i = queue_size, 1, -1 do
-        queue[ i ]()
+    for i = render_queue_size, 1, -1 do
+        render_queue[ i ]()
     end
 end )
 
