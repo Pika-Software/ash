@@ -28,25 +28,11 @@ local hook_Run = hook.Run
 
 local NULL = NULL
 
+---@param pl Player
 hook.Add( "PlayerInitialized", "HullSync", function( pl )
-    if player_isInitialized( pl ) then
-        net.Start( "network" )
-
-        net.WriteUInt( 0, 8 )
-        net.WritePlayer( pl )
-
-        local mins, maxs = pl:GetHull()
-        net.WriteVector( mins ); net.WriteVector( maxs )
-        net.Broadcast()
-
-        net.Start( "network" )
-
-        net.WriteUInt( 0, 8 )
-        net.WritePlayer( pl )
-
-        local mins_ducked, maxs_ducked = pl:GetHullDuck()
-        net.WriteVector( mins_ducked ); net.WriteVector( maxs_ducked )
-        net.Broadcast()
+    if not pl:IsBot() then
+        ash_player.setHull( pl, true, pl:GetHullDuck() )
+        ash_player.setHull( pl, false, pl:GetHull() )
     end
 end )
 
@@ -227,10 +213,18 @@ do
 
         net.Start( "network" )
         net.WriteUInt( 0, 8 )
-        net.WritePlayer( pl )
+
+        net.WriteUInt( pl:EntIndex(), ash_player.BitCount )
         net.WriteBool( on_crouch )
-        net.WriteVector( mins )
-        net.WriteVector( maxs )
+
+        net.WriteDouble( mins[ 1 ] )
+        net.WriteDouble( mins[ 2 ] )
+        net.WriteDouble( mins[ 3 ] )
+
+        net.WriteDouble( maxs[ 1 ] )
+        net.WriteDouble( maxs[ 2 ] )
+        net.WriteDouble( maxs[ 3 ] )
+
         net.Broadcast()
     end
 

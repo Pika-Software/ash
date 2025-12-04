@@ -717,10 +717,13 @@ setmetatable( environment, {
     end
 } )
 
-local DEBUG = glua_cvars.Number( "developer", 0 ) ~= 0
-environment.DEBUG = DEBUG
+environment.printf = std.printf
+environment.math = std.math
 environment.class = class
 environment._G = _G
+
+local DEBUG = glua_cvars.Number( "developer", 0 ) ~= 0
+environment.DEBUG = DEBUG
 
 local enviroment_metatable = {
     __index = environment,

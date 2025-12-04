@@ -1,5 +1,7 @@
 ---@class ash.player
-local ash_player = {}
+local ash_player = {
+    BitCount = math.ceil( math.log( 1 + game.MaxPlayers() ) / math.log( 2 ) )
+}
 
 ---@class ash.Player
 local Player = Player

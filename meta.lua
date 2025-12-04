@@ -1,3 +1,5 @@
+local std = _G.dreamwork.std
+
 --- [SHARED]
 ---
 --- Is the game in debug mode?
@@ -311,8 +313,15 @@ POST_HOOK = {4}
 ---@param identifier string | any The identifier can be either a string, or a table/object with an IsValid function defined such as an Entity or Panel. numbers and booleans, for example, are not allowed.
 ---@param func function The function to be called, arguments given to it depend on the identifier used.
 ---@param priority hook.Type
----@diagnostic disable-next-line: redundant-parameter
+---@diagnostic disable-next-line: redundant-parameter, duplicate-set-field
 function hook.Add( event_name, identifier, func, priority )
 end
 
-class = _G.dreamwork.class
+---@diagnostic disable-next-line: lowercase-global
+class = std.class
+
+---@diagnostic disable-next-line: lowercase-global
+printf = std.printf
+
+---@diagnostic disable-next-line: lowercase-global
+math = std.math

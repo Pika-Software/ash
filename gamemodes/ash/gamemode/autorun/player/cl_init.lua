@@ -1,7 +1,13 @@
-local coroutine_resume = coroutine.resume
-local coroutine_yield = coroutine.yield
-local Entity_IsValid = Entity.IsValid
 local timer_Simple = timer.Simple
+
+local Entity = Entity
+local Entity_IsValid = Entity.IsValid
+
+local coroutine_yield = coroutine.yield
+local coroutine_resume = coroutine.resume
+
+local Vector = Vector
+local net = net
 
 ---@class ash.player
 ---@field Entity Player The local player entity.
@@ -19,14 +25,23 @@ do
 
         -- player hull setup
         net_commands[ 0 ] = function()
-            local pl = net.ReadPlayer()
-            if pl ~= nil and Entity_IsValid( pl ) then
-                if net.ReadBool() then
-                    Player_SetHullDuck( pl, net.ReadVector(), net.ReadVector() )
-                else
-                    Player_SetHull( pl, net.ReadVector(), net.ReadVector() )
+            local index = net.ReadUInt( ash_player.BitCount )
+
+            local is_crouch = net.ReadBool()
+
+            local mins = Vector( net.ReadDouble(), net.ReadDouble(), net.ReadDouble() )
+            local maxs = Vector( net.ReadDouble(), net.ReadDouble(), net.ReadDouble() )
+
+            timer_Simple( 0, function()
+                local pl = Entity( index )
+                if pl ~= nil and Entity_IsValid( pl ) then
+                    if is_crouch then
+                        Player_SetHullDuck( pl, mins, maxs )
+                    else
+                        Player_SetHull( pl, mins, maxs )
+                    end
                 end
-            end
+            end )
         end
 
     end
@@ -164,6 +179,7 @@ do
         player_spawns[ player_spawns_count ] = user_id
     end, PRE_HOOK )
 
+    -- try https://wiki.facepunch.com/gmod/player.GetByID
 
     hook.Add( "player_spawn", "ClientSideSpawn", function( data )
         player_spawns_count = player_spawns_count + 1
