@@ -4,8 +4,7 @@ MODULE.ClientFiles = {
     "shared.lua"
 }
 
+---@class ash.debug
 local debug = include( "./shared.lua" )
-
-
 
 return debug

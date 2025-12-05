@@ -81,7 +81,7 @@ hook.Add( "PlayerPostThink", "FootstepsThink", function( pl )
                 local bone_direction = ( root_position - bone_position )
                 Vector_Normalize( bone_direction )
 
-                trace.endpos = bone_position - bone_direction * 5 -- Vector_Distance( root_position, bone_position ) * 0.25
+                trace.endpos = bone_position - bone_direction * 6 -- Vector_Distance( root_position, bone_position ) * 0.25
                 trace.filter = pl
 
                 local hitbox, hitbox_group = entity_getHitbox( pl, bone_id )
