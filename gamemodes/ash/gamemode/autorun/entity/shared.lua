@@ -282,8 +282,11 @@ end
 
 local Entity_GetClass = Entity.GetClass
 
-ash_entity.getClassName = Entity_GetClass
 ash_entity.getSolidType = Entity.GetSolid
+ash_entity.getClassName = Entity_GetClass
+
+ash_entity.getEngineValue = Entity.GetInternalVariable
+ash_entity.setEngineValue = Entity.SetKeyValue
 
 do
 

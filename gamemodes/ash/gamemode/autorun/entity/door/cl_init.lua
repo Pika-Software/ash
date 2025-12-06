@@ -10,6 +10,7 @@ local Entity_GetNW2Int = Entity.GetNW2Int
 ---
 ---@param entity Entity
 ---@return boolean is_locked
+---@diagnostic disable-next-line: duplicate-set-field
 function ash_door.isLocked( entity )
     return Entity_GetNW2Bool( entity, "m_bLocked", false )
 end
@@ -20,6 +21,7 @@ end
 ---
 ---@param entity Entity
 ---@return ash.entity.door.State state
+---@diagnostic disable-next-line: duplicate-set-field
 function ash_door.getState( entity )
     return Entity_GetNW2Int( entity, "m_eDoorState", 0 )
 end

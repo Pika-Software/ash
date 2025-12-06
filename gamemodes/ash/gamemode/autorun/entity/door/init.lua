@@ -2,14 +2,13 @@
 local ash_door = {}
 
 local Entity_IsFlagSet, Entity_AddFlags, Entity_RemoveFlags = Entity.IsFlagSet, Entity.AddFlags, Entity.RemoveFlags
-local Entity_GetNW2Int, Entity_SetNW2Int = Entity.GetNW2Int, Entity.SetNW2Int
-local Entity_GetInternalVariable = Entity.GetInternalVariable
-local Entity_SetKeyValue = Entity.SetKeyValue
-local Entity_GetClass = Entity.GetClass
 local hook_Run = hook.Run
 
 ---@type ash.entity
 local ash_entity = require( "ash.entity" )
+
+local entity_getEngineValue, entity_setEngineValue = ash_entity.getEngineValue, ash_entity.setEngineValue
+local entity_getClassName = ash_entity.getClassName
 local entity_sendInput = ash_entity.sendInput
 
 --- [SHARED]
@@ -18,8 +17,9 @@ local entity_sendInput = ash_entity.sendInput
 ---
 ---@param entity Entity
 ---@return boolean is_locked
+---@diagnostic disable-next-line: duplicate-set-field
 function ash_door.isLocked( entity )
-    return Entity_GetInternalVariable( entity, "m_bLocked" )
+    return entity_getEngineValue( entity, "m_bLocked" )
 end
 
 --- [SHARED]
@@ -30,12 +30,12 @@ end
 ---@param locked boolean
 function ash_door.setLocked( entity, locked )
     if locked then
-        if Entity_GetInternalVariable( entity, "m_bLocked" ) then
+        if entity_getEngineValue( entity, "m_bLocked" ) then
             return
         end
 
         entity_sendInput( entity, "Lock" )
-    elseif Entity_GetInternalVariable( entity, "m_bLocked" ) then
+    elseif entity_getEngineValue( entity, "m_bLocked" ) then
         entity_sendInput( entity, "Unlock" )
     end
 end
@@ -53,9 +53,10 @@ end
 ---
 ---@param entity Entity
 ---@return ash.entity.door.State state
+---@diagnostic disable-next-line: duplicate-set-field
 function ash_door.getState( entity )
-    if Entity_GetClass( entity ) == "prop_door_rotating" then
-        return Entity_GetInternalVariable( entity, "m_eDoorState" )
+    if entity_getClassName( entity ) == "prop_door_rotating" then
+        return entity_getEngineValue( entity, "m_eDoorState" )
     end
 
     return 0
@@ -141,7 +142,7 @@ end
 ---@param entity Entity
 ---@return number distance
 function ash_door.getRotationDistance( entity )
-    return Entity_GetInternalVariable( entity, "distance" )
+    return entity_getEngineValue( entity, "distance" )
 end
 
 --- [SHARED]
@@ -177,7 +178,7 @@ end
 ---@param entity Entity
 ---@return number
 function ash_door.getSpeed( entity )
-    return Entity_GetInternalVariable( entity, "speed" )
+    return entity_getEngineValue( entity, "speed" )
 end
 
 --- [SHARED]
@@ -187,7 +188,7 @@ end
 ---@param entity Entity
 ---@param speed number
 function ash_door.setSpeed( entity, speed )
-    Entity_SetKeyValue( entity, "speed", speed )
+    entity_setEngineValue( entity, "speed", speed )
     -- entity_sendInput( entity, "SetSpeed", speed, delay, activator, caller )
 end
 
@@ -203,7 +204,7 @@ end
 ---@param entity Entity
 ---@return ash.entity.door.OpenDirection direction
 function ash_door.getOpenDirection( entity )
-    return Entity_GetInternalVariable( entity, "opendir" )
+    return entity_getEngineValue( entity, "opendir" )
 end
 
 --- [SHARED]
@@ -213,7 +214,7 @@ end
 ---@param entity Entity
 ---@param direction ash.entity.door.OpenDirection
 function ash_door.setOpenDirection( entity, direction )
-    Entity_SetKeyValue( entity, "opendir", direction )
+    entity_setEngineValue( entity, "opendir", direction )
 end
 
 --- [SHARED]
@@ -258,6 +259,8 @@ end
 
 do
 
+    local Entity_GetNW2Bool, Entity_SetNW2Bool = Entity.GetNW2Bool, Entity.SetNW2Bool
+    local Entity_GetNW2Int, Entity_SetNW2Int = Entity.GetNW2Int, Entity.SetNW2Int
     local table_remove = table.remove
 
     ---@type Entity[]
@@ -270,11 +273,18 @@ do
 		for i = 1, door_count, 1 do
             local entity = doors[ i ]
 
-            local state = Entity_GetInternalVariable( entity, "m_eDoorState" )
+            local state = entity_getEngineValue( entity, "m_eDoorState" )
+
             if Entity_GetNW2Int( entity, "m_eDoorState" ) ~= state then
                 local previous_state = Entity_GetNW2Int( entity, "m_eDoorState" )
                 Entity_SetNW2Int( entity, "m_eDoorState", state )
-                hook_Run( "DoorEntityStateChanged", entity, state, previous_state )
+                hook_Run( "DoorStateChanged", entity, state, previous_state )
+            end
+
+            local is_locked = entity_getEngineValue( entity, "m_bLocked" )
+            if Entity_GetNW2Bool( entity, "" ) ~= is_locked then
+                Entity_SetNW2Bool( entity, "m_bLocked", is_locked )
+                hook_Run( "DoorLockStateChanged", entity, is_locked )
             end
         end
 	end )
