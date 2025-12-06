@@ -26,15 +26,27 @@ local Entity_IsValid = Entity.IsValid
 local math_floor = math.floor
 local hook_Run = hook.Run
 
+local Player_IsBot = Player.IsBot
+
 local NULL = NULL
 
 ---@param pl Player
 hook.Add( "PlayerInitialized", "HullSync", function( pl )
-    if not pl:IsBot() then
+    if not Player_IsBot( pl ) then
         ash_player.setHull( pl, true, pl:GetHullDuck() )
         ash_player.setHull( pl, false, pl:GetHull() )
     end
 end )
+
+--- [SERVER]
+---
+--- Checks if the player is uses family shared account.
+---
+---@param pl Player
+---@return boolean
+function ash_player.isFamilySharedAccount( pl )
+    return not Player_IsBot( pl ) and pl:SteamID64() ~= pl:OwnerSteamID64()
+end
 
 do
 

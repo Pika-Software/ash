@@ -1,9 +1,13 @@
 ---@type dreamwork.std
 local std = _G.dreamwork.std
+
 local math = std.math
+local math_huge = math.huge
 
 local Variable = std.console.Variable
 local hook_Run = hook.Run
+
+local NULL = NULL
 
 ---@class ash.entity
 local ash_entity = {}
@@ -278,6 +282,9 @@ end
 
 local Entity_GetClass = Entity.GetClass
 
+ash_entity.getClassName = Entity_GetClass
+ash_entity.getSolidType = Entity.GetSolid
+
 do
 
     local utils_isRagdollClass = utils.isRagdollClass
@@ -306,6 +313,60 @@ do
     ---@return boolean is_ragdoll
     function ash_entity.isRagdoll( entity )
         return utils_isRagdollClass( Entity_GetClass( entity ) )
+    end
+
+end
+
+do
+
+    local Entity_GetBrushPlaneCount = Entity.GetBrushPlaneCount
+
+    --- [SHARED]
+    ---
+    --- Check if entity is brush.
+    ---
+    ---@param entity Entity
+    ---@return boolean is_brush
+    function ash_entity.isBrush( entity )
+       return Entity_GetBrushPlaneCount( entity ) ~= 0
+    end
+
+end
+
+do
+
+    local Entity_GetRenderMode = Entity.GetRenderMode
+    ash_entity.getRenderMode = Entity_GetRenderMode
+
+    ---@type table<integer, boolean>
+    local transparent_modes = {
+        [ RENDERMODE_NORMAL ] = false,
+        [ RENDERMODE_TRANSCOLOR ] = true,
+        [ RENDERMODE_TRANSTEXTURE ] = true,
+        [ RENDERMODE_GLOW ] = true,
+        [ RENDERMODE_TRANSALPHA ] = false,
+        [ RENDERMODE_TRANSADD ] = true,
+        [ RENDERMODE_ENVIROMENTAL ] = false,
+        [ RENDERMODE_TRANSADDFRAMEBLEND	] = true,
+        [ RENDERMODE_TRANSALPHADD ] = true,
+        [ RENDERMODE_WORLDGLOW ] = true,
+        [ RENDERMODE_NONE ] = false
+    }
+
+    setmetatable( transparent_modes, {
+        __index = function()
+            return false
+        end
+    } )
+
+    --- [SHARED]
+    ---
+    --- Check if entity is transparent.
+    ---
+    ---@param entity Entity
+    ---@return boolean is_transparent
+    function ash_entity.isTransparent( entity )
+        return transparent_modes[ Entity_GetRenderMode( entity ) ]
     end
 
 end
@@ -416,6 +477,72 @@ do
 			return true
 		end
 	end, POST_HOOK_RETURN )
+
+end
+
+---@param arguments table
+---@param entity Entity
+---@param bullet Bullet
+hook.Add( "EntityFireBullets", "BulletCallback", function( arguments, entity, bullet )
+    if arguments[ 1 ] == false then return false end
+
+    local callback = bullet.Callback
+
+    bullet.Callback = function( attacker, trace_result, damage_info )
+        local do_effects, do_damage = hook.Run( "EntityFireBulletsImpact", attacker, trace_result, damage_info )
+        local result = { do_effects == true, do_damage == true }
+
+        if callback ~= nil then
+            do_effects, do_damage = callback( attacker, trace_result, damage_info )
+
+            if do_effects ~= nil then
+                result[ 1 ] = do_effects == true
+            end
+
+            if do_damage ~= nil then
+                result[ 2 ] = do_damage == true
+            end
+        end
+
+        return result
+    end
+
+    return true
+end, POST_HOOK_RETURN )
+
+do
+
+    local Vector_DistToSqr = Vector.DistToSqr
+    local Entity_GetPos = Entity.GetPos
+
+    --- [SHARED]
+    ---
+    --- Selects the closest entity to the origin and returns it.
+    ---
+    ---@param entities Entity[]
+    ---@param origin Vector
+    ---@param position_fn? fun( entity: Entity ): Vector
+    ---@return Entity entity
+    function ash_entity.closest( entities, origin, position_fn )
+        if position_fn == nil then
+            position_fn = Entity_GetPos
+        end
+
+        local min_distance = math_huge
+        local selected_entity = NULL
+
+        for i = 1, #entities, 1 do
+            local entity = entities[ i ]
+
+            local distance = Vector_DistToSqr( position_fn( entity ), origin )
+            if distance < min_distance then
+                selected_entity = entity
+                min_distance = distance
+            end
+        end
+
+        return selected_entity
+    end
 
 end
 

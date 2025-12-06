@@ -1,3 +1,4 @@
+local Vector = Vector
 local util = util
 
 --- [SHARED]
@@ -58,7 +59,10 @@ do
 
     local button_class_names = list.GetForEdit( "ash.button.classnames" )
 
+    button_class_names.momentary_rot_button = true
+    button_class_names.func_rot_button = true
     button_class_names.func_button = true
+    button_class_names.gmod_button = true
 
     --- [SHARED]
     ---
@@ -77,6 +81,7 @@ do
     local door_class_names = list.GetForEdit( "ash.door.classnames" )
 
     door_class_names.prop_door_rotating_checkpoint = true
+    door_class_names.prop_testchamber_door = true
     door_class_names.prop_door_rotating = true
     door_class_names.func_door_rotating = true
     door_class_names.func_door = true
@@ -99,6 +104,7 @@ do
 
     breakable_class_names.func_breakable_surf = true
     breakable_class_names.func_breakable = true
+    breakable_class_names.func_physbox = true
 
     --- [SHARED]
     ---
@@ -114,27 +120,79 @@ end
 
 do
 
-    local util_TraceLine = util.TraceLine
+    local spawnpoint_class_names = list.GetForEdit( "ash.spawnpoint.classnames" )
 
-    local trace_result = {}
+    -- Garry's Mod
+    spawnpoint_class_names.info_player_start = true
 
-    local trace = {
-        collisiongroup = _G.COLLISION_GROUP_WORLD,
-        output = trace_result
-    }
+    -- Garry's Mod (old)
+    spawnpoint_class_names.gmod_player_start = true
+
+    -- Half-Life 2: Deathmatch
+    spawnpoint_class_names.info_player_deathmatch = true
+    spawnpoint_class_names.info_player_combine = true
+    spawnpoint_class_names.info_player_rebel = true
+
+    -- Counter-Strike: Source & Counter-Strike: Global Offensive
+    spawnpoint_class_names.info_player_counterterrorist = true
+    spawnpoint_class_names.info_player_terrorist = true
+
+    -- Day of Defeat: Source
+    spawnpoint_class_names.info_player_axis = true
+    spawnpoint_class_names.info_player_allies = true
+
+    -- Team Fortress 2
+    spawnpoint_class_names.info_player_teamspawn = true
+
+    -- Insurgency
+    spawnpoint_class_names.ins_spawnpoint = true
+
+    -- AOC
+    spawnpoint_class_names.aoc_spawnpoint = true
+
+    -- Dystopia
+    spawnpoint_class_names.dys_spawn_point = true
+
+    -- Pirates, Vikings, and Knights II
+    spawnpoint_class_names.info_player_pirate = true
+    spawnpoint_class_names.info_player_viking = true
+    spawnpoint_class_names.info_player_knight = true
+
+    -- D.I.P.R.I.P. Warm Up
+    spawnpoint_class_names.diprip_start_team_blue = true
+    spawnpoint_class_names.diprip_start_team_red = true
+
+    -- OB
+    spawnpoint_class_names.info_player_red = true
+    spawnpoint_class_names.info_player_blue = true
+
+    -- Synergy
+    spawnpoint_class_names.info_player_coop = true
+
+    -- Zombie Panic! Source
+    spawnpoint_class_names.info_player_human = true
+    spawnpoint_class_names.info_player_zombie = true
+
+    -- Zombie Master
+    spawnpoint_class_names.info_player_zombiemaster = true
+
+    -- Fistful of Frags
+    spawnpoint_class_names.info_player_fof = true
+    spawnpoint_class_names.info_player_desperado = true
+    spawnpoint_class_names.info_player_vigilante = true
+
+    -- Left 4 Dead & Left 4 Dead 2
+    spawnpoint_class_names.info_survivor_rescue = true
+    -- spawnpoint_class_names.info_survivor_position = true
 
     --- [SHARED]
     ---
-    --- Checks if a position is inside the level bounds (inside the world).
+    --- Checks if the class name is a spawnpoint class.
     ---
-    ---@param origin Vector
-    ---@return boolean
-    utils.isInLevelBounds = util.IsInWorld or function( origin )
-        trace.start = origin
-        trace.endpos = origin
-
-        util_TraceLine( trace )
-        return not trace_result.HitWorld
+    ---@param class_name string
+    ---@return boolean is_spawnpoint
+    function utils.isSpawnpointClass( class_name )
+        return spawnpoint_class_names[ class_name ] == true
     end
 
 end
