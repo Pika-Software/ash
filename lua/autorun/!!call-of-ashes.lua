@@ -737,6 +737,7 @@ do
     ---@param it GM
     ---@param name string
     ---@param base_name string
+    ---@diagnostic disable-next-line: duplicate-set-field
     function gamemode.Register( it, name, base_name )
         xpcall( glua_hook.Run, ErrorNoHaltWithStack, "GamemodeRegistered", name, it, base_name )
         return gamemode_Register( it, name, base_name )
@@ -1160,7 +1161,10 @@ do
         ---
         function Module:unload()
             if self.Environment == nil then return end
+
             self.Environment = nil
+            self.Result = nil
+            self.Error = nil
 
             local prefix = self.Prefix
 
