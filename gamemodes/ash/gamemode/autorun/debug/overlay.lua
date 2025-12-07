@@ -68,7 +68,7 @@ end
 overlay.line = line
 
 ---@param origin Vector
----@param size Vector
+---@param size number
 ---@param r? integer
 ---@param g? integer
 ---@param b? integer
@@ -78,17 +78,19 @@ function overlay.cross( origin, size, r, g, b, write_depth, lifetime )
     assert( arg( origin, 1, "Vector" ) )
     assert( arg( size, 2, "number" ) )
 
+    size = size / 2
+
     local color = Color( r or 255, g or 255, b or 255, 255 )
     write_depth = write_depth ~= false
 
-    local x_start = Vector( origin.x - size.x, origin.y, origin.z )
-    local x_end = Vector( origin.x + size.x, origin.y, origin.z )
+    local x_start = Vector( origin.x - size, origin.y, origin.z )
+    local x_end = Vector( origin.x + size, origin.y, origin.z )
 
-    local y_start = Vector( origin.x, origin.y - size.y, origin.z )
-    local y_end = Vector( origin.x, origin.y + size.y, origin.z )
+    local y_start = Vector( origin.x, origin.y - size, origin.z )
+    local y_end = Vector( origin.x, origin.y + size, origin.z )
 
-    local z_start = Vector( origin.x, origin.y, origin.z - size.z )
-    local z_end = Vector( origin.x, origin.y, origin.z + size.z )
+    local z_start = Vector( origin.x, origin.y, origin.z - size )
+    local z_end = Vector( origin.x, origin.y, origin.z + size )
 
     return gen( lifetime, function()
         render_DrawLine( x_start, x_end, color, write_depth )
