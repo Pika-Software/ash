@@ -1,3 +1,6 @@
+---@type ash.model
+local ash_model = require( "ash.model" )
+
 ---@class ash.player
 local ash_player = {
     BitCount = math.ceil( math.log( 1 + game.MaxPlayers() ) / math.log( 2 ) )
@@ -6,53 +9,15 @@ local ash_player = {
 ---@class ash.Player
 local Player = Player
 
+---@class ash.Vector
+local Vector = Vector
+
+local MoveData_GetButtons = MoveData.GetButtons
 local hook_Run = hook.Run
 local bit_band = bit.band
 local bit_bor = bit.bor
 
----@type ash.model
-local ash_model = require( "ash.model" )
-
-do
-
-    local UserCommand_ClearMovement = UserCommand.ClearMovement
-    local UserCommand_ClearButtons = UserCommand.ClearButtons
-    local UserCommand_SetImpulse = UserCommand.SetImpulse
-
-    ---@param pl Player
-    ---@param cmd CUserCmd
-    ---@diagnostic disable-next-line: redundant-parameter
-    hook.Add( "StartCommand", "MovementController", function( pl, cmd )
-        if hook_Run( "CanPlayerMove", pl, cmd ) == false then
-            UserCommand_SetImpulse( cmd, 0 )
-            UserCommand_ClearMovement( cmd )
-            UserCommand_ClearButtons( cmd )
-        end
-    end, POST_HOOK )
-
-end
-
-do
-
-    local MoveData_SetMaxClientSpeed = MoveData.SetMaxClientSpeed
-    local MoveData_SetMaxSpeed = MoveData.SetMaxSpeed
-
-    local MoveData_GetMaxClientSpeed = MoveData.GetMaxClientSpeed
-    local MoveData_GetMaxSpeed = MoveData.GetMaxSpeed
-
-    local math_max = math.max
-
-    ---@param pl Player
-    ---@param mv CMoveData
-    ---@diagnostic disable-next-line: redundant-parameter
-    hook.Add( "Move", "SpeedController", function( _, pl, mv )
-        local max_speed = math_max( MoveData_GetMaxSpeed( mv ), MoveData_GetMaxClientSpeed( mv ) )
-        max_speed = hook_Run( "PlayerSpeed", pl, mv, max_speed ) or 450
-        MoveData_SetMaxClientSpeed( mv, max_speed )
-        MoveData_SetMaxSpeed( mv, max_speed )
-    end, POST_HOOK )
-
-end
+local tick_interval = engine.TickInterval()
 
 local Player_Alive = Player.Alive
 
@@ -164,33 +129,87 @@ end
 
 do
 
+    local Entity_GetNWEntity = Entity.GetNWEntity
+
+    --- [SHARED]
+    ---
+    --- Gets the player's ragdoll.
+    ---
+    ---@param pl Player
+    ---@return Entity ragdoll
+    function ash_player.getRagdoll( pl )
+        return Entity_GetNWEntity( pl, "m_eRagdoll", NULL )
+    end
+
+end
+
+do
+
+    local UserCommand_ClearMovement = UserCommand.ClearMovement
+    local UserCommand_ClearButtons = UserCommand.ClearButtons
+    local UserCommand_SetImpulse = UserCommand.SetImpulse
+
+    ---@param pl Player
+    ---@param cmd CUserCmd
+    ---@diagnostic disable-next-line: redundant-parameter
+    hook.Add( "StartCommand", "MovementController", function( pl, cmd )
+        if hook_Run( "CanPlayerMove", pl, cmd ) == false then
+            UserCommand_SetImpulse( cmd, 0 )
+            UserCommand_ClearMovement( cmd )
+            UserCommand_ClearButtons( cmd )
+        end
+    end, POST_HOOK )
+
+end
+
+do
+
+    local MoveData_GetMaxClientSpeed = MoveData.GetMaxClientSpeed
+    local MoveData_SetMaxClientSpeed = MoveData.SetMaxClientSpeed
+
+    local MoveData_GetMaxSpeed = MoveData.GetMaxSpeed
+    local MoveData_SetMaxSpeed = MoveData.SetMaxSpeed
+
     local MoveData_GetVelocity = MoveData.GetVelocity
-    local MoveData_GetButtons = MoveData.GetButtons
+    local MoveData_SetVelocity = MoveData.SetVelocity
+
+    local MoveData_GetMoveAngles = MoveData.GetMoveAngles
+
+    local MoveData_GetOrigin = MoveData.GetOrigin
+    local MoveData_SetOrigin = MoveData.SetOrigin
+
+    local Entity_GetMoveType = Entity.GetMoveType
     local Entity_IsOnGround = Entity.IsOnGround
     local Entity_WaterLevel = Entity.WaterLevel
-    local Vector = Vector
+    local Entity_GetFlags = Entity.GetFlags
 
-    local player_isAlive = ash_player.isAlive
+    local math_max = math.max
 
-    -- ---@type table<Player, Vector>
-    -- local velocities = {}
+    local Angle_Forward = Angle.Forward
+    local Angle_Right = Angle.Right
+    local Angle_Up = Angle.Up
 
-    -- --- [SHARED]
-    -- ---
-    -- --- Gets the player's current velocity.
-    -- ---
-    -- ---@param pl Player
-    -- ---@return Vector velocity
-    -- function ash_player.getVelocity( pl )
-    --     return velocities[ pl ]
-    -- end
+    local Vector_Add = Vector.Add
 
-    -- setmetatable( velocities, {
-    --     __index = function()
-    --         return Vector( 0, 0, 0 )
-    --     end,
-    --     __mode = "k"
-    -- } )
+    ---@type table<Player, Vector>
+    local directions = {}
+
+    setmetatable( directions, {
+        __index = function( self, pl )
+            return Vector( 0, 0, 0 )
+        end,
+        __mode = "k"
+    } )
+
+    --- [SHARED]
+    ---
+    --- Gets the player's direction.
+    ---
+    ---@param pl Player
+    ---@return Vector direction
+    function ash_player.getDirection( pl )
+        return directions[ pl ]
+    end
 
     ---@alias ash.player.MoveState "standing" | "crouching" | "jumping" | "falling" | "swimming" | "wandering" | "running" | "walking" | string
 
@@ -214,39 +233,93 @@ do
         return move_states[ pl ]
     end
 
+    ---@type table<Player, integer>
+    local move_types = {}
+
+    setmetatable( move_types, {
+        __index = function()
+            return 0
+        end,
+        __mode = "k"
+    } )
+
+    --- [SHARED]
+    ---
+    --- Gets the player's current move type.
+    ---
+    ---@param pl Player
+    ---@return integer move_type
+    function ash_player.getMoveType( pl )
+        return move_types[ pl ]
+    end
+
+    ---@param pl Player
+    ---@param mv CMoveData
     hook.Add( "FinishMove", "MovementController", function( pl, mv )
-        if player_isAlive( pl ) then
-            -- velocities[ pl ] = MoveData_GetVelocity( mv )
-            move_states[ pl ] = hook_Run( "PlayerSelectMoveState", pl, mv )
+        local move_angles = MoveData_GetMoveAngles( mv )
+        local buttons = MoveData_GetButtons( mv )
+        local direction = Vector( 0, 0, 0 )
+
+        if bit_band( buttons, 2 ) == 0 then -- is not up
+            if bit_band( buttons, 4 ) ~= 0 then -- is down
+                direction = direction - Angle_Up( move_angles )
+            end
+        elseif bit_band( buttons, 4 ) == 0 then -- is not down and is up
+            direction = direction + Angle_Up( move_angles )
+        end
+
+        if bit_band( buttons, 8 ) == 0 then -- is not forward
+            if bit_band( buttons, 16 ) ~= 0 then -- is backward
+                direction = direction - Angle_Forward( move_angles )
+            end
+        elseif bit_band( buttons, 16 ) == 0 then -- is not backward and is forward
+            direction = direction + Angle_Forward( move_angles )
+        end
+
+        if bit_band( buttons, 1024 ) == 0 then -- is not right
+            if bit_band( buttons, 512 ) ~= 0 then -- is left
+                direction = direction - Angle_Right( move_angles )
+            end
+        elseif bit_band( buttons, 512 ) == 0 then -- is not left and is right
+            direction = direction + Angle_Right( move_angles )
+        end
+
+        directions[ pl ] = direction
+
+        if Player_Alive( pl ) then
+            move_states[ pl ] = hook_Run( "PlayerSelectMoveState", pl, mv, buttons )
+        else
+            move_states[ pl ] = "standing"
+        end
+
+        local move_type = Entity_GetMoveType( pl )
+        if move_type ~= move_types[ pl ] then
+            hook_Run( "PlayerChangedMoveType", pl, mv, move_type, move_types[ pl ] )
+            move_types[ pl ] = move_type
         end
     end, PRE_HOOK )
-
-    local IN_JUMP = IN_JUMP
-    local IN_DUCK = IN_DUCK
-    local IN_WALK = IN_WALK
-    local IN_SPEED = IN_SPEED
 
     local IN_MOVE = bit_bor( IN_FORWARD, IN_MOVELEFT, IN_MOVERIGHT, IN_BACK )
 
     ---@param arguments string[]
     ---@param pl Player
     ---@param mv CMoveData
-    hook.Add( "PlayerSelectMoveState", "DefaultStates", function( arguments, pl, mv )
+    ---@param buttons integer
+    ---@return string
+    hook.Add( "PlayerSelectMoveState", "DefaultStates", function( arguments, pl, mv, buttons )
         ---@type ash.player.MoveState | nil
         local move_state = arguments[ 1 ]
 
         if move_state == nil then
             if Entity_IsOnGround( pl ) then
-                local buttons = MoveData_GetButtons( mv )
-
-                if bit_band( buttons, IN_DUCK ) ~= 0 then
+                if bit_band( buttons, 4 ) ~= 0 then -- in duck
                     move_state = "crouching"
-                elseif bit_band( buttons, IN_JUMP ) ~= 0 then
+                elseif bit_band( buttons, 2 ) ~= 0 then -- in jump
                     move_state = "jumping"
                 elseif bit_band( buttons, IN_MOVE ) ~= 0 then
-                    if bit_band( buttons, IN_WALK ) ~= 0 then
+                    if bit_band( buttons, 262144 ) ~= 0 then -- in walk
                         move_state = "wandering"
-                    elseif bit_band( buttons, IN_SPEED ) ~= 0 then
+                    elseif bit_band( buttons, 131072 ) ~= 0 then -- in run
                         move_state = "running"
                     else
                         move_state = "walking"
@@ -264,21 +337,119 @@ do
         return move_state
     end, POST_HOOK_RETURN )
 
-end
-
-do
-
-    local Entity_GetNWEntity = Entity.GetNWEntity
-
-    --- [SHARED]
-    ---
-    --- Gets the player's ragdoll.
-    ---
     ---@param pl Player
-    ---@return Entity ragdoll
-    function ash_player.getRagdoll( pl )
-        return Entity_GetNWEntity( pl, "m_eRagdoll", NULL )
-    end
+    ---@param mv CMoveData
+    ---@diagnostic disable-next-line: redundant-parameter
+    hook.Add( "Move", "SpeedController", function( _, pl, mv )
+        local max_speed = math_max( MoveData_GetMaxSpeed( mv ), MoveData_GetMaxClientSpeed( mv ) )
+        max_speed = hook_Run( "PlayerSpeed", pl, mv, max_speed ) or 0
+        MoveData_SetMaxClientSpeed( mv, max_speed )
+        MoveData_SetMaxSpeed( mv, max_speed )
+
+        if move_types[ pl ] == 8 then
+            local velocity = ( ( directions[ pl ] * max_speed ) - MoveData_GetVelocity( mv ) ) * tick_interval
+            MoveData_SetVelocity( mv, velocity )
+
+            local origin = MoveData_GetOrigin( mv )
+            Vector_Add( origin, velocity )
+            MoveData_SetOrigin( mv, origin )
+
+            return true
+        end
+    end, POST_HOOK )
+
+    ---@param pl Player
+    ---@param mv CMoveData
+    ---@param max_speed number
+    ---@return number
+    hook.Add( "PlayerSpeed", "SpeedController", function( arguments, pl, mv, max_speed )
+        local speed = arguments[ 1 ]
+        if speed == nil then
+            local move_type = move_types[ pl ]
+            local buttons = MoveData_GetButtons( mv )
+
+            if move_type == 8 then -- noclip movement
+                if bit_band( buttons, 262144 ) ~= 0 then -- in walk
+                    -- slowly walking
+                    return 250
+                elseif bit_band( buttons, 131072 ) ~= 0 then -- in run
+                    -- running
+                    return 1000
+                end
+
+                -- walking
+                return 500
+            elseif move_type == 9 then -- ladder movement
+                return 250
+            elseif move_type ~= 2 then -- not walking
+                return 0
+            end
+
+            local water_level = Entity_WaterLevel( pl )
+            local flags = Entity_GetFlags( pl )
+
+            if Entity_IsOnGround( pl ) then
+                if bit_band( flags, 4 ) == 0 then -- not crawling
+                    if bit_band( buttons, 262144 ) ~= 0 then -- in walk
+                        -- slowly walking
+                        speed = 130
+                    elseif bit_band( buttons, 131072 ) ~= 0 then -- in run
+                        -- running
+                        speed = 300
+                    else
+                        -- walking
+                        speed = 180
+                    end
+                elseif bit_band( buttons, 262144 ) ~= 0 then -- in walk
+                    -- slowly crawling
+                    speed = 70
+                elseif bit_band( buttons, 131072 ) ~= 0 then -- in run
+                    -- fast crawling
+                    speed = 150
+                else
+                    -- crawling
+                    speed = 100
+                end
+
+                if water_level == 3 then
+                    -- walking underwater
+                    speed = speed * 0.25
+                elseif water_level == 2 then
+                    -- walking waist-deep in water
+                    speed = speed * 0.5
+                elseif water_level == 1 then
+                    -- walking in shallow water
+                    speed = speed * 0.75
+                end
+            elseif water_level == 0 then
+                -- freefalling
+                return 10
+            else
+
+                if bit_band( buttons, 262144 ) ~= 0 then -- in walk
+                    -- slowly swimming
+                    speed = 80
+                elseif bit_band( buttons, 131072 ) ~= 0 then -- in run
+                    -- fast swimming
+                    speed = 250
+                else
+                    -- swimming
+                    speed = 150
+                end
+
+                if water_level == 3 then
+                    -- swimming underwater
+                    speed = speed * 0.5 + 50
+                elseif water_level == 2 then
+                    -- surface swimming
+                    speed = speed + 20
+                end
+
+            end
+        end
+
+        return speed
+    end, POST_HOOK_RETURN )
 
 end
 

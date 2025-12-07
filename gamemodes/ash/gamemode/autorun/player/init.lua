@@ -17,6 +17,9 @@ local entity_getHitboxBounds = ash_entity.getHitboxBounds
 ---@type ash.utils
 local utils = require( "ash.utils" )
 
+---@type ash.level
+local ash_level = require( "ash.level" )
+
 local util_TraceLine = util.TraceLine
 local util_TraceHull = util.TraceHull
 
@@ -96,8 +99,8 @@ do
     local Entity_GetPhysicsObjectCount = Entity.GetPhysicsObjectCount
     local Entity_GetPhysicsObjectNum = Entity.GetPhysicsObjectNum
 
+    local level_isContainsPosition = ash_level.isContainsPosition
     local animation_getVelocity = ash_animation.getVelocity
-    local utils_isInLevelBounds = utils.isInLevelBounds
 
     local trace_result = {}
 
@@ -130,7 +133,7 @@ do
                             physics_object:SetAngles( matrix:GetAngles() )
                             local origin = matrix:GetTranslation()
 
-                            if utils_isInLevelBounds( origin ) then
+                            if level_isContainsPosition( origin ) then
                                 trace.start = origin
                                 trace.endpos = origin
                                 trace.filter = { ragdoll_entity, pl }
@@ -434,7 +437,7 @@ do
 
     end
 
-    hook.Add( "PostPlayerDeath", "Respawn", function( pl )
+    hook.Add( "PostPlayerDeath", "Spawn", function( pl )
         awaiting_respawn[ pl ] = true
     end, PRE_HOOK )
 
@@ -443,16 +446,16 @@ do
         local Entity_SetPos = Entity.SetPos
         local Entity_Spawn = Entity.Spawn
 
-        hook.Add( "KeyRelease", "Respawn", function( pl, key )
+        hook.Add( "KeyRelease", "Spawn", function( pl, key )
             if awaiting_respawn[ pl ] and bit_band( key, respawn_keys[ pl ] ) ~= 0 and hook_Run( "CanPlayerRespawn", pl ) ~= false then
                 Entity_Spawn( pl )
             end
         end, PRE_HOOK )
 
-        hook.Add( "PlayerSpawn", "SpeedController", function( pl, is_transition )
+        hook.Add( "PlayerSpawn", "PreSpawn", function( pl, transition )
             awaiting_respawn[ pl ] = false
 
-            hook_Run( "PrePlayerSpawn", pl, is_transition )
+            hook_Run( "PrePlayerSpawn", pl, transition )
 
             local max_speed = physenv.GetPerformanceSettings().MaxVelocity
 
@@ -465,11 +468,16 @@ do
 
             Entity_SetPos( pl, hook_Run( "PlayerSetupPosition", pl ) or vector_origin )
 
-            hook_Run( "PlayerSetupModel", pl, is_transition )
-            hook_Run( "PlayerSetupLoadout", pl, is_transition )
-
-            hook_Run( "PostPlayerSpawn", pl, is_transition )
+            hook_Run( "PlayerSetupModel", pl, transition )
+            hook_Run( "PlayerSetupLoadout", pl, transition )
         end, PRE_HOOK )
+
+        ---@param pl Player
+        ---@param transition boolean
+        ---@diagnostic disable-next-line: undefined-doc-param
+        hook.Add( "PlayerSpawn", "PostSpawn", function( _, pl, transition )
+            hook_Run( "PostPlayerSpawn", pl, transition )
+        end, POST_HOOK )
 
     end
 

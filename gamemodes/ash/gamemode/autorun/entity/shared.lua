@@ -399,6 +399,8 @@ do
 
         if class_name == "player" then
             hook_Run( "PlayerEntityCreated", entity )
+        elseif class_name == "world" then
+            hook_Run( "WorldEntityCreated", entity )
         elseif utils_isPropClass( class_name ) then
             Entity_SetNW2Bool( entity, "m_bProp", true )
             hook_Run( "PropEntityCreated", entity, class_name, Entity_GetModel( entity ) )

@@ -21,9 +21,13 @@ function ash_level.change( name )
     error( "Level '" .. name .. "' does not exist!" )
 end
 
+---@param name string
+---@param entity Entity
 hook.Add( "LevelLoaded", "Bounds", function( name, entity )
-    local mins, maxs = entity:Entity_GetInternalVariable( "m_WorldMins" ), entity:Entity_GetInternalVariable( "m_WorldMaxs" )
+    local mins, maxs = entity:GetInternalVariable( "m_WorldMins" ), entity:GetInternalVariable( "m_WorldMaxs" )
     ash_level.mins, ash_level.maxs = mins, maxs
 
     hook.Run( "LevelBounds", name, entity, mins, maxs )
 end )
+
+return ash_level

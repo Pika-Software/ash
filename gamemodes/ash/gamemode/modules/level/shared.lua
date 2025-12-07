@@ -9,26 +9,25 @@ local ash_level = {}
 
 do
 
-    local function load_level()
+    ---@param entity Entity
+    local function load_level( entity )
+        if entity == nil or entity == NULL or not entity:IsWorld() then
+            return
+        end
+
         local name = game.GetMap()
         if name == nil or string.byte( name, 1, 1 ) == nil then
             return
         end
 
-        ash_level.name = name
-
-        local entity = game.GetWorld()
-        if entity == nil or not entity:IsWorld() then
-            return
-        end
-
         ash_level.entity = entity
+        ash_level.name = name
 
         hook.Run( "LevelLoaded", name, entity )
     end
 
-    hook.Add( "InitPostEntity", "Initialize", load_level )
-    load_level()
+    hook.Add( "WorldEntityCreated", "Initialize", load_level )
+    load_level( game.GetWorld() )
 
 end
 
