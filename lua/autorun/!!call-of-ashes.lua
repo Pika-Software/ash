@@ -57,7 +57,9 @@ local file_Read = glua_file.Read
 
 local util_Base64Encode = glua_util.Base64Encode
 local util_TableToJSON = glua_util.TableToJSON
+local util_Decompress = glua_util.Decompress
 local util_Compress = glua_util.Compress
+local util_SHA256 = glua_util.SHA256
 
 local path_getDirectory = path.getDirectory
 
@@ -141,7 +143,6 @@ local clientFileSend
 
 if LUA_SERVER then
 
-    local util_SHA256 = glua_util.SHA256
     local AddCSLuaFile = _G.AddCSLuaFile
 
     ---@param file_path string
@@ -164,18 +165,17 @@ if LUA_SERVER then
 
         local file_sha256 = util_SHA256( content .. "\0" )
 
-        if file_sha256 == client_checksums[ file_path ] then
-            logger:debug( "File '%s' with SHA-256 '%s' already sent to the client.", file_path, file_sha256 )
-            return false, file_sha256
+        if file_sha256 ~= client_checksums[ file_path ] then
+            if pcall( AddCSLuaFile, file_path ) then
+                client_checksums[ file_path ] = file_sha256
+                logger:debug( "File '%s' with SHA-256 '%s' successfully sent to the client.", file_path, file_sha256 )
+                return true, file_sha256
+            end
+
+            std.errorf( stack_level, false, "Failed to add file 'lua/%s' to the client.", file_path )
         end
 
-        if pcall( AddCSLuaFile, file_path ) then
-            client_checksums[ file_path ] = file_sha256
-            logger:debug( "File '%s' with SHA-256 '%s' successfully sent to the client.", file_path, file_sha256 )
-            return true, file_sha256
-        end
-
-        std.errorf( stack_level, false, "Failed to add file 'lua/%s' to the client.", file_path )
+        return false, file_sha256
     end
 
 end
@@ -1338,9 +1338,10 @@ do
         function compiler_fn( file_path, stack_level )
             stack_level = stack_level + 1
 
-            local lua_code = file_Read( "cache/lua/" .. string_sub( client_checksums[ file_path ], 1, 40 ) .. ".lua", "MOD" )
+            ---@type string | nil
+            local compressed_data = file_Read( "cache/lua/" .. string_sub( client_checksums[ file_path ], 1, 40 ) .. ".lua", "MOD" )
 
-            if lua_code == nil then
+            if compressed_data == nil then
                 local success, result = pcall( CompileFile, file_path, true )
 
                 if not success or result == nil then
@@ -1352,8 +1353,16 @@ do
                 return result
             end
 
-            if string_byte( lua_code, 1, 1 ) == nil then
+            local lua_code = util_Decompress( string_sub( compressed_data, 33 ) )
+
+            if lua_code == nil or string_byte( lua_code, 1, 1 ) == nil then
                 std.errorf( stack_level, false, "File '%s' is empty.", file_path )
+            end
+
+            ---@cast lua_code string
+
+            if util_SHA256( lua_code ) ~= client_checksums[ file_path ] then
+                std.errorf( stack_level, false, "File '%s' has been modified.", file_path )
             end
 
             local success, result = pcall( CompileString, lua_code, file_path, false )
