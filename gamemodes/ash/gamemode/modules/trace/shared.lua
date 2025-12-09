@@ -21,13 +21,15 @@ local pairs = pairs
 ---@class ash.trace
 local ash_trace = {}
 
+---@alias ash.trace.Callback fun( params: ash.trace.Params, trace_result: ash.trace.Output ): ash.trace.Params | boolean | nil
+
 ---@class ash.trace.Params : HullTrace
 ---@field maxs Vector | nil The 3D vector that represent the corner with the upper bounds of the box. (if `nil` then trace will be a ray)
 ---@field mins Vector | nil The 3D vector that represent the corner with the lower bounds of the box. (if `nil` then trace will be a ray)
 ---@field count integer | nil The number of times the trace will be repeated.
 ---@field angle Angle | nil The angle to rotate the trace.
 ---@field penetrate boolean | nil If the trace should be allowed to penetrate solid objects.
----@field callback fun( params: ash.trace.Params, trace_result: ash.trace.Output ): ash.trace.Params | boolean | nil The callback function to call when the trace is complete.
+---@field callback ash.trace.Callback | nil The callback function to call when the trace is complete.
 
 ---@class ash.trace.Output : TraceResult
 ---@field Distance number The distance from the start position to the end position.

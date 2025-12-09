@@ -6,7 +6,7 @@ local sound_merge = ash_sound.merge
 local string_match = string.match
 local file_Find = file.Find
 
----@class ash.footsteps
+---@class ash.player.footsteps
 local footsteps = {}
 
 ---@type string[]
@@ -242,12 +242,12 @@ end
 
 do
 
-    ---@class ash.footsteps.ShoesData : ash.sound.Data
+    ---@class ash.player.footsteps.ShoesData : ash.sound.Data
     ---@field aliases table<string, string>
     ---@field path string | nil
 
     --- https://developer.valvesoftware.com/wiki/Material_surface_properties
-    ---@type table<string, ash.footsteps.ShoesData>
+    ---@type table<string, ash.player.footsteps.ShoesData>
     local shoes = {
         default = {
             channel = 6,

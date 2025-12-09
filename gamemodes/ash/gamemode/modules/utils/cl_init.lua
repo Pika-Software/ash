@@ -24,6 +24,7 @@ do
 
     local engine_loadMaterial = dreamwork.engine.loadMaterial
     local CreateMaterial = CreateMaterial
+    local string_gsub = string.gsub
     local type = std.type
 
     local Material = Material
@@ -86,7 +87,7 @@ do
         shader_parameters["$vertexalpha"] = shader_parameters["$vertexalpha"] or 1
         shader_parameters["$vertexcolor"] = shader_parameters["$vertexcolor"] or 1
 
-        local material = CreateMaterial( name, shader, shader_parameters )
+        local material = CreateMaterial( string_gsub( name, "[^%w_]+", "_" ), shader, shader_parameters )
 
         if string_isURL( path ) then
             http.Fetch( path, function( body, _, headers, code )

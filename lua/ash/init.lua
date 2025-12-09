@@ -1,10 +1,10 @@
-local logger = ash.Logger
-
-ash.send( "/" .. ash.ChainFile )
-ash.send( "/ash/cl_init.lua" )
+AddCSLuaFile( "ash/cl_init.lua" )
+AddCSLuaFile( ash.ChainFile )
 ash.resend()
 
 ash.reload()
+
+local logger = ash.Logger
 
 do
 
@@ -20,6 +20,8 @@ do
 end
 
 ash.rebuild( true )
-ash.send( "/" .. ash.WorkshopFile )
+
+AddCSLuaFile( ash.ChecksumFile )
+AddCSLuaFile( ash.WorkshopFile )
 
 logger:info( "Ashes calls you, %s. %s awaits.", cvars.String( "hostname", "unknown" ), ash.Chain[ 1 ].title )

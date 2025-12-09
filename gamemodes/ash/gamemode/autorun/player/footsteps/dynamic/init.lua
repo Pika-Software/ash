@@ -1,6 +1,6 @@
 include( "shared.lua" )
 
----@type ash.footsteps
+---@type ash.player.footsteps
 local ash_footsteps = require( "ash.player.footsteps" )
 local footplayer_getShoesType = ash_footsteps.getShoesType
 

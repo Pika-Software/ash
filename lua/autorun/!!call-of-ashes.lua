@@ -46,6 +46,7 @@ local string_format = string.format
 local string_lower = string.lower
 local string_match = string.match
 local string_byte = string.byte
+local string_sub = string.sub
 
 local raw_ipairs = raw.ipairs
 local raw_pairs = raw.pairs
@@ -53,6 +54,12 @@ local raw_pairs = raw.pairs
 local file_Exists = glua_file.Exists
 local file_IsDir = glua_file.IsDir
 local file_Read = glua_file.Read
+
+local util_Base64Encode = glua_util.Base64Encode
+local util_TableToJSON = glua_util.TableToJSON
+local util_Compress = glua_util.Compress
+
+local path_getDirectory = path.getDirectory
 
 local Color = std.Color
 
@@ -126,23 +133,22 @@ end
 
 ash.ChainFile = "ash/" .. active_gamemode .. "_chain.lua"
 ash.WorkshopFile = "ash/" .. active_gamemode .. "_workshop.lua"
+ash.ChecksumFile = "ash/" .. active_gamemode .. "_checksums.lua"
 
+---@type table<string, string>
+local client_checksums = {}
 local clientFileSend
-do
 
-    local checksum_crc32 = std.checksum.crc32
+if LUA_SERVER then
+
+    local util_SHA256 = glua_util.SHA256
     local AddCSLuaFile = _G.AddCSLuaFile
-
-    ---@type table<string, integer>
-    local checksums = {}
 
     ---@param file_path string
     ---@param stack_level? integer
+    ---@return boolean has_changes
+    ---@return string file_sha256
     function clientFileSend( file_path, stack_level )
-        if not LUA_SERVER or LUA_CLIENT then
-            return
-        end
-
         if stack_level == nil then
             stack_level = 2
         else
@@ -156,16 +162,17 @@ do
 
         ---@cast content string
 
-        local crc32 = checksum_crc32( content )
-        if checksums[ file_path ] == crc32 then
-            logger:debug( "File '%s' with CRC32 '%d' already sent to the client.", file_path, crc32 )
-            return
+        local file_sha256 = util_SHA256( content )
+
+        if file_sha256 == client_checksums[ file_path ] then
+            logger:debug( "File '%s' with SHA-256 '%s' already sent to the client.", file_path, file_sha256 )
+            return false, file_sha256
         end
 
         if pcall( AddCSLuaFile, file_path ) then
-            checksums[ file_path ] = crc32
-            logger:debug( "File '%s' sent to the client.", file_path )
-            return
+            client_checksums[ file_path ] = file_sha256
+            logger:debug( "File '%s' with SHA-256 '%s' successfully sent to the client.", file_path, file_sha256 )
+            return true, file_sha256
         end
 
         std.errorf( stack_level, false, "Failed to add file 'lua/%s' to the client.", file_path )
@@ -473,24 +480,25 @@ if LUA_SERVER then
     ---
     --- Rebuild ash gamemode.
     ---
-    ---@param is_workshop boolean
-    function ash.rebuild( is_workshop )
+    ---@param is_post_init boolean
+    function ash.rebuild( is_post_init )
         local chain = ash.Chain
 
         local injection_name = string_format( "%s_%s.gma.dat", active_gamemode, std.uuid.v7() )
         local add_file, build = ash.pack( injection_name, "A magical injection into the game to bang greedy, fat f*ck Garry Newman." )
 
         if LUA_SERVER then
-            if is_workshop then
-                add_file( "lua/" .. ash.WorkshopFile, "return \"" .. glua_util.Base64Encode( glua_util.Compress( glua_util.TableToJSON( ash.getWorkshopDL(), false ) ), true ) .. "\"" )
+            if is_post_init then
+                add_file( "lua/" .. ash.WorkshopFile, "return \"" .. util_Base64Encode( util_Compress( util_TableToJSON( ash.getWorkshopDL(), false ) ), true ) .. "\"" )
+                add_file( "lua/" .. ash.ChecksumFile, "return \"" .. util_Base64Encode( util_Compress( util_TableToJSON( client_checksums, false ) ), true ) .. "\"" )
             else
-                add_file( "lua/" .. active_gamemode .. "/gamemode/init.lua", "include( \"ash/init.lua\" )" )
+                add_file( "lua/" .. ash.ChainFile, "return \"" .. util_Base64Encode( util_Compress( util_TableToJSON( chain, false ) ), true ) .. "\"" )
                 add_file( "lua/" .. active_gamemode .. "/gamemode/cl_init.lua", "include( \"ash/cl_init.lua\" )" )
-                add_file( "lua/" .. ash.ChainFile, "return \"" .. glua_util.Base64Encode( glua_util.Compress( glua_util.TableToJSON( chain, false ) ), true ) .. "\"" )
+                add_file( "lua/" .. active_gamemode .. "/gamemode/init.lua", "include( \"ash/init.lua\" )" )
             end
         end
 
-        if not is_workshop then
+        if not is_post_init then
 
             ---@param name string
             ---@param path_to string
@@ -659,6 +667,14 @@ if LUA_CLIENT then
 
     ---@type ash.gamemode.Info[]
     ash.Chain = chain
+
+    client_checksums = ash.infoFileDecode( ash.ChecksumFile ) or client_checksums
+
+    setmetatable( client_checksums, {
+        __index = function( _, file_path )
+            return file_path
+        end
+    } )
 
 end
 
@@ -978,6 +994,22 @@ do
 
     end
 
+    if LUA_SERVER then
+
+        local resource = {}
+        environment.resource = resource
+
+        setmetatable( resource, {
+            __index = _G.resource,
+            __newindex = _G.resource
+        } )
+
+        function resource.AddWorkshop( wsid )
+            ash.setWorkshopDL( wsid, true )
+        end
+
+    end
+
     local ash_hook = {}
     environment.hook = ash_hook
 
@@ -1214,32 +1246,37 @@ local function path_perform( file_path, stack_level )
 
     local uint8_1, uint8_2 = string_byte( file_path, 1, 2 )
     if uint8_1 == 0x7E --[[ ~ ]] and uint8_2 == 0x2F --[[ / ]] then
-        return path.normalize( getfenv( stack_level ).__homedir .. string.sub( file_path, 2 ) )
+        return path.normalize( getfenv( stack_level ).__homedir .. string_sub( file_path, 2 ) )
     elseif uint8_1 == 0x2F --[[ / ]] then
-        return string.sub( file_path, 2 )
+        return string_sub( file_path, 2 )
     end
 
     return path.normalize( getfenv( stack_level ).__dir .. "/" .. file_path )
 end
 
---- [SHARED]
----
---- Adds a file to the list of files to be sended to the client.
----
----@param file_path string
-function environment.AddCSLuaFile( file_path )
-    clientFileSend( path_perform( file_path ), 2 )
-end
+if LUA_SERVER then
 
-ash.send = environment.AddCSLuaFile
+    --- [SHARED]
+    ---
+    --- Adds a file to the list of files to be sended to the client.
+    ---
+    ---@param file_path string
+    function environment.AddCSLuaFile( file_path )
+        clientFileSend( path_perform( file_path ), 2 )
+    end
+
+    ash.send = environment.AddCSLuaFile
+
+end
 
 local file_compile
 do
 
+    local CompileString = CompileString
+
     local compiler_fn
 
     if LUA_SERVER then
-        local CompileString = CompileString
 
         ---@param file_path string
         ---@param stack_level integer
@@ -1294,7 +1331,6 @@ do
         end
 
     elseif LUA_CLIENT then
-        local CompileFile = CompileFile
 
         ---@param file_path string
         ---@param stack_level integer
@@ -1302,10 +1338,35 @@ do
         function compiler_fn( file_path, stack_level )
             stack_level = stack_level + 1
 
-            local success, result = pcall( CompileFile, file_path, true )
+            print( file_path, client_checksums[ file_path ] )
+            print( "cache/lua/" .. string_sub( client_checksums[ file_path ], 1, 40 ) .. ".lua", file.Exists( "cache/lua/" .. string_sub( client_checksums[ file_path ], 1, 40 ) .. ".lua", "GAME" ) )
+
+            local lua_code = file_Read( "cache/lua/" .. string_sub( client_checksums[ file_path ], 1, 40 ) .. ".lua", "GAME" )
+
+            if lua_code == nil then
+                local success, result = pcall( CompileFile, file_path, true )
+
+                if not success or result == nil then
+                    std.errorf( stack_level, false, "File '%s' compilation failed:\n %s.", file_path, result or "unknown error" )
+                end
+
+                ---@cast result function
+
+                return result
+            end
+
+            if string_byte( lua_code, 1, 1 ) == nil then
+                std.errorf( stack_level, false, "File '%s' is empty.", file_path )
+            end
+
+            local success, result = pcall( CompileString, lua_code, file_path, false )
+
+            if isString( result ) then
+                success = false
+            end
 
             if not success or result == nil then
-                std.errorf( stack_level, false, "File 'garrysmod/lua/%s' compilation failed:\n %s.", file_path, result or "unknown error" )
+                std.errorf( stack_level, false, "File '%s' compilation failed:\n %s.", file_path, result or "unknown error" )
             end
 
             ---@cast result function
@@ -1328,7 +1389,7 @@ do
         ---@cast fn function
 
         local fn_environment = {
-            __dir = path.getDirectory( file_path, false ),
+            __dir = path_getDirectory( file_path, false ),
             __file = file_path
         }
 
@@ -1350,7 +1411,7 @@ end
 ---@param stack_level integer
 function Module:load( stack_level )
     local module_enviroment = self.Environment
-    if self.Environment ~= nil then return end
+    if module_enviroment ~= nil then return end
 
     module_enviroment = {
         MODULE = self
@@ -1496,7 +1557,7 @@ do
                 end
             else
                 entrypoint_path = entrypoint_path .. ".lua"
-                homedir = path.getDirectory( entrypoint_path, false ) or homedir
+                homedir = path_getDirectory( entrypoint_path, false ) or homedir
             end
 
         end
@@ -1643,8 +1704,18 @@ do
                 end
             end
 
-            if file_name == "cl_init.lua" then
-                module_client_reload( gamemode_name .. "." .. table_concat( segments, ".", 1, segment_count ) )
+            local lua_path = table_concat( { gamemode_name, "gamemode", module_type, directory_path, file_name }, "/", 1, 5 )
+            if client_checksums[ lua_path ] ~= nil then
+                local has_changes, file_sha256 = clientFileSend( lua_path, 2 )
+                if has_changes then
+                    glua_net.Start( "ash.network" )
+                    glua_net.WriteUInt( 2, 2 )
+                    glua_net.WriteString( lua_path )
+                    glua_net.WriteString( file_sha256 )
+                    glua_net.Broadcast()
+
+                    module_client_reload( gamemode_name .. "." .. table_concat( segments, ".", 1, segment_count ) )
+                end
             end
         end )
 
@@ -1775,6 +1846,10 @@ do
                         end
                     end
                 end )
+            elseif uint1_1 == 2 then
+                local file_name, file_sha256 = glua_net.ReadString(), glua_net.ReadString()
+                logger:debug( "Received file '%s' checksum SHA-256 '%s'.", file_name, file_sha256 )
+                client_checksums[ file_name ] = file_sha256
             end
         end )
 

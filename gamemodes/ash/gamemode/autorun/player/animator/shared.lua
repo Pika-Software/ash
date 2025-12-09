@@ -19,8 +19,8 @@ local Entity_SetNW2String = Entity.SetNW2String
 
 local string_byte = string.byte
 
----@class ash.animation
-local animation = {}
+---@class ash.player.animator
+local animator = {}
 
 --- [SHARED]
 ---
@@ -31,7 +31,7 @@ local function getStandActivity( pl )
     return Entity_GetNW2Int( pl, "m_iStandActivity", ACT_MP_STAND_IDLE )
 end
 
-animation.getStandActivity = getStandActivity
+animator.getStandActivity = getStandActivity
 
 --- [SHARED]
 ---
@@ -39,7 +39,7 @@ animation.getStandActivity = getStandActivity
 ---
 ---@param pl Player
 ---@param activity integer
-function animation.setStandActivity( pl, activity )
+function animator.setStandActivity( pl, activity )
     Entity_SetNW2Int( pl, "m_iStandActivity", activity )
 end
 
@@ -52,7 +52,7 @@ local function getWalkActivity( pl )
     return Entity_GetNW2Int( pl, "m_iWalkActivity", ACT_MP_WALK )
 end
 
-animation.getWalkActivity = getWalkActivity
+animator.getWalkActivity = getWalkActivity
 
 --- [SHARED]
 ---
@@ -60,7 +60,7 @@ animation.getWalkActivity = getWalkActivity
 ---
 ---@param pl Player
 ---@param activity integer
-function animation.setWalkActivity( pl, activity )
+function animator.setWalkActivity( pl, activity )
     Entity_SetNW2Int( pl, "m_iWalkActivity", activity )
 end
 
@@ -73,7 +73,7 @@ local function getCrouchActivity( pl )
     return Entity_GetNW2Int( pl, "m_iCrouchActivity", ACT_MP_CROUCH_IDLE )
 end
 
-animation.getCrouchActivity = getCrouchActivity
+animator.getCrouchActivity = getCrouchActivity
 
 --- [SHARED]
 ---
@@ -81,7 +81,7 @@ animation.getCrouchActivity = getCrouchActivity
 ---
 ---@param pl Player
 ---@param activity integer
-function animation.setCrouchActivity( pl, activity )
+function animator.setCrouchActivity( pl, activity )
     Entity_SetNW2Int( pl, "m_iCrouchActivity", activity )
 end
 
@@ -94,7 +94,7 @@ local function getLadderActivity( pl )
     return Entity_GetNW2Int( pl, "m_iLadderActivity", ACT_MP_STAND_IDLE )
 end
 
-animation.getLadderActivity = getLadderActivity
+animator.getLadderActivity = getLadderActivity
 
 --- [SHARED]
 ---
@@ -102,7 +102,7 @@ animation.getLadderActivity = getLadderActivity
 ---
 ---@param pl Player
 ---@param activity integer
-function animation.setLadderActivity( pl, activity )
+function animator.setLadderActivity( pl, activity )
     Entity_SetNW2Int( pl, "m_iLadderActivity", activity )
 end
 
@@ -115,7 +115,7 @@ local function getLadderCrouchActivity( pl )
     return Entity_GetNW2Int( pl, "m_iLadderCrouchActivity", ACT_MP_CROUCH_IDLE )
 end
 
-animation.getLadderCrouchActivity = getLadderCrouchActivity
+animator.getLadderCrouchActivity = getLadderCrouchActivity
 
 --- [SHARED]
 ---
@@ -123,7 +123,7 @@ animation.getLadderCrouchActivity = getLadderCrouchActivity
 ---
 ---@param pl Player
 ---@param activity integer
-function animation.setLadderCrouchActivity( pl, activity )
+function animator.setLadderCrouchActivity( pl, activity )
     Entity_SetNW2Int( pl, "m_iLadderCrouchActivity", activity )
 end
 
@@ -136,7 +136,7 @@ local function getCrouchWalkActivity( pl )
     return Entity_GetNW2Int( pl, "m_iCrouchWalkActivity", ACT_MP_CROUCHWALK )
 end
 
-animation.getCrouchWalkActivity = getCrouchWalkActivity
+animator.getCrouchWalkActivity = getCrouchWalkActivity
 
 --- [SHARED]
 ---
@@ -144,7 +144,7 @@ animation.getCrouchWalkActivity = getCrouchWalkActivity
 ---
 ---@param pl Player
 ---@param activity integer
-function animation.setCrouchWalkActivity( pl, activity )
+function animator.setCrouchWalkActivity( pl, activity )
     Entity_SetNW2Int( pl, "m_iCrouchWalkActivity", activity )
 end
 
@@ -157,7 +157,7 @@ local function getJumpActivity( pl )
     return Entity_GetNW2Int( pl, "m_iJumpActivity", ACT_MP_JUMP )
 end
 
-animation.getJumpActivity = getJumpActivity
+animator.getJumpActivity = getJumpActivity
 
 --- [SHARED]
 ---
@@ -165,7 +165,7 @@ animation.getJumpActivity = getJumpActivity
 ---
 ---@param pl Player
 ---@param activity integer
-function animation.setJumpActivity( pl, activity )
+function animator.setJumpActivity( pl, activity )
     Entity_SetNW2Int( pl, "m_iJumpActivity", activity )
 end
 
@@ -178,7 +178,7 @@ local function getFallingActivity( pl )
     return Entity_GetNW2Int( pl, "m_iFallingActivity", ACT_MP_SWIM )
 end
 
-animation.getFallingActivity = getFallingActivity
+animator.getFallingActivity = getFallingActivity
 
 --- [SHARED]
 ---
@@ -186,7 +186,7 @@ animation.getFallingActivity = getFallingActivity
 ---
 ---@param pl Player
 ---@param activity integer
-function animation.setFallingActivity( pl, activity )
+function animator.setFallingActivity( pl, activity )
     Entity_SetNW2Int( pl, "m_iFallingActivity", activity )
 end
 
@@ -199,7 +199,7 @@ local function getFlightActivity( pl )
     return Entity_GetNW2Int( pl, "m_iFlightActivity", ACT_MP_SWIM )
 end
 
-animation.getFlightActivity = getFlightActivity
+animator.getFlightActivity = getFlightActivity
 
 --- [SHARED]
 ---
@@ -207,7 +207,7 @@ animation.getFlightActivity = getFlightActivity
 ---
 ---@param pl Player
 ---@param activity integer
-function animation.setFlightActivity( pl, activity )
+function animator.setFlightActivity( pl, activity )
     Entity_SetNW2Int( pl, "m_iFlightActivity", activity )
 end
 
@@ -220,7 +220,7 @@ local function getSwimActivity( pl )
     return Entity_GetNW2Int( pl, "m_iSwimActivity", ACT_MP_SWIM )
 end
 
-animation.getSwimActivity = getSwimActivity
+animator.getSwimActivity = getSwimActivity
 
 --- [SHARED]
 ---
@@ -228,7 +228,7 @@ animation.getSwimActivity = getSwimActivity
 ---
 ---@param pl Player
 ---@param activity integer
-function animation.setSwimActivity( pl, activity )
+function animator.setSwimActivity( pl, activity )
     Entity_SetNW2Int( pl, "m_iSwimActivity", activity )
 end
 
@@ -241,7 +241,7 @@ local function getSitActivity( pl )
     return Entity_GetNW2Int( pl, "m_iSitActivity", ACT_HL2MP_SIT )
 end
 
-animation.getSitActivity = getSitActivity
+animator.getSitActivity = getSitActivity
 
 --- [SHARED]
 ---
@@ -249,7 +249,7 @@ animation.getSitActivity = getSitActivity
 ---
 ---@param pl Player
 ---@param activity integer
-function animation.setSitActivity( pl, activity )
+function animator.setSitActivity( pl, activity )
     Entity_SetNW2Int( pl, "m_iSitActivity", activity )
 end
 
@@ -262,7 +262,7 @@ local function getRunActivity( pl )
     return Entity_GetNW2Int( pl, "m_iRunActivity", ACT_MP_RUN )
 end
 
-animation.getRunActivity = getRunActivity
+animator.getRunActivity = getRunActivity
 
 --- [SHARED]
 ---
@@ -270,7 +270,7 @@ animation.getRunActivity = getRunActivity
 ---
 ---@param pl Player
 ---@param activity integer
-function animation.setRunActivity( pl, activity )
+function animator.setRunActivity( pl, activity )
     Entity_SetNW2Int( pl, "m_iRunActivity", activity )
 end
 
@@ -283,7 +283,7 @@ local function getRunFastActivity( pl )
     return Entity_GetNW2Int( pl, "m_iRunFastActivity", ACT_HL2MP_RUN_FAST )
 end
 
-animation.getRunFastActivity = getRunFastActivity
+animator.getRunFastActivity = getRunFastActivity
 
 --- [SHARED]
 ---
@@ -291,7 +291,7 @@ animation.getRunFastActivity = getRunFastActivity
 ---
 ---@param pl Player
 ---@param activity integer
-function animation.setRunFastActivity( pl, activity )
+function animator.setRunFastActivity( pl, activity )
     Entity_SetNW2Int( pl, "m_iRunFastActivity", activity )
 end
 
@@ -304,7 +304,7 @@ local function getRunUnarmedActivity( pl )
     return Entity_GetNW2Int( pl, "m_iRunUnarmedActivity", ACT_HL2MP_RUN_PANICKED )
 end
 
-animation.getRunUnarmedActivity = getRunUnarmedActivity
+animator.getRunUnarmedActivity = getRunUnarmedActivity
 
 --- [SHARED]
 ---
@@ -312,7 +312,7 @@ animation.getRunUnarmedActivity = getRunUnarmedActivity
 ---
 ---@param pl Player
 ---@param activity integer
-function animation.setRunUnarmedActivity( pl, activity )
+function animator.setRunUnarmedActivity( pl, activity )
     Entity_SetNW2Int( pl, "m_iRunUnarmedActivity", activity )
 end
 
@@ -325,7 +325,7 @@ local function getRunFastUnarmedActivity( pl )
     return Entity_GetNW2Int( pl, "m_iRunFastUnarmedActivity", ACT_HL2MP_RUN_PANICKED )
 end
 
-animation.getRunFastUnarmedActivity = getRunFastUnarmedActivity
+animator.getRunFastUnarmedActivity = getRunFastUnarmedActivity
 
 --- [SHARED]
 ---
@@ -333,7 +333,7 @@ animation.getRunFastUnarmedActivity = getRunFastUnarmedActivity
 ---
 ---@param pl Player
 ---@param activity integer
-function animation.setRunFastUnarmedActivity( pl, activity )
+function animator.setRunFastUnarmedActivity( pl, activity )
     Entity_SetNW2Int( pl, "m_iRunFastUnarmedActivity", activity )
 end
 
@@ -346,7 +346,7 @@ local function getCrouchUnarmedSequence( pl )
     return Entity_GetNW2String( pl, "m_sCrouchUnarmedSequence", "pose_ducking_01" )
 end
 
-animation.getCrouchUnarmedSequence = getCrouchUnarmedSequence
+animator.getCrouchUnarmedSequence = getCrouchUnarmedSequence
 
 --- [SHARED]
 ---
@@ -354,7 +354,7 @@ animation.getCrouchUnarmedSequence = getCrouchUnarmedSequence
 ---
 ---@param pl Player
 ---@param sequence string
-function animation.setCrouchUnarmedSequence( pl, sequence )
+function animator.setCrouchUnarmedSequence( pl, sequence )
     Entity_SetNW2String( pl, "m_sCrouchUnarmedSequence", sequence )
 end
 
@@ -391,7 +391,7 @@ local unarmed_holdtypes = {
     magic = true
 }
 
-animation.UnarmedHoldTypes = unarmed_holdtypes
+animator.UnarmedHoldTypes = unarmed_holdtypes
 
 ---@type table<integer, boolean>
 local unhandled_move_types = {
@@ -401,7 +401,7 @@ local unhandled_move_types = {
     [ MOVETYPE_PUSH ] = true
 }
 
-animation.UnhandledMoveTypes = unhandled_move_types
+animator.UnhandledMoveTypes = unhandled_move_types
 
 ---@type table<integer, boolean>
 local flight_move_types = {
@@ -410,7 +410,7 @@ local flight_move_types = {
     [ MOVETYPE_FLY ] = true
 }
 
-animation.FlightMoveTypes = flight_move_types
+animator.FlightMoveTypes = flight_move_types
 
 ---@type table<integer, boolean>
 local walk_move_types = {
@@ -419,7 +419,7 @@ local walk_move_types = {
     [ MOVETYPE_ISOMETRIC ] = true
 }
 
-animation.WalkMoveTypes = walk_move_types
+animator.WalkMoveTypes = walk_move_types
 
 do
 
@@ -455,11 +455,11 @@ do
 
     --- [SHARED]
     ---
-    --- Gets the player's current animation activity.
+    --- Gets the player's current animator activity.
     ---
     ---@param pl Player
     ---@return integer activity
-    function animation.getActivity( pl )
+    function animator.getActivity( pl )
         return activities[ pl ]
     end
 
@@ -475,11 +475,11 @@ do
 
     --- [SHARED]
     ---
-    --- Gets the player's current animation sequence.
+    --- Gets the player's current animator sequence.
     ---
     ---@param pl Player
     ---@return integer sequence_id
-    function animation.getSequence( pl )
+    function animator.getSequence( pl )
         return sequences[ pl ]
     end
 
@@ -498,7 +498,7 @@ do
     ---
     ---@param pl Player
     ---@return Vector velocity
-    function animation.getVelocity( pl )
+    function animator.getVelocity( pl )
         return velocities[ pl ]
     end
 
@@ -714,4 +714,4 @@ do
 
 end
 
-return animation
+return animator

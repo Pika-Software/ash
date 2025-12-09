@@ -2,8 +2,8 @@ MODULE.Networks = {
     "network"
 }
 
----@type ash.animation
-local ash_animation = require( "ash.player.animation" )
+---@type ash.player.animator
+local ash_animator = require( "ash.player.animator" )
 
 ---@class ash.player
 local ash_player = include( "shared.lua" )
@@ -100,7 +100,7 @@ do
     local Entity_GetPhysicsObjectNum = Entity.GetPhysicsObjectNum
 
     local level_isContainsPosition = ash_level.isContainsPosition
-    local animation_getVelocity = ash_animation.getVelocity
+    local animator_getVelocity = ash_animator.getVelocity
 
     local trace_result = {}
 
@@ -120,7 +120,7 @@ do
         local ragdoll_entity = hook_Run( "PlayerRagdoll", pl ) or NULL
 
         if ragdoll_entity ~= nil and Entity_IsValid( ragdoll_entity ) then
-            local player_velocity = animation_getVelocity( pl )
+            local player_velocity = animator_getVelocity( pl )
             ash_player.setRagdoll( pl, ragdoll_entity )
 
             for i = 0, Entity_GetPhysicsObjectCount( ragdoll_entity ) - 1 do
@@ -480,6 +480,18 @@ do
         end, POST_HOOK )
 
     end
+
+end
+
+do
+
+    local player_Iterator = player.Iterator
+
+    hook.Add( "Tick", "Ticking", function()
+        for _, pl in player_Iterator() do
+            hook_Run( "PlayerThink", pl )
+        end
+    end )
 
 end
 

@@ -6,8 +6,11 @@ local Entity_IsValid = Entity.IsValid
 local coroutine_yield = coroutine.yield
 local coroutine_resume = coroutine.resume
 
+local hook_Run = hook.Run
 local Vector = Vector
 local net = net
+
+local NULL = NULL
 
 ---@class ash.player
 ---@field Entity Player The local player entity.
@@ -103,8 +106,11 @@ do
     local player_isInitialized = ash_player.isInitialized
     local LocalPlayer = _G.LocalPlayer
 
-    local player_entity = LocalPlayer() or _G.NULL
-    ash_player.Entity = player_entity
+    local player_entity = LocalPlayer()
+
+    if player_entity ~= nil and Entity_IsValid( player_entity ) then
+        ash_player.Entity = player_entity
+    end
 
     local thread = coroutine.create( function()
         ::retry_loop::
@@ -153,6 +159,18 @@ do
         return pl == player_entity
     end
 
+    do
+
+        local player_Iterator = player.Iterator
+
+        hook.Add( "Tick", "Ticking", function()
+            for _, pl in player_Iterator() do
+                hook_Run( "PlayerThink", pl, player_entity, pl == player_entity )
+            end
+        end )
+
+    end
+
 end
 
 do
@@ -160,7 +178,6 @@ do
     gameevent.Listen( "player_activate" )
     gameevent.Listen( "player_spawn" )
 
-    local hook_Run = hook.Run
     local Player = Player
 
     ---@type table<integer, boolean>
@@ -236,6 +253,32 @@ do
 
     hook.Add( "PlayerEndVoice", "Voice", function( pl )
         voice_statuses[ pl ] = false
+    end, PRE_HOOK )
+
+end
+
+do
+
+    local Player_GetActiveWeapon = Player.GetActiveWeapon
+
+    ---@type table<Player, Weapon>
+    local active_weapons = {}
+
+    setmetatable( active_weapons, {
+        __index = function( self, pl )
+            return Player_GetActiveWeapon( pl ) or NULL
+        end,
+        __mode = "k"
+    } )
+
+    hook.Add( "PlayerThink", "WeaponChanger", function( pl, _, is_local )
+        if is_local then return end
+
+        local active_weapon = Player_GetActiveWeapon( pl ) or NULL
+        if active_weapons[ pl ] ~= active_weapon then
+            hook_Run( "PlayerSwitchWeapon", pl, active_weapons[ pl ], active_weapon )
+            active_weapons[ pl ] = active_weapon
+        end
     end, PRE_HOOK )
 
 end
