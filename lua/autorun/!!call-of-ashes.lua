@@ -849,11 +849,6 @@ do
         local cvars = {}
         environment.cvars = cvars
 
-        setmetatable( cvars, {
-            __index = glua_cvars,
-            __newindex = glua_cvars
-        } )
-
         local cvars_AddChangeCallback = glua_cvars.AddChangeCallback
 
         ---@param cvar_name string
@@ -914,17 +909,17 @@ do
             return cvars_RemoveChangeCallback( cvar_name, identifier )
         end
 
+        setmetatable( cvars, {
+            __index = glua_cvars,
+            -- __newindex = glua_cvars
+        } )
+
     end
 
     if LUA_SERVER then
 
         local util = {}
         environment.util = util
-
-        setmetatable( util, {
-            __index = glua_util,
-            __newindex = glua_util
-        } )
 
         local util_AddNetworkString = glua_util.AddNetworkString
 
@@ -945,6 +940,11 @@ do
             return util_AddNetworkString( network_name )
         end
 
+        setmetatable( util, {
+            __index = glua_util,
+            -- __newindex = glua_util
+        } )
+
     end
 
     local net_Receive = glua_net.Receive
@@ -953,11 +953,6 @@ do
 
         local net = {}
         environment.net = net
-
-        setmetatable( net, {
-            __index = glua_net,
-            __newindex = glua_net
-        } )
 
         local net_Start = glua_net.Start
 
@@ -992,6 +987,12 @@ do
             return net_Receive( network_name, fn )
         end
 
+        setmetatable( net, {
+            __index = glua_net,
+            -- __newindex = glua_net
+        } )
+
+
     end
 
     if LUA_SERVER then
@@ -999,14 +1000,14 @@ do
         local resource = {}
         environment.resource = resource
 
-        setmetatable( resource, {
-            __index = _G.resource,
-            __newindex = _G.resource
-        } )
-
         function resource.AddWorkshop( wsid )
             ash.setWorkshopDL( wsid, true )
         end
+
+        setmetatable( resource, {
+            __index = _G.resource,
+            -- __newindex = _G.resource
+        } )
 
     end
 
@@ -1056,11 +1057,6 @@ do
     local ash_timer = {}
     environment.timer = ash_timer
 
-    setmetatable( ash_timer, {
-        __index = glua_timer,
-        __newindex = glua_timer
-    } )
-
     do
 
         local timer_Create = glua_timer.Create
@@ -1094,6 +1090,11 @@ do
         end
 
     end
+
+    setmetatable( ash_timer, {
+        __index = glua_timer,
+        -- __newindex = glua_timer
+    } )
 
     do
 
