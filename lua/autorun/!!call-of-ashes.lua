@@ -162,7 +162,7 @@ if LUA_SERVER then
 
         ---@cast content string
 
-        local file_sha256 = util_SHA256( content )
+        local file_sha256 = util_SHA256( content .. "\0" )
 
         if file_sha256 == client_checksums[ file_path ] then
             logger:debug( "File '%s' with SHA-256 '%s' already sent to the client.", file_path, file_sha256 )
@@ -1338,10 +1338,7 @@ do
         function compiler_fn( file_path, stack_level )
             stack_level = stack_level + 1
 
-            print( file_path, client_checksums[ file_path ] )
-            print( "cache/lua/" .. string_sub( client_checksums[ file_path ], 1, 40 ) .. ".lua", file.Exists( "cache/lua/" .. string_sub( client_checksums[ file_path ], 1, 40 ) .. ".lua", "GAME" ) )
-
-            local lua_code = file_Read( "cache/lua/" .. string_sub( client_checksums[ file_path ], 1, 40 ) .. ".lua", "GAME" )
+            local lua_code = file_Read( "cache/lua/" .. string_sub( client_checksums[ file_path ], 1, 40 ) .. ".lua", "MOD" )
 
             if lua_code == nil then
                 local success, result = pcall( CompileFile, file_path, true )
