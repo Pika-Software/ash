@@ -61,6 +61,9 @@ Entity = {}
 ---@overload fun( name: string ): IMaterial
 Material = {}
 
+---@class ash.Texture : ITexture
+Texture = {}
+
 ---@class ash.MoveData : CMoveData
 MoveData = {}
 

@@ -178,17 +178,6 @@ if LUA_SERVER then
 
         local mount_point, mount_path = fs.whereis( file_object )
 
-        if DEBUG then
-            if mount_point == "MOD" then
-                local fs_object
-                fs_object, is_directory = fs.lookup( "/garrysmod/" .. mount_path )
-
-                if not is_directory and fs_object ~= nil and fs.watchdog.watch( fs_object ) then
-                    logger:debug( "'%s' being watched for changes.", fs_object.path )
-                end
-            end
-        end
-
         ---@type File
         ---@diagnostic disable-next-line: assign-type-mismatch
         local file_handler = file.Open( mount_path, "rb", mount_point )
@@ -212,8 +201,20 @@ if LUA_SERVER then
 
         if file_sha256 ~= client_checksums[ file_path ] then
             if pcall( AddCSLuaFile, file_path ) then
-                client_checksums[ file_path ] = file_sha256
                 logger:debug( "File '%s' with SHA-256 '%s' successfully sent to the client.", file_path, file_sha256 )
+                client_checksums[ file_path ] = file_sha256
+
+                if DEBUG then
+                    if mount_point == "MOD" then
+                        local fs_object
+                        fs_object, is_directory = fs.lookup( "/garrysmod/" .. mount_path )
+
+                        if not is_directory and fs_object ~= nil and fs.watchdog.watch( fs_object ) then
+                            logger:debug( "'%s' being watched for changes.", fs_object.path )
+                        end
+                    end
+                end
+
                 return true, file_sha256
             end
 
@@ -1983,6 +1984,8 @@ do
         environment.Panel = addMetatable( "Panel", vgui.Create )
 
     end
+
+    environment.Texture = addMetatable( "ITexture" )
 
     ---@diagnostic disable-next-line: param-type-mismatch
     environment.Entity = addMetatable( "Entity", _G.Entity )
