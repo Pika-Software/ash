@@ -53,7 +53,7 @@ local raw_pairs = raw.pairs
 
 local file_Exists = glua_file.Exists
 local file_IsDir = glua_file.IsDir
-local file_Read = glua_file.Read
+local file_Open = glua_file.Open
 
 local util_Base64Encode = glua_util.Base64Encode
 local util_TableToJSON = glua_util.TableToJSON
@@ -125,6 +125,7 @@ function ash.printTable( t )
     print( "}" )
 end
 
+
 local active_gamemode = engine.ActiveGamemode()
 ash.GamemodeName = active_gamemode
 
@@ -136,6 +137,9 @@ end
 ash.ChainFile = "ash/" .. active_gamemode .. "_chain.lua"
 ash.WorkshopFile = "ash/" .. active_gamemode .. "_workshop.lua"
 ash.ChecksumFile = "ash/" .. active_gamemode .. "_checksums.lua"
+
+local DEBUG = glua_cvars.Number( "developer", 0 ) ~= 0
+ash.Debug = DEBUG
 
 ---@type table<string, string>
 local client_checksums = {}
@@ -156,14 +160,57 @@ if LUA_SERVER then
             stack_level = stack_level + 1
         end
 
-        local content = file_Read( file_path, "lsv" )
-        if content == nil or string_byte( content, 1, 1 ) == nil then
+        local file_object, is_directory = fs.lookup( "/workspace/gamemodes/" .. file_path )
+
+        print( std.inspect( file_object ), is_directory, "/workspace/gamemodes/" .. file_path )
+
+        if file_object == nil then
+            file_object, is_directory = fs.lookup( "/workspace/lua/" .. file_path )
+        end
+
+        if file_object == nil then
+            std.errorf( stack_level, false, "File '%s' not found.", file_path )
+        end
+
+        if is_directory then
+            std.errorf( stack_level, false, "File '%s' is a directory.", file_path )
+        end
+
+        ---@cast file_object dreamwork.std.fs.File
+
+        local mount_point, mount_path = fs.whereis( file_object )
+
+        if DEBUG then
+            if mount_point == "MOD" then
+                local fs_object
+                fs_object, is_directory = fs.lookup( "/garrysmod/" .. mount_path )
+
+                if not is_directory and fs_object ~= nil and fs.watchdog.watch( fs_object ) then
+                    logger:debug( "'%s' being watched for changes.", fs_object.path )
+                end
+            end
+        end
+
+        ---@type File
+        ---@diagnostic disable-next-line: assign-type-mismatch
+        local file_handler = file.Open( mount_path, "rb", mount_point )
+
+        if file_handler == nil then
+            std.errorf( stack_level, false, "File '%s' does not exist.", file_path )
+        end
+
+        ---@cast file_handler File
+
+        local lua_code = file_handler:Read( file_handler:Size() )
+        file_handler:Close()
+
+        if lua_code == nil or string_byte( lua_code, 1, 1 ) == nil then
             std.errorf( stack_level, false, "File '%s' is empty.", file_path )
         end
 
-        ---@cast content string
+        ---@cast lua_code string
 
-        local file_sha256 = util_SHA256( content .. "\0" )
+        local file_sha256 = util_SHA256( lua_code .. "\0" )
 
         if file_sha256 ~= client_checksums[ file_path ] then
             if pcall( AddCSLuaFile, file_path ) then
@@ -228,7 +275,7 @@ function ash.pack( name, description )
 
         ---@type File
         ---@diagnostic disable-next-line: assign-type-mismatch
-        local injection_handler = glua_file.Open( file_path, "wb", "DATA" )
+        local injection_handler = file_Open( file_path, "wb", "DATA" )
 
         injection_handler:Write( "GMAD\3" )
         injection_handler:WriteUInt64( "76561198100459279" )
@@ -324,14 +371,23 @@ if LUA_SERVER then
             return nil, string_format( "could not find file '%s'", file_path )
         end
 
-        local file_content = file_Read( file_path, "GAME" )
+        ---@type File | nil
+        ---@diagnostic disable-next-line: assign-type-mismatch
+        local file_handler = file_Open( file_path, "rb", "GAME" )
+        if file_handler == nil then
+            return nil, string_format( "could not open file '%s'", file_path )
+        end
+
+        local file_content = file_handler:Read( file_handler:Size() )
+        file_handler:Close()
+
         if file_content == nil or string_byte( file_content, 1, 1 ) == nil then
             return nil, string_format( "file '%s' is empty", file_path )
         end
 
         local gamemode_info = glua_util.KeyValuesToTable( file_content, false, false )
         if gamemode_info == nil or not istable( gamemode_info ) then
-            return nil, string_format( "Could not parse file '%s'", file_path )
+            return nil, string_format( "could not parse file '%s'", file_path )
         end
 
         gamemode_info.name = name
@@ -508,7 +564,13 @@ if LUA_SERVER then
 
                 for _, file_name in raw_ipairs( parent_files ) do
                     if not file_Exists( path_to .. file_name, "GAME" ) then
-                        add_file( path_to .. file_name, file_Read( parent_path .. file_name, "GAME" ) )
+                        ---@type File | nil
+                        ---@diagnostic disable-next-line: assign-type-mismatch
+                        local file_handler = file_Open( parent_path .. file_name, "rb", "GAME" )
+                        if file_handler ~= nil then
+                            add_file( path_to .. file_name, file_handler:Read( file_handler:Size() ) )
+                            file_handler:Close()
+                        end
                     end
                 end
 
@@ -736,14 +798,12 @@ setmetatable( environment, {
 environment.printf = std.printf
 environment.math = std.math
 environment.class = class
-environment._G = _G
-
-local DEBUG = glua_cvars.Number( "developer", 0 ) ~= 0
 environment.DEBUG = DEBUG
+environment._G = _G
 
 local enviroment_metatable = {
     __index = environment,
-    __newindex = debug.fempty
+    -- __newindex = debug.fempty
 }
 
 do
@@ -1288,6 +1348,10 @@ do
             local file_object, is_directory = fs.lookup( "/workspace/gamemodes/" .. file_path )
 
             if file_object == nil then
+                file_object, is_directory = fs.lookup( "/workspace/lua/" .. file_path )
+            end
+
+            if file_object == nil then
                 std.errorf( stack_level, false, "File '%s' not found.", file_path )
             end
 
@@ -1298,9 +1362,23 @@ do
             ---@cast file_object dreamwork.std.fs.File
 
             local mount_point, mount_path = fs.whereis( file_object )
-            local lua_code = file_Read( mount_path, mount_point )
 
-            if lua_code == nil then
+            if DEBUG then
+                if mount_point == "MOD" then
+                    local fs_object
+                    fs_object, is_directory = fs.lookup( "/garrysmod/" .. mount_path )
+
+                    if not is_directory and fs_object ~= nil and fs.watchdog.watch( fs_object ) then
+                        logger:debug( "'%s' being watched for changes.", fs_object.path )
+                    end
+                end
+            end
+
+            ---@type File
+            ---@diagnostic disable-next-line: assign-type-mismatch
+            local file_handler = file.Open( mount_path, "rb", mount_point )
+
+            if file_handler == nil then
                 local success, result = pcall( CompileFile, file_path, true )
 
                 if not success or result == nil then
@@ -1311,6 +1389,9 @@ do
 
                 return result
             end
+
+            local lua_code = file_handler:Read( file_handler:Size() )
+            file_handler:Close()
 
             if string_byte( lua_code, 1, 1 ) == nil then
                 std.errorf( stack_level, false, "File '%s' is empty.", file_path )
@@ -1339,10 +1420,11 @@ do
         function compiler_fn( file_path, stack_level )
             stack_level = stack_level + 1
 
-            ---@type string | nil
-            local compressed_data = file_Read( "cache/lua/" .. string_sub( client_checksums[ file_path ], 1, 40 ) .. ".lua", "MOD" )
+            ---@type File | nil
+            ---@diagnostic disable-next-line: assign-type-mismatch
+            local file_handler = file_Open( "cache/lua/" .. string_sub( client_checksums[ file_path ], 1, 40 ) .. ".lua", "rb", "MOD" )
 
-            if compressed_data == nil then
+            if file_handler == nil then
                 local success, result = pcall( CompileFile, file_path, true )
 
                 if not success or result == nil then
@@ -1353,6 +1435,15 @@ do
 
                 return result
             end
+
+            local compressed_data = file_handler:Read( file_handler:Size() )
+            file_handler:Close()
+
+            if compressed_data == nil or string_byte( compressed_data, 1, 1 ) == nil then
+                std.errorf( stack_level, false, "File '%s' is empty.", file_path )
+            end
+
+            ---@cast compressed_data string
 
             local lua_code = util_Decompress( string_sub( compressed_data, 33 ) )
 
@@ -1623,44 +1714,7 @@ do
 
         logger:debug( "Module '%s' successfully loaded!", module_name )
 
-        if DEBUG and LUA_SERVER then
-            local workspace_object, is_directory = fs.lookup( "/workspace/gamemodes/" .. homedir )
-            ---@cast workspace_object dreamwork.std.fs.File
-
-            local mount_point, mount_path = fs.whereis( workspace_object )
-
-            if is_directory and mount_point == "MOD" then
-                local file_object
-                file_object, is_directory = fs.lookup( "/garrysmod/" .. mount_path )
-
-                if is_directory and file_object ~= nil and fs.watchdog.watch( file_object ) then
-                    logger:debug( "'%s' being watched for changes.", file_object.path )
-                end
-            end
-        end
-
         return module_object
-    end
-
-    local module_client_reload
-
-    if LUA_SERVER then
-
-        ---@param module_name string
-        function module_client_reload( module_name )
-            local timer_name = "ash.reload::" .. module_name
-            module_require( module_name, true, 2 )
-
-            glua_timer.Create( timer_name, 1, 1, function()
-                glua_timer.Remove( timer_name )
-
-                glua_net.Start( "ash.network" )
-                glua_net.WriteUInt( 1, 2 )
-                glua_net.WriteString( module_name )
-                glua_net.Broadcast()
-            end )
-        end
-
     end
 
     --- [SHARED]
@@ -1684,9 +1738,19 @@ do
             return
         end
 
-        if LUA_SERVER then
-            module_client_reload( module_name )
-        end
+        -- if LUA_SERVER then
+        --     local timer_name = "ash.reload::" .. module_name
+        --     module_require( module_name, true, 2 )
+
+        --     glua_timer.Create( timer_name, 1, 1, function()
+        --         glua_timer.Remove( timer_name )
+
+        --         glua_net.Start( "ash.network" )
+        --         glua_net.WriteUInt( 1, 2 )
+        --         glua_net.WriteString( module_name )
+        --         glua_net.Broadcast()
+        --     end )
+        -- end
     end
 
     if LUA_SERVER and DEBUG then
@@ -1702,16 +1766,8 @@ do
             local segments, segment_count = string.byteSplit( directory_path, 0x2F --[[ / ]] )
             if segment_count == 0 then return end
 
-            for i = segment_count, 1, -1 do
-                local module_object = modules[ gamemode_name .. "." .. table_concat( segments, ".", 1, i ) ]
-                if module_object ~= nil then
-                    ---@cast module_object ash.Module
-                    module_object:reload()
-                    return
-                end
-            end
-
             local lua_path = table_concat( { gamemode_name, "gamemode", module_type, directory_path, file_name }, "/", 1, 5 )
+
             if client_checksums[ lua_path ] ~= nil then
                 local has_changes, file_sha256 = clientFileSend( lua_path, 2 )
                 if has_changes then
@@ -1720,8 +1776,15 @@ do
                     glua_net.WriteString( lua_path )
                     glua_net.WriteString( file_sha256 )
                     glua_net.Broadcast()
+                end
+            end
 
-                    module_client_reload( gamemode_name .. "." .. table_concat( segments, ".", 1, segment_count ) )
+            for i = segment_count, 1, -1 do
+                local module_object = modules[ gamemode_name .. "." .. table_concat( segments, ".", 1, i ) ]
+                if module_object ~= nil then
+                    ---@cast module_object ash.Module
+                    module_object:reload()
+                    break
                 end
             end
         end )
@@ -1777,22 +1840,6 @@ do
                 local modules_path = root_name .. "/gamemode/autorun/"
 
                 for _, directory_name in raw_ipairs( select( 2, glua_file.Find( modules_path .. "*", "LUA" ) ) ) do
-                    if DEBUG and LUA_SERVER then
-                        local workspace_object, is_directory = fs.lookup( "/workspace/gamemodes/" .. modules_path .. directory_name )
-                        ---@cast workspace_object dreamwork.std.fs.File
-
-                        local mount_point, mount_path = fs.whereis( workspace_object )
-
-                        if is_directory and mount_point == "MOD" then
-                            local file_object
-                            file_object, is_directory = fs.lookup( "/garrysmod/" .. mount_path )
-
-                            if is_directory and file_object ~= nil and fs.watchdog.watch( file_object ) then
-                                logger:debug( "'%s' being watched for changes.", file_object.path )
-                            end
-                        end
-                    end
-
                     local module_object = module_require( root_name .. "." .. directory_name, true, 2 )
                     if module_object ~= nil then
                         local err_msg = module_object.Error
@@ -1854,9 +1901,24 @@ do
                     end
                 end )
             elseif uint1_1 == 2 then
-                local file_name, file_sha256 = glua_net.ReadString(), glua_net.ReadString()
-                logger:debug( "Received file '%s' checksum SHA-256 '%s'.", file_name, file_sha256 )
-                client_checksums[ file_name ] = file_sha256
+                local file_path, file_sha256 = glua_net.ReadString(), glua_net.ReadString()
+                logger:debug( "Received file '%s' checksum SHA-256 '%s'.", file_path, file_sha256 )
+                client_checksums[ file_path ] = file_sha256
+
+                local gamemode_name, module_type, directory_path = string_match( file_path, "^([^/]+)/gamemode/(%w+)/(.+)/.+%.lua$" )
+                if gamemode_name == nil or not ( module_type == "modules" or module_type == "autorun" ) or directory_path == nil then return end
+
+                local segments, segment_count = string.byteSplit( directory_path, 0x2F --[[ / ]] )
+
+                for i = segment_count, 1, -1 do
+                    local module_object = modules[ gamemode_name .. "." .. table_concat( segments, ".", 1, i ) ]
+                    if module_object ~= nil then
+                        ---@cast module_object ash.Module
+                        module_object:reload()
+                        break
+                    end
+                end
+
             end
         end )
 
@@ -1919,6 +1981,7 @@ do
 
     if LUA_CLIENT then
 
+        environment.AudioChannel = addMetatable( "IGModAudioChannel" )
         environment.Panel = addMetatable( "Panel", vgui.Create )
 
     end

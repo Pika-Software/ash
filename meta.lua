@@ -68,6 +68,9 @@ MoveData = {}
 ---@overload fun( name: string ): Panel
 Panel = {}
 
+---@class ash.AudioChannel : IGModAudioChannel
+AudioChannel = {}
+
 ---@class ash.Player : Player
 ---@overload fun( name: string ): Player
 Player = {}
