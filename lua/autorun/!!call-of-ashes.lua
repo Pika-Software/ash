@@ -162,8 +162,6 @@ if LUA_SERVER then
 
         local file_object, is_directory = fs.lookup( "/workspace/gamemodes/" .. file_path )
 
-        print( std.inspect( file_object ), is_directory, "/workspace/gamemodes/" .. file_path )
-
         if file_object == nil then
             file_object, is_directory = fs.lookup( "/workspace/lua/" .. file_path )
         end
