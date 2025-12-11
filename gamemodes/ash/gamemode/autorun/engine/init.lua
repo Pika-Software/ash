@@ -1,6 +1,9 @@
 MODULE.ClientFiles = {
+    "cl_init.lua",
     "shared.lua"
 }
+
+include( "shared.lua" )
 
 local RunConsoleCommand = _G.RunConsoleCommand
 
@@ -16,5 +19,3 @@ hook.Add( "InitPostEntity", "Defaults", function()
         RunConsoleCommand( convar_data[ 1 ], convar_data[ 2 ] )
     end
 end, PRE_HOOK )
-
-include( "shared.lua" )

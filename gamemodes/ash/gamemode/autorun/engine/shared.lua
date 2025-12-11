@@ -5,3 +5,4 @@ cvars.AddChangeCallback( "gmod_language", function( _, __, new_language )
         hook_Run( "LanguageChanged", cvars.String( "gmod_language", "en" ), new_language )
 	end )
 end, "LanguageChange" )
+
