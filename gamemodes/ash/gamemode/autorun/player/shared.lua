@@ -152,7 +152,7 @@ do
     ---@param pl Player
     ---@param cmd CUserCmd
     ---@diagnostic disable-next-line: redundant-parameter
-    hook.Add( "StartCommand", "MovementController", function( pl, cmd )
+    hook.Add( "StartCommand", "MovementControl", function( _, pl, cmd )
         if hook_Run( "CanPlayerMove", pl, cmd ) == false then
             UserCommand_SetImpulse( cmd, 0 )
             UserCommand_ClearMovement( cmd )
@@ -255,7 +255,7 @@ do
 
     ---@param pl Player
     ---@param mv CMoveData
-    hook.Add( "FinishMove", "MovementController", function( pl, mv )
+    hook.Add( "FinishMove", "MovementCapture", function( _, pl, mv )
         local move_angles = MoveData_GetMoveAngles( mv )
         local buttons = MoveData_GetButtons( mv )
         local direction = Vector( 0, 0, 0 )
@@ -297,7 +297,7 @@ do
             hook_Run( "PlayerChangedMoveType", pl, mv, move_type, move_types[ pl ] )
             move_types[ pl ] = move_type
         end
-    end, PRE_HOOK )
+    end, POST_HOOK )
 
     local IN_MOVE = bit_bor( IN_FORWARD, IN_MOVELEFT, IN_MOVERIGHT, IN_BACK )
 
@@ -308,7 +308,7 @@ do
     ---@return string
     hook.Add( "PlayerSelectMoveState", "DefaultStates", function( arguments, pl, mv, buttons )
         ---@type ash.player.MoveState | nil
-        local move_state = arguments[ 1 ]
+        local move_state = arguments[ 2 ]
 
         if move_state == nil then
             if Entity_IsOnGround( pl ) then
@@ -340,30 +340,39 @@ do
     ---@param pl Player
     ---@param mv CMoveData
     ---@diagnostic disable-next-line: redundant-parameter
-    hook.Add( "Move", "SpeedController", function( _, pl, mv )
+    hook.Add( "Move", "SpeedControl", function( arguments, pl, mv )
         local max_speed = math_max( MoveData_GetMaxSpeed( mv ), MoveData_GetMaxClientSpeed( mv ) )
         max_speed = hook_Run( "PlayerSpeed", pl, mv, max_speed ) or 0
         MoveData_SetMaxClientSpeed( mv, max_speed )
         MoveData_SetMaxSpeed( mv, max_speed )
 
-        if move_types[ pl ] == 8 then
-            local velocity = ( ( directions[ pl ] * max_speed ) - MoveData_GetVelocity( mv ) ) * tick_interval
-            MoveData_SetVelocity( mv, velocity )
+        local suppress_engine = arguments[ 2 ]
 
-            local origin = MoveData_GetOrigin( mv )
-            Vector_Add( origin, velocity )
-            MoveData_SetOrigin( mv, origin )
+        if suppress_engine == nil then
+            if move_types[ pl ] == 8 then
+                local origin = MoveData_GetOrigin( mv )
+                local velocity = ( ( directions[ pl ] * max_speed ) - MoveData_GetVelocity( mv ) ) * tick_interval
 
-            return true
+                Vector_Add( origin, velocity )
+                MoveData_SetOrigin( mv, origin )
+                MoveData_SetVelocity( mv, velocity )
+
+                return true
+            end
+
+            return
         end
-    end, POST_HOOK )
+
+        return suppress_engine
+    end, POST_HOOK_RETURN )
 
     ---@param pl Player
     ---@param mv CMoveData
     ---@param max_speed number
     ---@return number
     hook.Add( "PlayerSpeed", "SpeedController", function( arguments, pl, mv, max_speed )
-        local speed = arguments[ 1 ]
+        local speed = arguments[ 2 ]
+
         if speed == nil then
             local move_type = move_types[ pl ]
             local buttons = MoveData_GetButtons( mv )

@@ -445,7 +445,7 @@ do
 	local math_clamp = math.clamp
 
     hook.Add( "EntityEmitSound", "Handler", function( arguments, data )
-        local result = arguments[ 1 ]
+        local result = arguments[ 2 ]
         if result ~= nil then
             return result
         end
@@ -489,7 +489,7 @@ end
 ---@param entity Entity
 ---@param bullet Bullet
 hook.Add( "EntityFireBullets", "BulletCallback", function( arguments, entity, bullet )
-    if arguments[ 1 ] == false then return false end
+    if arguments[ 2 ] == false then return false end
 
     local callback = bullet.Callback
 

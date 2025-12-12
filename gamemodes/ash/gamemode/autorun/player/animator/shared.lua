@@ -18,6 +18,7 @@ local Entity_GetNW2String = Entity.GetNW2String
 local Entity_SetNW2String = Entity.SetNW2String
 
 local string_byte = string.byte
+local hook_Run = hook.Run
 
 ---@class ash.player.animator
 local animator = {}
@@ -513,9 +514,11 @@ do
         hook.Add( "CalcMainActivity", "AnimationController", function( arguments, pl, velocity )
             velocities[ pl ] = velocity
 
-            local activity, sequence_id = arguments[ 1 ], -1
+            local activity = arguments[ 2 ]
+            local sequence_id = -1
+
             if activity ~= nil then
-                sequence_id = arguments[ 2 ]
+                sequence_id = arguments[ 3 ]
                 goto activity_selected
             end
 
@@ -622,8 +625,15 @@ do
             activity = getFlightActivity( pl )
             ::activity_selected::
 
-            activities[ pl ] = activity
-            sequences[ pl ] = sequence_id
+            if activity ~= activities[ pl ] then
+                hook_Run( "PlayerActivityChanged", pl, activity, activities[ pl ] )
+                activities[ pl ] = activity
+            end
+
+            if sequence_id ~= sequences[ pl ] then
+                hook_Run( "PlayerSequenceChanged", pl, sequence_id, sequences[ pl ] )
+                sequences[ pl ] = sequence_id
+            end
 
             return activity, sequence_id
         end, POST_HOOK_RETURN )
@@ -705,12 +715,17 @@ do
     end
 
     hook.Add( "TranslateActivity", "TranslationCacher", function( arguments, pl, activity )
-        return arguments[ 1 ] or translation_cache[ pl ][ activity ]
+        return arguments[ 2 ] or translation_cache[ pl ][ activity ]
     end, POST_HOOK_RETURN )
 
-    hook.Add( "PlayerSwitchWeapon", "TranslationCacher", function( pl )
+    local function cleanup_cache( pl )
+        -- print( pl, CurTime(), "Translation cache cleared." )
         translation_cache[ pl ] = nil
-    end, PRE_HOOK )
+    end
+
+    -- hook.Add( "PlayerActivityChanged", "TranslationCacher", cleanup_cache, PRE_HOOK )
+    hook.Add( "PlayerSequenceChanged", "TranslationCacher", cleanup_cache, PRE_HOOK )
+    hook.Add( "PlayerSwitchWeapon", "TranslationCacher", cleanup_cache, PRE_HOOK )
 
 end
 
