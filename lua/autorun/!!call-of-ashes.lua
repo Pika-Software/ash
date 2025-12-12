@@ -800,6 +800,22 @@ environment.class = class
 environment.DEBUG = DEBUG
 environment._G = _G
 
+environment.isfunction = std.isFunction
+environment.isnumber = std.isNumber
+environment.isbool = std.isBoolean
+environment.isstring = isString
+
+do
+
+    local debug_getmetavalue = debug.getmetavalue
+    local type = std.type
+
+    function environment.type( value )
+        return debug_getmetavalue( value, "MetaName" ) or type( value )
+    end
+
+end
+
 local enviroment_metatable = {
     __index = environment,
     -- __newindex = debug.fempty
