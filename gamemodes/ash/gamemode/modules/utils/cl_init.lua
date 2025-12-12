@@ -4,6 +4,9 @@ local dreamwork = _G.dreamwork
 ---@type dreamwork.std
 local std = dreamwork.std
 
+local http = std.http
+local futures = std.futures
+
 local math = std.math
 local math_isint = math.isint
 
@@ -90,11 +93,15 @@ do
         local material = CreateMaterial( string_gsub( name, "[^%w_]+", "_" ), shader, shader_parameters )
 
         if string_isURL( path ) then
-            http.Fetch( path, function( body, _, headers, code )
-                if code ~= 200 then return end
 
-                for key, value in raw_pairs( headers ) do
-                    headers[ key ] = nil
+            futures.run( function()
+                local response = http.get( path )
+
+                if response.status ~= 200 then return end
+
+                local headers = {}
+
+                for key, value in raw_pairs( response.headers ) do
                     headers[ string_lower( key ) ] = value
                 end
 
@@ -116,6 +123,8 @@ do
                     error( "failed to fetch data from URL (" .. path .. ") - unsupported format ( " .. format .. " )" )
                 end
 
+                local body = response.body
+
                 local file_name = std.checksum.adler32( body ) .. "." .. format
                 local file_path = "ash/downloads/images/" .. file_name
 
@@ -123,7 +132,13 @@ do
                     file.Write( "ash/downloads/images/" .. file_name, body )
                 end
 
-                translate( engine_loadMaterial( "data/" .. file_path, image_parameters ), material )
+                return "data/" .. file_path
+            end, function( ok, file_path )
+                if ok then
+                    translate( engine_loadMaterial( file_path, image_parameters ), material )
+                else
+                    ash.Logger:error( "failed to fetch data from URL (" .. path .. ")")
+                end
             end )
         else
             translate( engine_loadMaterial( path, image_parameters ), material )
