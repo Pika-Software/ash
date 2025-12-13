@@ -2,9 +2,10 @@ local std = _G.dreamwork.std
 local angle_zero = angle_zero
 
 local system_HasFocus = system.HasFocus
-local os_clock = os.clock
 local assert = std.assert
 local arg = std.arg
+
+local CurTime = CurTime
 
 local render_DrawWireframeBox = render.DrawWireframeBox
 local render_SetMaterial = render.SetMaterial
@@ -30,13 +31,13 @@ local death_times = {}
 local function gen( lifetime, fn )
     if system_HasFocus() then
         render_queue_size = render_queue_size + 1
-        death_times[ render_queue_size ] = os_clock() + math.max( lifetime or 0, 0.5 )
+        death_times[ render_queue_size ] = CurTime() + math.max( lifetime or 0, 0.5 )
         render_queue[ render_queue_size ] = fn
     end
 end
 
 timer.Create( "OverlayTicks", 0.1, 0, function()
-    local now = os_clock()
+    local now = CurTime()
 
     for i = render_queue_size, 1, -1 do
         if now > death_times[ i ] then
