@@ -233,26 +233,6 @@ do
         return move_states[ pl ]
     end
 
-    ---@type table<Player, integer>
-    local move_types = {}
-
-    setmetatable( move_types, {
-        __index = function()
-            return 0
-        end,
-        __mode = "k"
-    } )
-
-    --- [SHARED]
-    ---
-    --- Gets the player's current move type.
-    ---
-    ---@param pl Player
-    ---@return integer move_type
-    function ash_player.getMoveType( pl )
-        return move_types[ pl ]
-    end
-
     ---@param pl Player
     ---@param mv CMoveData
     hook.Add( "FinishMove", "MovementCapture", function( _, pl, mv )
@@ -290,12 +270,6 @@ do
             move_states[ pl ] = hook_Run( "PlayerSelectMoveState", pl, mv, buttons )
         else
             move_states[ pl ] = "standing"
-        end
-
-        local move_type = Entity_GetMoveType( pl )
-        if move_type ~= move_types[ pl ] then
-            hook_Run( "PlayerChangedMoveType", pl, mv, move_type, move_types[ pl ] )
-            move_types[ pl ] = move_type
         end
     end, POST_HOOK )
 
@@ -349,7 +323,7 @@ do
         local suppress_engine = arguments[ 2 ]
 
         if suppress_engine == nil then
-            if move_types[ pl ] == 8 then
+            if Entity_GetMoveType( pl ) == 8 then
                 local origin = MoveData_GetOrigin( mv )
                 local velocity = ( ( directions[ pl ] * max_speed ) - MoveData_GetVelocity( mv ) ) * tick_interval
 
@@ -374,7 +348,7 @@ do
         local speed = arguments[ 2 ]
 
         if speed == nil then
-            local move_type = move_types[ pl ]
+            local move_type = Entity_GetMoveType( pl )
             local buttons = MoveData_GetButtons( mv )
 
             if move_type == 8 then -- noclip movement
