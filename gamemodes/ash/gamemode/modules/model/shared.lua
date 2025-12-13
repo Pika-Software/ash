@@ -1,9 +1,20 @@
+local util_GetModelInfo = util.GetModelInfo
 local string_lower = string.lower
 local string_gsub = string.gsub
 local rawset = rawset
+local pairs = pairs
 
 ---@class ash.model
 local ash_model = {}
+
+---@type table<string, string>
+local types = {
+    [ "models/m_anm.mdl" ] = "male",
+    [ "models/f_anm.mdl" ] = "female",
+    [ "models/z_anm.mdl" ] = "zombie"
+}
+
+ash_model.Types = types
 
 ---@type table<string, boolean>
 local models_cache = {}
@@ -38,70 +49,6 @@ local function precache_model( model_path )
 end
 
 ash_model.precache = precache_model
-
----@class ash.model.Info
----@field name string
----@field model string
----@field hands string
----@field extras table<string, any>
-
----@type table<string, ash.model.Info>
-local models_map = {}
-
----@type ash.model.Info
-local fallback_info = {
-    name = "default",
-    model = "models/player/mossman.mdl",
-    hands = "models/weapons/c_arms_citizen.mdl",
-    extras = {}
-}
-
---- [SHARED]
----
---- Get the model info by model name.
----
----@param model_name string
----@return ash.model.Info model_info
-function ash_model.get( model_name )
-    return models_map[ model_name ] or fallback_info
-end
-
---- [SHARED]
----
---- Set the model path by model name.
----
----@param model_name string
----@param model_path string | nil
----@param hands_path string | nil
----@param extras table<string, any> | nil
----@return ash.model.Info model_info
-function ash_model.set( model_name, model_path, hands_path, extras )
-    if model_path ~= nil then
-        model_path = model_path_fix( model_path )
-    end
-
-    if hands_path ~= nil then
-        hands_path = model_path_fix( hands_path )
-    end
-
-    local model_info = models_map[ model_name ]
-    if model_info == nil then
-        model_info = {
-            name = model_name,
-            model = model_path or fallback_info.model,
-            hands = hands_path or fallback_info.hands,
-            extras = extras or {}
-        }
-
-        models_map[ model_name ] = model_info
-    end
-
-    model_info.model = model_path or model_info.model or fallback_info.model
-    model_info.hands = hands_path or model_info.hands or fallback_info.hands
-    model_info.extras = extras or model_info.extras or {}
-
-    return model_info
-end
 
 ---@type table<string, integer>
 local activity_ids = {}
@@ -165,5 +112,321 @@ function ash_model.getActivityName( act_id )
     return activity_names[ act_id ] or "ACT_INVALID"
 end
 
+---@class ash.model.Bone
+---@field id integer
+---@field name string
+---@field postion Vector
+---@field angle Angle
+---@field flags integer
+---@field surface_material string
+---@field phys_id integer
+---@field parent ash.model.Bone | nil
+
+---@class ash.model.Attachment
+---@field id integer
+---@field name string
+---@field bone ash.model.Bone
+
+---@class ash.model.HitBox
+---@field id integer
+---@field bone ash.model.Bone
+---@field mins Vector
+---@field maxs Vector
+
+---@class ash.model.HitBoxGroup
+---@field id integer
+---@field name string
+---@field count integer
+---@field hitboxes ash.model.HitBox[]
+
+---@class ash.model.SequenceEvent
+---@field id integer
+---@field name string
+---@field type integer
+---@field cycle number
+---@field options string
+
+---@class ash.model.Sequence
+---@field id integer
+---@field name string
+---@field events ash.model.SequenceEvent[]
+---@field activity ACT | integer | nil
+
+---@class ash.model.Info
+---@field name string
+---@field type "male" | "female" | "zombie" | "other" | string
+---@field model string
+---@field hands string
+---@field extras table<string, any>
+---@field mins Vector | nil
+---@field maxs Vector | nil
+---@field skin_count integer
+---@field bone_count integer
+---@field sequence_count integer
+---@field attachment_count integer
+---@field hitbox_group_count integer
+---@field surface_material string
+---@field version integer
+---@field bones ash.model.Bone[]
+---@field sequences ash.model.Sequence[]
+---@field attachments ash.model.Attachment[]
+---@field hitbox_groups ash.model.HitBoxGroup[]
+
+---@type table<string, ash.model.Info>
+local models_map = {}
+
+---@type ash.model.Info
+local fallback_info
+
+--- [SHARED]
+---
+--- Get the model info by model name.
+---
+---@param model_name string
+---@return ash.model.Info model_info
+function ash_model.get( model_name )
+    return models_map[ model_name ] or fallback_info
+end
+
+--- [SHARED]
+---
+--- Set the model path by model name.
+---
+---@param model_name string
+---@param model_path string | nil
+---@param hands_path string | nil
+---@param extras table<string, any> | nil
+---@return ash.model.Info model_info
+function ash_model.set( model_name, model_path, hands_path, extras )
+    if model_path ~= nil then
+        model_path = model_path_fix( model_path )
+    end
+
+    if hands_path ~= nil then
+        hands_path = model_path_fix( hands_path )
+    end
+
+    local model_info = models_map[ model_name ]
+    if model_info == nil then
+        if model_path == nil then
+            model_path = fallback_info.model
+        end
+
+        if hands_path == nil then
+            hands_path = fallback_info.hands
+        end
+
+        if extras == nil then
+            extras = {}
+        end
+
+        model_info = {
+            version = 0,
+            type = "other",
+            name = model_name,
+            model = model_path,
+            hands = hands_path,
+            skin_count = 0,
+            bone_count = 0,
+            sequence_count = 0,
+            attachment_count = 0,
+            hitbox_group_count = 0,
+            surface_material = "flesh",
+            hitbox_groups = {},
+            attachments = {},
+            sequences = {},
+            bones = {},
+            extras = extras
+        }
+
+        models_map[ model_name ] = model_info
+    else
+
+        if model_path == nil then
+            model_path = model_info.model or fallback_info.model
+        end
+
+        if hands_path == nil then
+            hands_path = model_info.hands or fallback_info.hands
+        end
+
+        if extras == nil then
+            extras = model_info.extras or {}
+        end
+
+        model_info.model = model_path
+        model_info.hands = hands_path
+        model_info.extras = extras
+
+    end
+
+    local engine_info = util_GetModelInfo( model_path ) or {}
+
+    model_info.skin_count = engine_info.SkinCount or model_info.skin_count
+
+    local bone_count = engine_info.BoneCount or model_info.bone_count
+    model_info.bone_count = bone_count
+
+    local attachment_count = engine_info.AttachmentCount or model_info.attachment_count
+    model_info.attachment_count = attachment_count
+
+    local sequence_count = engine_info.SequenceCount or model_info.sequence_count
+    model_info.sequence_count = sequence_count
+
+    model_info.surface_material = engine_info.SurfacePropName or model_info.surface_material
+    model_info.version = engine_info.Version or model_info.version
+
+    model_info.mins = engine_info.HullMin
+    model_info.maxs = engine_info.HullMax
+
+    local sub_models = engine_info.IncludeModels or {}
+
+    for i = 1, engine_info.IncludeModelCount or #sub_models, 1 do
+        local model_type = types[ sub_models[ i ] ]
+        if model_type ~= nil then
+            model_info.type = model_type
+            break
+        end
+    end
+
+    local bones = model_info.bones
+
+    for i in pairs( bones ) do
+        bones[ i ] = nil
+    end
+
+    local engine_bones = engine_info.Bones
+    if engine_bones ~= nil then
+        for i = 1, bone_count, 1 do
+            local bone = engine_bones[ i ]
+            if bone ~= nil then
+                bones[ i ] = {
+                    id = i - 1,
+                    name = bone.Name,
+                    postion = bone.Position,
+                    angle = bone.Angle,
+                    flags = bone.Flags,
+                    surface_material = bone.SurfacePropName,
+                    phys_id = bone.PhysObj
+                }
+            end
+        end
+
+        for i = 1, bone_count, 1 do
+            local bone = bones[ i ]
+            if bone ~= nil then
+                local parent_id = engine_bones[ i ].Parent
+                if parent_id >= 0 then
+                    bone.parent = bones[ parent_id + 1 ]
+                end
+            end
+        end
+    end
+
+    local attachments = model_info.attachments
+
+    for i in pairs( attachments ) do
+        attachments[ i ] = nil
+    end
+
+    local engine_attachments = engine_info.Attachments
+    if engine_attachments ~= nil then
+        for i = 1, attachment_count, 1 do
+            local attachment = engine_attachments[ i ]
+            if attachment ~= nil then
+                attachments[ i ] = {
+                    id = i - 1,
+                    name = attachment.Name,
+                    bone = bones[ attachment.Bone + 1 ]
+                }
+            end
+        end
+    end
+
+    local hitbox_groups = model_info.hitbox_groups
+
+    for i in pairs( hitbox_groups ) do
+        hitbox_groups[ i ] = nil
+    end
+
+    local engine_hitbox_groups = engine_info.HitBoxSets
+    if engine_hitbox_groups ~= nil then
+        local hitbox_group_count = #engine_hitbox_groups
+        for i = 1, hitbox_group_count, 1 do
+            local hitbox_group = engine_hitbox_groups[ i ]
+            if hitbox_group ~= nil then
+                local hitboxes = {}
+                local hitbox_count = hitbox_group.Count
+
+                for j = 1, hitbox_count, 1 do
+                    local hitbox = hitbox_group.HitBoxes[ j ]
+                    if hitbox ~= nil then
+                        hitboxes[ j ] = {
+                            id = j - 1,
+                            bone = bones[ hitbox.Bone + 1 ],
+                            mins = hitbox.Mins,
+                            maxs = hitbox.Maxs
+                        }
+                    end
+                end
+
+                hitbox_groups[ i ] = {
+                    id = i - 1,
+                    name = hitbox_group.Name,
+                    count = hitbox_count,
+                    hitboxes = hitboxes
+                }
+            end
+        end
+
+        model_info.hitbox_group_count = hitbox_group_count
+    end
+
+    local sequences = model_info.sequences
+
+    for i in pairs( sequences ) do
+        sequences[ i ] = nil
+    end
+
+    local engine_sequences = engine_info.Sequences
+    if engine_sequences ~= nil then
+        for i = 1, sequence_count, 1 do
+            local sequence = engine_sequences[ i ]
+            if sequence ~= nil then
+                ---@type ash.model.SequenceEvent[]
+                local events = {}
+
+                local engine_events = sequence.Events
+                if engine_events ~= nil then
+                    for j = 1, #engine_events, 1 do
+                        local engine_event = engine_events[ j ]
+                        if engine_event ~= nil then
+                            events[ j ] = {
+                                id = engine_event.Event,
+                                name = engine_event.Name,
+                                type = engine_event.Type,
+                                cycle = engine_event.Cycle,
+                                options = engine_event.Options
+                            }
+                        end
+                    end
+                end
+
+                sequences[ i ] = {
+                    id = i - 1,
+                    name = sequence.Name,
+                    activity = activity_ids[ sequence.Activity ],
+                    events = events
+                }
+            end
+        end
+    end
+
+    return model_info
+end
+
+fallback_info = ash_model.set( "default", "models/player/mossman.mdl", "models/weapons/c_arms_citizen.mdl" )
+
+ash_model.set( "mothica", "models/player/p1ka/mothica.mdl", "models/player/p1ka/mothica_carms.mdl" )
 
 return ash_model
