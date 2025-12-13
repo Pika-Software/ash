@@ -174,7 +174,7 @@ do
     --- Returns the tags of the channel.
     ---
     ---@param name string
-    ---@return table tags
+    ---@return table | string tags
     function Channel:getIdentify( name )
         local identify = identify_types[ name ]
         if identify ~= nil then
@@ -625,5 +625,15 @@ function ash_bass.play( params )
 
     error( "file '" .. name .. "' not found", 2 )
 end
+
+-- ash_bass.play( {
+--     name = "https://files.p1ka.eu/seafhttp/f/2627e2b742ac4ebf809e/?op=view",
+--     callback = function( channel )
+--         if channel ~= nil then
+--             -- TEST = channel
+--             channel:play()
+--         end
+--     end
+-- } )
 
 return ash_bass
