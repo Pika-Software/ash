@@ -43,6 +43,8 @@ local AudioChannel_GetBufferedTime = AudioChannel.GetBufferedTime
 local AudioChannel_IsOnline = AudioChannel.IsOnline
 local AudioChannel_GetState = AudioChannel.GetState
 
+local file_Exists = file.Exists
+local file_IsDir = file.IsDir
 
 local math = std.math
 local math_max = math.max
@@ -619,7 +621,7 @@ function ash_bass.play( params )
         end
     end
 
-    if fs.isFile( "/workspace/" .. name ) then
+    if file_Exists( name, "GAME" ) and not file_IsDir( name, "GAME" ) then
         sound_PlayFile( name, flags, bass_callback )
     end
 
