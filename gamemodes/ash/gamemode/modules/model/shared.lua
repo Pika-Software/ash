@@ -1,5 +1,6 @@
 local util_GetModelInfo = util.GetModelInfo
 local string_lower = string.lower
+local string_byte = string.byte
 local string_gsub = string.gsub
 local rawset = rawset
 local pairs = pairs
@@ -165,8 +166,10 @@ end
 ---@field sequence_count integer
 ---@field attachment_count integer
 ---@field hitbox_group_count integer
+---@field material_count integer
 ---@field surface_material string
 ---@field version integer
+---@field materials string[]
 ---@field bones ash.model.Bone[]
 ---@field sequences ash.model.Sequence[]
 ---@field attachments ash.model.Attachment[]
@@ -231,10 +234,12 @@ function ash_model.set( model_name, model_path, hands_path, extras )
             sequence_count = 0,
             attachment_count = 0,
             hitbox_group_count = 0,
+            material_count = 0,
             surface_material = "flesh",
             hitbox_groups = {},
             attachments = {},
             sequences = {},
+            materials = {},
             bones = {},
             extras = extras
         }
@@ -421,6 +426,35 @@ function ash_model.set( model_name, model_path, hands_path, extras )
             end
         end
     end
+
+    local materials = model_info.materials
+    local material_count = 0
+
+    for i in pairs( materials ) do
+        materials[ i ] = nil
+    end
+
+    local engine_material_directories = engine_info.MaterialDirectories
+    if engine_material_directories ~= nil then
+        local engine_materials = engine_info.Materials
+        if engine_materials ~= nil then
+            local engine_materials_count = engine_info.MaterialCount or #engine_materials
+            for i = 1, #engine_material_directories, 1 do
+                local directory = model_path_fix( engine_material_directories[ i ] )
+
+                if string_byte( directory, -1 ) ~= 0x2F --[[ / ]] then
+                    directory = directory .. "/"
+                end
+
+                for j = 1, engine_materials_count, 1 do
+                    material_count = material_count + 1
+                    materials[ material_count ] = directory .. engine_materials[ j ]
+                end
+            end
+        end
+    end
+
+    model_info.material_count = material_count
 
     return model_info
 end
