@@ -4,11 +4,6 @@ include( "shared.lua" )
 local ash_footsteps = require( "ash.player.footsteps" )
 local footplayer_getShoesType = ash_footsteps.getShoesType
 
----@type ash.entity
-local ash_entity = require( "ash.entity" )
-local entity_getHitbox = ash_entity.getHitbox
-local entity_getHitboxBounds = ash_entity.getHitboxBounds
-
 ---@type ash.player
 local ash_player = require( "ash.player" )
 local player_getMoveState = ash_player.getMoveState
@@ -26,7 +21,6 @@ local Vector_Distance = Vector.Distance
 
 local util_GetSurfaceData = util.GetSurfaceData
 local util_TraceHull = util.TraceHull
-local util_TraceLine = util.TraceLine
 
 local string_match = string.match
 
@@ -35,10 +29,15 @@ local hook_Run = hook.Run
 ---@type TraceResult
 local trace_result = {}
 
----@type HullTrace | Trace
+---@type HullTrace
 local trace = {
+    mins = Vector( -4, -4, 0 ),
+    maxs = Vector( 4, 4, 2 ),
     output = trace_result
 }
+
+---@type ash.debug
+local debug = require( "ash.debug" )
 
 ---@type table<Player, table<integer, boolean>>
 local foot_states = {}
@@ -52,11 +51,13 @@ setmetatable( foot_states, {
     end
 } )
 
+---@param pl Player
 hook.Add( "PlayerPostThink", "FootstepsThink", function( pl )
     if Entity_GetMoveType( pl ) ~= 2 --[[ MOVETYPE_WALK ]] then return end
 
     local move_state = player_getMoveState( pl )
     if move_state == "swimming" then return end
+    trace.filter = pl
 
     local water_level = Entity_WaterLevel( pl )
     local player_shoes = footplayer_getShoesType( pl )
@@ -67,7 +68,6 @@ hook.Add( "PlayerPostThink", "FootstepsThink", function( pl )
             local bone_matrix = Entity_GetBoneMatrix( pl, bone_id )
             if bone_matrix ~= nil then
                 local bone_position = Matrix_GetTranslation( bone_matrix )
-                trace.start = bone_position
 
                 local root_matrix = Entity_GetBoneMatrix( pl, 0 )
                 local root_position
@@ -78,45 +78,34 @@ hook.Add( "PlayerPostThink", "FootstepsThink", function( pl )
                     root_position = Matrix_GetTranslation( root_matrix )
                 end
 
+                trace.start = root_position
+
                 local bone_direction = ( root_position - bone_position )
                 Vector_Normalize( bone_direction )
 
-                trace.endpos = bone_position - bone_direction * 6 -- Vector_Distance( root_position, bone_position ) * 0.25
-                trace.filter = pl
+                trace.endpos = root_position - bone_direction * Vector_Distance( root_position, bone_position ) * 1.25
+                util_TraceHull( trace )
 
-                local hitbox, hitbox_group = entity_getHitbox( pl, bone_id )
+                if trace_result.Hit ~= foot_states[ pl ][ bone_id ] then
+                    if trace_result.Hit then
+                        foot_states[ pl ][ bone_id ] = true
 
-                if hitbox == nil then
-                    ---@cast trace Trace
-                    util_TraceLine( trace )
-                else
-                    ---@diagnostic disable-next-line: assign-type-mismatch
-                    trace.mins, trace.maxs = entity_getHitboxBounds( pl, hitbox, hitbox_group )
-                    ---@cast trace HullTrace
-                    util_TraceHull( trace )
-                end
+                        local material_name, fallback_sound
 
-                local hit_ground = trace_result.Hit
-
-                if hit_ground ~= foot_states[ pl ][ bone_id ] then
-                    foot_states[ pl ][ bone_id ] = hit_ground
-
-                    local material_name, fallback_sound
-
-                    if water_level == 0 then
-                        local surface_data = util_GetSurfaceData( trace_result.SurfaceProps )
-                        if surface_data ~= nil then
-                            material_name = surface_data.name
-                            fallback_sound = surface_data.impactSoftSound
+                        if water_level == 0 then
+                            local surface_data = util_GetSurfaceData( trace_result.SurfaceProps )
+                            if surface_data ~= nil then
+                                material_name = surface_data.name
+                                fallback_sound = surface_data.impactSoftSound
+                            end
+                        else
+                            material_name = "water"
                         end
-                    else
-                        material_name = "water"
-                    end
 
-                    if hit_ground then
                         hook_Run( "PlayerFootDown", pl, trace_result.HitPos, player_shoes, material_name, move_state, bone_id, fallback_sound )
                     else
-                        hook_Run( "PlayerFootUp", pl, trace_result.HitPos, player_shoes, material_name, move_state, bone_id, fallback_sound )
+                        foot_states[ pl ][ bone_id ] = false
+                        hook_Run( "PlayerFootUp", pl, trace_result.HitPos, player_shoes, "default", move_state, bone_id )
                     end
                 end
             end
