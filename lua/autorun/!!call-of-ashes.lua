@@ -798,6 +798,7 @@ environment.printf = std.printf
 environment.math = std.math
 environment.class = class
 environment.DEBUG = DEBUG
+environment.path = path
 environment._G = _G
 
 environment.isfunction = std.isFunction
@@ -1786,11 +1787,13 @@ do
             if client_checksums[ lua_path ] ~= nil then
                 local has_changes, file_sha256 = clientFileSend( lua_path, 2 )
                 if has_changes then
-                    glua_net.Start( "ash.network" )
-                    glua_net.WriteUInt( 2, 2 )
-                    glua_net.WriteString( lua_path )
-                    glua_net.WriteString( file_sha256 )
-                    glua_net.Broadcast()
+                    std.setTimeout( function()
+                        glua_net.Start( "ash.network" )
+                        glua_net.WriteUInt( 2, 2 )
+                        glua_net.WriteString( lua_path )
+                        glua_net.WriteString( file_sha256 )
+                        glua_net.Broadcast()
+                    end )
                 end
             end
 

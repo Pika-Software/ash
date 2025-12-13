@@ -331,3 +331,6 @@ printf = std.printf
 
 ---@diagnostic disable-next-line: lowercase-global
 math = std.math
+
+---@diagnostic disable-next-line: lowercase-global
+path = std.path
