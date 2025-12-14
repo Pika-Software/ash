@@ -14,8 +14,8 @@ local ash_entity = require( "ash.entity" )
 local entity_getHitbox = ash_entity.getHitbox
 local entity_getHitboxBounds = ash_entity.getHitboxBounds
 
----@type ash.utils
-local utils = require( "ash.utils" )
+-- ---@type ash.utils
+-- local ash_utils = require( "ash.utils" )
 
 ---@type ash.level
 local ash_level = require( "ash.level" )
@@ -32,6 +32,8 @@ local hook_Run = hook.Run
 local Player_IsBot = Player.IsBot
 
 local NULL = NULL
+
+ash_player.isSpeaking = Player.IsSpeaking
 
 ---@param pl Player
 hook.Add( "PlayerInitialized", "HullSync", function( pl )
@@ -98,6 +100,7 @@ do
     local Entity_TranslatePhysBoneToBone = Entity.TranslatePhysBoneToBone
     local Entity_GetPhysicsObjectCount = Entity.GetPhysicsObjectCount
     local Entity_GetPhysicsObjectNum = Entity.GetPhysicsObjectNum
+    local Entity_SetCollisionGroup = Entity.SetCollisionGroup
 
     local level_isContainsPosition = ash_level.isContainsPosition
     local animator_getVelocity = ash_animator.getVelocity
@@ -122,6 +125,9 @@ do
         if ragdoll_entity ~= nil and Entity_IsValid( ragdoll_entity ) then
             local player_velocity = animator_getVelocity( pl )
             ash_player.setRagdoll( pl, ragdoll_entity )
+
+            ash_entity.setPlayerColor( ragdoll_entity, ash_entity.getPlayerColor( pl ) )
+            Entity_SetCollisionGroup( ragdoll_entity, 11 )
 
             for i = 0, Entity_GetPhysicsObjectCount( ragdoll_entity ) - 1 do
                 local physics_object = Entity_GetPhysicsObjectNum( ragdoll_entity, i )
