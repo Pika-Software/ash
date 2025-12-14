@@ -52,42 +52,11 @@ local math_clamp = math.clamp
 local math_floor = math.floor
 local math_random = math.random
 
-local fs = std.fs
-
 ---@class ash.sound.bass
 local ash_bass = {}
 
 ---@class ash.sound.bass.Channel : dreamwork.Object
 ---@field __class ash.sound.bass.ChannelClass
----@field isValid fun( self: ash.sound.bass.Channel ): boolean Returns `true` if the channel is valid.
----@field isBlocked fun( self: ash.sound.bass.Channel ): boolean Returns `true` if the channel is blocked.
----@field getStatus fun( self: ash.sound.bass.Channel ): GMOD_CHANNEL Returns the status of the channel. From 0 to 3.
----@field getFilePath fun( self: ash.sound.bass.Channel ): string Returns the file path of the channel.
----@field getBitRate fun( self: ash.sound.bass.Channel ): integer Returns the bit rate of the channel.
----@field getBitDepth fun( self: ash.sound.bass.Channel ): integer Returns the bit depth of the channel.
----@field getSampleRate fun( self: ash.sound.bass.Channel ): integer Returns the sample rate of the channel.
----@field getOGGVendor fun( self: ash.sound.bass.Channel ): string Returns the OGG vendor of the channel.
----@field getResponseHeaders fun( self: ash.sound.bass.Channel ): table Returns the response headers of the channel.
----@field getTime fun( self: ash.sound.bass.Channel ): number Returns the time of the channel.
----@field getVolume fun( self: ash.sound.bass.Channel ): number Returns the volume of the channel. Range is from 0 to 1.
----@field setVolume fun( self: ash.sound.bass.Channel, volume: number ) Sets the volume of the channel. Range is from 0 to 1.
----@field getVolumeLevels fun( self: ash.sound.bass.Channel ): number, number Returns the right and left levels of sound played by the sound channel. Range is from 0 to 1.
----@field getPlaybackRate fun( self: ash.sound.bass.Channel ): number Returns the playback rate of the channel.
----@field setPlaybackRate fun( self: ash.sound.bass.Channel, rate: number ) Sets the playback rate of the channel.
----@field isLooping fun( self: ash.sound.bass.Channel ): boolean Returns `true` if the channel is looping.
----@field setLooping fun( self: ash.sound.bass.Channel, loop: boolean ) Sets the looping of the channel.
----@field is3D fun( self: ash.sound.bass.Channel ): boolean Returns `true` if the channel is 3D.
----@field set3D fun( self: ash.sound.bass.Channel, enable: boolean ) Sets the channel to 3D.
----@field getPosition fun( self: ash.sound.bass.Channel ): Vector Returns the position of the channel.
----@field setPosition fun( self: ash.sound.bass.Channel, position: Vector ) Sets the position of the channel.
----@field getFadeDistance fun( self: ash.sound.bass.Channel ): number, number Returns 3D fade distances of a sound channel.
----@field setFadeDistance fun( self: ash.sound.bass.Channel, min: number, max: number ) Sets 3D fade distances of a sound channel.
----@field getProjectionCone fun( self: ash.sound.bass.Channel ): number, number, number Returns 3D projection cone of a sound channel.
----@field setProjectionCone fun( self: ash.sound.bass.Channel, inside_angle: number, outside_angle: number, outside_volume: number ) Sets 3D projection cone of a sound channel.
----@field pause fun( self: ash.sound.bass.Channel ) Pauses the channel.
----@field play fun( self: ash.sound.bass.Channel ) Plays the channel.
----@field stop fun( self: ash.sound.bass.Channel ) Stops the channel.
----@field fft fun( self: ash.sound.bass.Channel, fft: integer[], size: integer ): integer Returns the number of frequency bins that have been filled in the output table.
 local Channel = class.base( "bass.Channel", true )
 
 ---@class ash.sound.bass.ChannelClass : ash.sound.bass.Channel
@@ -104,56 +73,403 @@ function Channel:__init( channel )
     channels[ self ] = channel
 end
 
+---@protected
 function Channel:__gc()
-    self:stop()
-end
-
-local function channel_alias( name, fn )
-    Channel[ name ] = function( self, ... )
-        return fn( channels[ self ], ... )
+    local channel = channels[ self ]
+    if channel ~= nil and AudioChannel_IsValid( channel ) then
+        channel:Stop()
     end
 end
 
-channel_alias( "IsValid", AudioChannel_IsValid )
-channel_alias( "isValid", AudioChannel_IsValid )
-channel_alias( "isBlocked", AudioChannel.IsBlockStreamed )
+function Channel:isValid()
+    return AudioChannel_IsValid( channels[ self ] )
+end
 
-channel_alias( "getStatus", AudioChannel_GetState )
-channel_alias( "getFilePath", AudioChannel.GetFileName )
+Channel.IsValid = Channel.isValid
 
-channel_alias( "getBitRate", AudioChannel.GetAverageBitRate )
-channel_alias( "getBitDepth", AudioChannel.GetBitsPerSample )
-channel_alias( "getSampleRate", AudioChannel.GetSamplingRate )
+do
 
-channel_alias( "getOGGVendor", AudioChannel.GetTagsVendor )
-channel_alias( "getResponseHeaders", AudioChannel.GetTagsHTTP )
+    local AudioChannel_IsBlockStreamed = AudioChannel.IsBlockStreamed
 
-channel_alias( "getTime", AudioChannel_GetTime )
+    --- [CLIENT]
+    ---
+    --- Returns `true` if the channel is blocked.
+    ---
+    ---@return boolean is_blocked
+    function Channel:isBlocked()
+        return AudioChannel_IsBlockStreamed( channels[ self ] )
+    end
 
-channel_alias( "getVolume", AudioChannel.GetVolume )
-channel_alias( "setVolume", AudioChannel_SetVolume )
-channel_alias( "getVolumeLevels", AudioChannel.GetLevel )
+end
 
-channel_alias( "getPlaybackRate", AudioChannel_GetPlaybackRate )
-channel_alias( "setPlaybackRate", AudioChannel_SetPlaybackRate )
+--- [CLIENT]
+---
+--- Returns the status of the channel.
+---
+---@return GMOD_CHANNEL status
+function Channel:getStatus()
+    return AudioChannel_GetState( channels[ self ] )
+end
 
-channel_alias( "isLooping", AudioChannel.IsLooping )
-channel_alias( "setLooping", AudioChannel.EnableLooping )
+do
 
-channel_alias( "is3D", AudioChannel.Get3DEnabled )
-channel_alias( "set3D", AudioChannel.Set3DEnabled )
-channel_alias( "getPosition", AudioChannel_GetPos )
-channel_alias( "setPosition", AudioChannel_SetPos )
-channel_alias( "getFadeDistance", AudioChannel_Get3DFadeDistance )
-channel_alias( "setFadeDistance", AudioChannel_Set3DFadeDistance )
-channel_alias( "getProjectionCone", AudioChannel_Get3DCone )
-channel_alias( "setProjectionCone", AudioChannel_Set3DCone )
+    local AudioChannel_GetFileName = AudioChannel.GetFileName
 
-channel_alias( "pause", AudioChannel.Pause )
-channel_alias( "play", AudioChannel.Play )
-channel_alias( "stop", AudioChannel.Stop )
+    --- [CLIENT]
+    ---
+    --- Returns the file path or URL of the channel.
+    ---
+    ---@return string path
+    function Channel:getFilePath()
+        return AudioChannel_GetFileName( channels[ self ] )
+    end
 
-channel_alias( "fft", AudioChannel.FFT )
+end
+
+do
+
+    local AudioChannel_GetAverageBitRate = AudioChannel.GetAverageBitRate
+
+    --- [CLIENT]
+    ---
+    --- Returns the average bit rate of the channel.
+    ---
+    ---@return integer bit_rate
+    function Channel:getBitRate()
+        return AudioChannel_GetAverageBitRate( channels[ self ] )
+    end
+
+end
+
+do
+
+    local AudioChannel_GetBitsPerSample = AudioChannel.GetBitsPerSample
+
+    --- [CLIENT]
+    ---
+    --- Returns the average bit depth of the channel.
+    ---
+    ---@return integer bit_depth
+    function Channel:getBitDepth()
+        return AudioChannel_GetBitsPerSample( channels[ self ] )
+    end
+
+end
+
+do
+
+    local AudioChannel_GetSamplingRate = AudioChannel.GetSamplingRate
+
+    --- [CLIENT]
+    ---
+    --- Returns the sample rate of the channel.
+    ---
+    ---@return integer sample_rate
+    function Channel:getSampleRate()
+        return AudioChannel_GetSamplingRate( channels[ self ] )
+    end
+
+end
+
+do
+
+    local AudioChannel_GetTagsVendor = AudioChannel.GetTagsVendor
+
+    --- [CLIENT]
+    ---
+    --- Returns the vendor of the channel.
+    ---
+    ---@return string vendor
+    function Channel:getOGGVendor()
+        return AudioChannel_GetTagsVendor( channels[ self ] )
+    end
+
+end
+
+do
+
+    local AudioChannel_GetTagsHTTP = AudioChannel.GetTagsHTTP
+
+    --- [CLIENT]
+    ---
+    --- Returns the response headers of the channel.
+    ---
+    ---@return table headers
+    function Channel:getResponseHeaders()
+        return AudioChannel_GetTagsHTTP( channels[ self ] )
+    end
+
+end
+
+--- [CLIENT]
+---
+--- Returns the time of the channel in seconds.
+---
+---@return number time
+function Channel:getTime()
+    return AudioChannel_GetTime( channels[ self ] )
+end
+
+do
+
+    local AudioChannel_GetVolume = AudioChannel.GetVolume
+
+    --- [CLIENT]
+    ---
+    --- Returns the volume of the channel.
+    ---
+    ---@return number volume
+    function Channel:getVolume()
+        return AudioChannel_GetVolume( channels[ self ] )
+    end
+
+end
+
+--- [CLIENT]
+---
+--- Sets the volume of the channel.
+---
+---@param volume number
+function Channel:setVolume( volume )
+    AudioChannel_SetVolume( channels[ self ], volume )
+end
+
+do
+
+    local AudioChannel_GetLevel = AudioChannel.GetLevel
+
+    --- [CLIENT]
+    ---
+    --- Returns the right and left levels of sound played by the sound channel.
+    ---
+    ---@return number left_volume The audio volume in the left ear.
+    ---@return number right_volume The audio volume in the right ear.
+    function Channel:getVolumeLevels()
+        return AudioChannel_GetLevel( channels[ self ] )
+    end
+
+    --- [CLIENT]
+    ---
+    --- Returns the average volume of the channel.
+    ---
+    ---@return number volume
+    function Channel:getVolumeLevel()
+        local left_volume, right_volume = self:getVolumeLevels()
+        return ( left_volume + right_volume ) * 0.5
+    end
+
+end
+
+--- [CLIENT]
+---
+--- Returns the playback rate of the channel.
+---
+---@return number playback_rate
+function Channel:getPlaybackRate()
+    return AudioChannel_GetPlaybackRate( channels[ self ] )
+end
+
+--- [CLIENT]
+---
+--- Sets the playback rate of the channel.
+---
+---@param rate number The playback rate of the channel. Range is from 0 to 1.
+function Channel:setPlaybackRate( rate )
+    AudioChannel_SetPlaybackRate( channels[ self ], rate )
+end
+
+do
+
+    local AudioChannel_IsLooping = AudioChannel.IsLooping
+
+    --- [CLIENT]
+    ---
+    --- Returns `true` if the channel is looping.
+    ---
+    ---@return boolean is_looping
+    function Channel:isLooping()
+        return AudioChannel_IsLooping( channels[ self ] )
+    end
+
+end
+
+do
+
+    local AudioChannel_EnableLooping = AudioChannel.EnableLooping
+
+    --- [CLIENT]
+    ---
+    --- Sets the looping of the channel.
+    ---
+    ---@param loop boolean
+    function Channel:setLooping( loop )
+        AudioChannel_EnableLooping( channels[ self ], loop )
+    end
+
+end
+
+do
+
+    local AudioChannel_Get3DEnabled = AudioChannel.Get3DEnabled
+
+    --- [CLIENT]
+    ---
+    --- Returns `true` if the channel is in 3D.
+    ---
+    ---@return boolean is_3d
+    function Channel:is3D()
+        return AudioChannel_Get3DEnabled( channels[ self ] )
+    end
+
+end
+
+do
+
+    local AudioChannel_Set3DEnabled = AudioChannel.Set3DEnabled
+
+    --- [CLIENT]
+    ---
+    --- Sets the 3D state of the channel.
+    ---
+    ---@param enabled boolean
+    function Channel:set3D( enabled )
+        AudioChannel_Set3DEnabled( channels[ self ], enabled )
+    end
+
+end
+
+--- [CLIENT]
+---
+--- Returns the absolute position of the channel in 3D space (world/level).
+---
+---@return Vector position
+function Channel:getPosition()
+    return AudioChannel_GetPos( channels[ self ] )
+end
+
+--- [CLIENT]
+---
+--- Sets the absolute position of the channel in 3D space (world/level).
+---
+---@param position Vector
+function Channel:setPosition( position )
+    AudioChannel_SetPos( channels[ self ], position )
+end
+
+--- [CLIENT]
+---
+--- Returns 3D fade distances of a sound channel.
+---
+---@return number min_distance The minimum distance. The channel's volume is at maximum when the listener is within this distance.
+---@return number max_distance The maximum distance. The channel's volume stops decreasing when the listener is beyond this distance.
+function Channel:getFadeDistance()
+    return AudioChannel_Get3DFadeDistance( channels[ self ] )
+end
+
+--- [CLIENT]
+---
+--- Sets 3D fade distances of a sound channel.
+---
+---@param min_distance number The minimum distance. The channel's volume is at maximum when the listener is within this distance.
+---@param max_distance number The maximum distance. The channel's volume stops decreasing when the listener is beyond this distance.
+function Channel:setFadeDistance( min_distance, max_distance )
+    AudioChannel_Set3DFadeDistance( channels[ self ], min_distance, max_distance )
+end
+
+--- [CLIENT]
+---
+--- Returns the inside projection angle of the channel.
+---
+---@return number inside_angle The angle of the inside projection cone in degrees.
+---@return number outside_angle The angle of the outside projection cone in degrees.
+---@return number outside_volume The delta-volume outside the outer projection cone.
+function Channel:getProjectionCone()
+    return AudioChannel_Get3DCone( channels[ self ] )
+end
+
+--- [CLIENT]
+---
+--- Sets the inside projection angle of the channel.
+---
+---@param inside_angle number The angle of the inside projection cone in degrees.
+---@param outside_angle number The angle of the outside projection cone in degrees.
+---@param outside_volume number The delta-volume outside the outer projection cone.
+function Channel:setProjectionCone( inside_angle, outside_angle, outside_volume )
+    AudioChannel_Set3DCone( channels[ self ], inside_angle, outside_angle, outside_volume )
+end
+
+do
+
+    local AudioChannel_Pause = AudioChannel.Pause
+    local AudioChannel_Play = AudioChannel.Play
+    local AudioChannel_Stop = AudioChannel.Stop
+
+    --- [CLIENT]
+    ---
+    --- Plays the channel.
+    ---
+    function Channel:play()
+        if self:isPlaying() or self:isPaused() then return end
+        AudioChannel_Play( channels[ self ] )
+    end
+
+    --- [CLIENT]
+    ---
+    --- Pauses the channel.
+    ---
+    function Channel:pause()
+        if self:isPlaying() then
+            AudioChannel_Pause( channels[ self ] )
+        end
+    end
+
+    --- [CLIENT]
+    ---
+    --- Resumes the channel.
+    ---
+    function Channel:resume()
+        if self:isPaused() then
+            AudioChannel_Play( channels[ self ] )
+        end
+    end
+
+    --- [CLIENT]
+    ---
+    --- Stops the channel.
+    ---
+    function Channel:stop()
+        if not self:isStopped() then
+            AudioChannel_Stop( channels[ self ] )
+        end
+    end
+
+end
+
+do
+
+    local AudioChannel_FFT = AudioChannel.FFT
+
+    --- [CLIENT] Computes the [DFT (discrete Fourier transform)](https://en.wikipedia.org/wiki/Discrete_Fourier_transform) of the sound channel.
+    ---
+    --- The size parameter specifies the number of consecutive audio samples to use as the input to the DFT and is restricted to a power of two. A [Hann window](https://en.wikipedia.org/wiki/Hann_function) is applied to the input data.
+    ---
+    --- The computed DFT has the same number of frequency bins as the number of samples. Only half of this DFT is returned, since [the DFT magnitudes are symmetric for real input data](https://en.wikipedia.org/wiki/Discrete_Fourier_transform#The_real-input_DFT). The magnitudes of the DFT (values from 0 to 1) are used to fill the output table, starting at index 1.
+    ---
+    --- **Visualization protip:** For a size N DFT, bin k (1-indexed) corresponds to a frequency of (k - 1) / N * sampleRate.
+    ---
+    --- **Visualization protip:** Sound energy is proportional to the square of the magnitudes. Adding magnitudes together makes no sense physically, but adding energies does.
+    ---
+    --- **Visualization protip:** The human ear works on a logarithmic amplitude scale. You can convert to [decibels](https://en.wikipedia.org/wiki/Decibel) by taking 20 * [math.log10](https://wiki.facepunch.com/gmod/math.log10) of frequency magnitudes, or 10 * [math.log10](https://wiki.facepunch.com/gmod/math.log10) of energy. The decibel values will range from -infinity to 0.
+    ---
+    ---[View wiki](https://wiki.facepunch.com/gmod/IGModAudioChannel:FFT)
+    ---@param tbl number[] The table to output the DFT magnitudes (numbers between 0 and 1) into. Indices start from 1.
+    ---@param size FFT The number of samples to use. See Enums/FFT
+    ---@return number frequency_bins # The number of frequency bins that have been filled in the output table.
+    function Channel:fft( tbl, size )
+        return AudioChannel_FFT( channels[ self ], tbl, size )
+    end
+
+end
 
 do
 
@@ -621,11 +937,15 @@ function ash_bass.play( params )
         end
     end
 
-    if file_Exists( name, "GAME" ) and not file_IsDir( name, "GAME" ) then
-        sound_PlayFile( name, flags, bass_callback )
+    if not file_Exists( name, "GAME" ) then
+        error( "file '" .. name .. "' not found!", 2 )
     end
 
-    error( "file '" .. name .. "' not found", 2 )
+    if file_IsDir( name, "GAME" ) then
+        error( "file '" .. name .. "' is a directory!", 2 )
+    end
+
+    sound_PlayFile( name, flags, bass_callback )
 end
 
 return ash_bass
