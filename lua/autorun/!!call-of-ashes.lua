@@ -1436,21 +1436,22 @@ do
         function compiler_fn( file_path, stack_level )
             stack_level = stack_level + 1
 
+            local success, result = pcall( CompileFile, file_path, true )
+
+            if success and result ~= nil then
+                ---@cast result function
+                return result
+            end
+
             ---@type File | nil
             ---@diagnostic disable-next-line: assign-type-mismatch
             local file_handler = file_Open( "cache/lua/" .. string_sub( client_checksums[ file_path ], 1, 40 ) .. ".lua", "rb", "MOD" )
 
             if file_handler == nil then
-                local success, result = pcall( CompileFile, file_path, true )
-
-                if not success or result == nil then
-                    std.errorf( stack_level, false, "File '%s' compilation failed:\n %s.", file_path, result or "unknown error" )
-                end
-
-                ---@cast result function
-
-                return result
+                std.errorf( stack_level, false, "File '%s' does not exist.", file_path )
             end
+
+            ---@cast file_handler File
 
             local compressed_data = file_handler:Read( file_handler:Size() )
             file_handler:Close()
