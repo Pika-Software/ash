@@ -141,7 +141,9 @@ do
                 end
             end )
         else
-            translate( engine_loadMaterial( path, image_parameters ), material )
+            std.setTimeout( function()
+                translate( engine_loadMaterial( path, image_parameters ), material )
+            end )
         end
 
         return material
