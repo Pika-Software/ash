@@ -251,6 +251,8 @@ do
         return Entity_GetNW2Vector( entity, "m_vPlayerColor", default_color )
     end
 
+    Player.GetPlayerColor = Entity.GetPlayerColor
+
     --- [SHARED]
     ---
     --- Get player color.
