@@ -3,31 +3,71 @@ local std = _G.dreamwork.std
 local fs = std.fs
 
 ---@class ash.level
----@field name string The name of the current loaded level.
----@field entity Entity The entity of the current loaded level.
+---@field Name string The name of the current loaded level.
+---@field Model string The model of the current loaded level.
+---@field Entity Entity The entity of the current loaded level.
 local ash_level = {}
 
 do
 
+    local coroutine_resume = coroutine.resume
+    local coroutine_yield = coroutine.yield
+
     ---@param entity Entity
-    local function load_level( entity )
-        if entity == nil or entity == NULL or not entity:IsWorld() then
+    ---@param name string
+    hook.Add( "WorldEntityCreated", "Initialize", function( entity, name )
+        print( entity, name )
+        if entity == nil or entity == NULL or not entity:IsWorld() or name == nil or string.byte( name, 1, 1 ) == nil then
             return
         end
 
-        local name = game.GetMap()
-        if name == nil or string.byte( name, 1, 1 ) == nil then
-            return
-        end
+        ---@diagnostic disable-next-line: assign-type-mismatch
+        ash_level.Model = entity:GetModel()
+        ash_level.Entity = entity
+        ash_level.Name = name
 
-        ash_level.entity = entity
-        ash_level.name = name
-
+        ash.Logger:info( "Game level '%s' loaded!", name )
         hook.Run( "LevelLoaded", name, entity )
+    end )
+
+    local world_entity
+
+    local thread = coroutine.create( function()
+        ::retry_loop::
+
+        world_entity = game.GetWorld()
+
+
+        if world_entity == nil or world_entity == NULL then
+            coroutine_yield( false )
+            goto retry_loop
+        end
+
+        ash_level.Entity = world_entity
+
+        hook.Run( "WorldEntityCreated", world_entity, game.GetMap() )
+        coroutine_yield( true )
+    end )
+
+    local function world_find()
+        local success, is_ready = coroutine_resume( thread )
+        return not success or is_ready
     end
 
-    hook.Add( "WorldEntityCreated", "Initialize", load_level )
-    load_level( game.GetWorld() )
+    if not world_find() then
+        hook.Add( "InitPostEntity", "WorldInit", function()
+            if world_find() then
+                hook.Remove( "InitPostEntity", "WorldInit" )
+                return
+            end
+
+            timer.Create( "await", 0.05, 0, function()
+                if world_find() then
+                    timer.Remove( "await" )
+                end
+            end )
+        end )
+    end
 
 end
 

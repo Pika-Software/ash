@@ -106,11 +106,7 @@ do
     local player_isInitialized = ash_player.isInitialized
     local LocalPlayer = _G.LocalPlayer
 
-    local player_entity = LocalPlayer()
-
-    if player_entity ~= nil and Entity_IsValid( player_entity ) then
-        ash_player.Entity = player_entity
-    end
+    local player_entity
 
     local thread = coroutine.create( function()
         ::retry_loop::
@@ -137,8 +133,8 @@ do
     end )
 
     local function player_find()
-        local success, is_finded = coroutine_resume( thread )
-        return not success or is_finded
+        local success, is_ready = coroutine_resume( thread )
+        return not success or is_ready
     end
 
     if not player_find() then

@@ -794,11 +794,15 @@ setmetatable( environment, {
     end
 } )
 
-environment.printf = std.printf
+environment.futures = std.futures
+environment.string = string
 environment.math = std.math
 environment.class = class
-environment.DEBUG = DEBUG
 environment.path = path
+
+environment.printf = std.printf
+
+environment.DEBUG = DEBUG
 environment._G = _G
 
 environment.isfunction = std.isFunction

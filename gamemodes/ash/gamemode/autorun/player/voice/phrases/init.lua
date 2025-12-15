@@ -372,6 +372,8 @@ local female01 = {
     },
     rejection = {
         sound = {
+            "no01.wav",
+            "no02.wav",
             "ohno.wav", -- Oh no!
             "gordead_ans04.wav", -- Oh, God!
             "gordead_ans05.wav", -- Oh no!
@@ -439,12 +441,6 @@ local female01 = {
             "squad_affirm03.wav", -- Whatever you say.
             "squad_affirm04.wav", -- Okay I'm going.
             "squad_affirm05.wav" -- Here goes.
-        }
-    },
-    refuse = {
-        sound = {
-            "no01.wav",
-            "no02.wav"
         }
     },
     apologize = {

@@ -1,4 +1,8 @@
 ---@class ash.ui
+---@field ScreenWidth integer
+---@field ScreenHeight integer
+---@field ScreenCenterX integer
+---@field ScreenCenterY integer
 local ui = {}
 
 local math_min, math_max = math.min, math.max
@@ -12,10 +16,9 @@ local pairs = pairs
 
 local logger = ash.Logger
 
-local w, h = ScrW(), ScrH()
-
-local vw, vh = w * 0.01, h * 0.01
-local vmin, vmax = math_min( vw, vh ), math_max( vw, vh )
+local screen_width, screen_height = 0, 0
+local viewport_width, viewport_height = 0, 0
+local viewport_min, viewport_max = 0, 0
 
 ---@type table<string, fun( number ): number>
 local units = {
@@ -23,16 +26,16 @@ local units = {
         return x
     end,
     vmin = function( x )
-        return vmin * x
+        return viewport_min * x
     end,
     vmax = function( x )
-        return vmax * x
+        return viewport_max * x
     end,
     vw = function( x )
-        return vw * x
+        return viewport_width * x
     end,
     vh = function( x )
-        return vh * x
+        return viewport_height * x
     end,
     pw = function( x )
         return ( ScrW() * 0.01 ) * x
@@ -201,10 +204,16 @@ do
         return name
 	end
 
-    hook.Add( "OnScreenSizeChanged", "RescalingEvent", function( _, __, width, height )
-        w, h = width, height
-        vw, vh = w * 0.01, h * 0.01
-        vmin, vmax = math_min( vw, vh ), math_max( vw, vh )
+    ---@param width integer
+    ---@param height integer
+    local function perform_layout( width, height )
+        screen_width, screen_height = width, height
+
+        ui.ScreenWidth, ui.ScreenHeight = screen_width, screen_height
+        ui.ScreenCenterX, ui.ScreenCenterY = math_floor( screen_width * 0.5 ), math_floor( screen_height * 0.5 )
+
+        viewport_width, viewport_height = screen_width * 0.01, screen_height * 0.01
+        viewport_min, viewport_max = math_min( viewport_width, viewport_height ), math_max( viewport_width, viewport_height )
 
         for _, size in pairs( unit_sizes ) do
             unit_values[ size ] = ui_unit( size )
@@ -218,7 +227,14 @@ do
 		end
 
         hook_Run( "ScreenResolutionChanged", width, height )
+
+    end
+
+    hook.Add( "OnScreenSizeChanged", "RescalingEvent", function( _, __, width, height )
+        perform_layout( width, height )
     end, PRE_HOOK )
+
+    perform_layout( ScrW(), ScrH() )
 
 end
 

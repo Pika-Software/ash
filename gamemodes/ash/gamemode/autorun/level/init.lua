@@ -11,7 +11,7 @@ local ash_level = include( "shared.lua" )
 function ash_level.change( name )
     if ash_level.exists( name ) then
         timer.Create( "LevelChange", 0, 1, function()
-            ash.Logger:info( "Changing level, '%s' -> '%s'", ash_level.name, name )
+            ash.Logger:info( "Changing level, '%s' -> '%s'", ash_level.Name, name )
             RunConsoleCommand( "changelevel", name )
         end )
 
