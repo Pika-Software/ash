@@ -1,5 +1,6 @@
 local util_GetModelInfo = util.GetModelInfo
 local string_lower = string.lower
+local string_match = string.match
 local string_byte = string.byte
 local string_gsub = string.gsub
 local rawset = rawset
@@ -158,9 +159,10 @@ end
 ---@field type "male" | "female" | "zombie" | "other" | string
 ---@field model string
 ---@field hands string
+---@field has_wings boolean
 ---@field extras table<string, any>
----@field mins Vector | nil
----@field maxs Vector | nil
+---@field mins Vector
+---@field maxs Vector
 ---@field skin_count integer
 ---@field bone_count integer
 ---@field sequence_count integer
@@ -229,6 +231,9 @@ function ash_model.set( model_name, model_path, hands_path, extras )
             name = model_name,
             model = model_path,
             hands = hands_path,
+            mins = Vector( -16, -16, 0 ),
+            maxs = Vector( 16, 16, 72 ),
+            has_wings = false,
             skin_count = 0,
             bone_count = 0,
             sequence_count = 0,
@@ -320,6 +325,10 @@ function ash_model.set( model_name, model_path, hands_path, extras )
         for i = 1, bone_count, 1 do
             local bone = bones[ i ]
             if bone ~= nil then
+                if string_match( string_lower( bone.name ), "[^%l]?wings?[^%l]?" ) ~= nil then
+                    model_info.has_wings = true
+                end
+
                 local parent_id = engine_bones[ i ].Parent
                 if parent_id >= 0 then
                     bone.parent = bones[ parent_id + 1 ]
