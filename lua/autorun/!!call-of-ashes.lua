@@ -1132,6 +1132,7 @@ do
 
     end
 
+    ash_hook.Call = glua_hook.Call
     ash_hook.Run = glua_hook.Run
 
     local ash_timer = {}

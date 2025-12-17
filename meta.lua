@@ -323,11 +323,13 @@ POST_HOOK = {4}
 function hook.Add( event_name, identifier, func, priority )
 end
 
----@diagnostic disable-next-line: lowercase-global
-class = std.class
+Color = std.Color
 
 ---@diagnostic disable-next-line: lowercase-global
 printf = std.printf
+
+---@diagnostic disable-next-line: lowercase-global
+class = std.class
 
 ---@diagnostic disable-next-line: lowercase-global
 math = std.math
