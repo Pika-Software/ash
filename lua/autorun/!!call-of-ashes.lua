@@ -801,6 +801,7 @@ environment.class = class
 environment.path = path
 
 environment.printf = std.printf
+environment.Color = Color
 
 environment.DEBUG = DEBUG
 environment._G = _G
@@ -2028,8 +2029,8 @@ do
     ---@diagnostic disable-next-line: param-type-mismatch
     environment.Matrix = addMetatable( "VMatrix", Matrix )
 
-    ---@diagnostic disable-next-line: param-type-mismatch
-    environment.Color = addMetatable( "Color", Color )
+    -- ---@diagnostic disable-next-line: param-type-mismatch
+    -- environment.Color = addMetatable( "Color", Color )
 
     environment.ConVar = addMetatable( "ConVar", CreateConVar )
 
