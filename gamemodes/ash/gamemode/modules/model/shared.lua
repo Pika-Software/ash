@@ -155,27 +155,27 @@ end
 ---@field activity ACT | integer | nil
 
 ---@class ash.model.Info
+---@field version integer
 ---@field name string
 ---@field type "male" | "female" | "zombie" | "other" | string
 ---@field model string
 ---@field hands string
----@field has_wings boolean
----@field extras table<string, any>
 ---@field mins Vector
 ---@field maxs Vector
+---@field has_wings boolean
 ---@field skin_count integer
----@field bone_count integer
----@field sequence_count integer
----@field attachment_count integer
----@field hitbox_group_count integer
----@field material_count integer
 ---@field surface_material string
----@field version integer
+---@field extras table<string, any>
 ---@field materials string[]
+---@field material_count integer
 ---@field bones ash.model.Bone[]
+---@field bone_count integer
 ---@field sequences ash.model.Sequence[]
+---@field sequence_count integer
 ---@field attachments ash.model.Attachment[]
+---@field attachment_count integer
 ---@field hitbox_groups ash.model.HitBoxGroup[]
+---@field hitbox_group_count integer
 
 ---@type table<string, ash.model.Info>
 local models_map = {}
@@ -227,26 +227,26 @@ function ash_model.set( model_name, model_path, hands_path, extras )
 
         model_info = {
             version = 0,
-            type = "other",
             name = model_name,
+            type = "other",
             model = model_path,
             hands = hands_path,
             mins = Vector( -16, -16, 0 ),
             maxs = Vector( 16, 16, 72 ),
             has_wings = false,
             skin_count = 0,
-            bone_count = 0,
-            sequence_count = 0,
-            attachment_count = 0,
-            hitbox_group_count = 0,
-            material_count = 0,
             surface_material = "flesh",
-            hitbox_groups = {},
-            attachments = {},
-            sequences = {},
+            extras = extras,
             materials = {},
+            material_count = 0,
             bones = {},
-            extras = extras
+            bone_count = 0,
+            sequences = {},
+            sequence_count = 0,
+            attachments = {},
+            attachment_count = 0,
+            hitbox_groups = {},
+            hitbox_group_count = 0
         }
 
         models_map[ model_name ] = model_info
