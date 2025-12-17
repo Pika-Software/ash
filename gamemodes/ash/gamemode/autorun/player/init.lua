@@ -472,8 +472,6 @@ do
 
             pl:SetCrouchedWalkSpeed( 1 )
 
-            Entity_SetPos( pl, hook_Run( "PlayerSetupPosition", pl ) or vector_origin )
-
             hook_Run( "PlayerSetupModel", pl, transition )
             hook_Run( "PlayerSetupLoadout", pl, transition )
         end, PRE_HOOK )
@@ -482,6 +480,7 @@ do
         ---@param transition boolean
         ---@diagnostic disable-next-line: undefined-doc-param
         hook.Add( "PlayerSpawn", "PostSpawn", function( _, pl, transition )
+            Entity_SetPos( pl, hook_Run( "PlayerSetupPosition", pl ) or vector_origin )
             hook_Run( "PostPlayerSpawn", pl, transition )
         end, POST_HOOK )
 

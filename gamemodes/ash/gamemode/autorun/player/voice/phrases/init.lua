@@ -31,7 +31,7 @@ local player_voices = {}
 
 setmetatable( player_voices, {
     __index = function( self, pl )
-        local voice_name = "female01"
+        local voice_name = "default"
         self[ pl ] = voice_name
         return voice_name
     end,
