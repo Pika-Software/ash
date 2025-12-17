@@ -141,7 +141,7 @@ do
     ---
     ---@param origin Vector
     ---@return boolean
-    ash_level.isContainsPosition = util.IsInWorld or function( origin )
+    ash_level.containsPosition = util.IsInWorld or function( origin )
         trace.start = origin
         trace.endpos = origin
 

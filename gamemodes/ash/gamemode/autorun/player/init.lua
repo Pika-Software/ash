@@ -102,7 +102,7 @@ do
     local Entity_GetPhysicsObjectNum = Entity.GetPhysicsObjectNum
     local Entity_SetCollisionGroup = Entity.SetCollisionGroup
 
-    local level_isContainsPosition = ash_level.isContainsPosition
+    local level_containsPosition = ash_level.containsPosition
     local animator_getVelocity = ash_animator.getVelocity
 
     local trace_result = {}
@@ -139,7 +139,7 @@ do
                             physics_object:SetAngles( matrix:GetAngles() )
                             local origin = matrix:GetTranslation()
 
-                            if level_isContainsPosition( origin ) then
+                            if level_containsPosition( origin ) then
                                 trace.start = origin
                                 trace.endpos = origin
                                 trace.filter = { ragdoll_entity, pl }
