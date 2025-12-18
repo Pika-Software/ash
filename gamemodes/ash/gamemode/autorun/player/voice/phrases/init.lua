@@ -78,9 +78,7 @@ do
     ---@param rf? CRecipientFilter
     ---@return string | nil
     function ash_phrases.play( pl, phrase_name, sound_volume, sound_pitch, sound_level, sound_dsp, rf )
-        if player_isSpeaking( pl ) then
-            return
-        end
+        if player_isSpeaking( pl ) then return end
 
         local previous_sound = sounds[ pl ]
         if previous_sound ~= nil then
@@ -91,10 +89,11 @@ do
             ash_phrases.stop( pl )
         end
 
-        local data = sound_get( "ash.player.phrase." .. player_voices[ pl ] .. "." .. phrase_name )
-        if data == nil then
-            return
-        end
+        local player_voice = player_voices[ pl ]
+        if player_voice == nil then return end
+
+        local data = sound_get( "ash.player.phrase." .. player_voice .. "." .. phrase_name )
+        if data == nil then return end
 
         local sound_path
 

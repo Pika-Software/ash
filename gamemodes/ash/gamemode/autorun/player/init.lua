@@ -6,6 +6,8 @@ MODULE.Networks = {
 local ash_animator = require( "ash.player.animator" )
 
 ---@class ash.player
+---@field SpawnPoints ash.player.SpawnPoint[]
+---@field SpawnPointCount integer
 local ash_player = include( "shared.lua" )
 local player_isInitialized = ash_player.isInitialized
 
@@ -14,8 +16,8 @@ local ash_entity = require( "ash.entity" )
 local entity_getHitbox = ash_entity.getHitbox
 local entity_getHitboxBounds = ash_entity.getHitboxBounds
 
--- ---@type ash.utils
--- local ash_utils = require( "ash.utils" )
+---@type ash.utils
+local ash_utils = require( "ash.utils" )
 
 ---@type ash.level
 local ash_level = require( "ash.level" )
@@ -477,11 +479,14 @@ do
         end, PRE_HOOK )
 
         ---@param pl Player
-        ---@param transition boolean
+        ---@param is_transition boolean
         ---@diagnostic disable-next-line: undefined-doc-param
-        hook.Add( "PlayerSpawn", "PostSpawn", function( _, pl, transition )
-            Entity_SetPos( pl, hook_Run( "PlayerSetupPosition", pl ) or vector_origin )
-            hook_Run( "PostPlayerSpawn", pl, transition )
+        hook.Add( "PlayerSpawn", "PostSpawn", function( _, pl, is_transition )
+            if not is_transition then
+                Entity_SetPos( pl, hook_Run( "PlayerSetupPosition", pl ) or vector_origin )
+            end
+
+            hook_Run( "PostPlayerSpawn", pl, is_transition )
         end, POST_HOOK )
 
     end
@@ -495,6 +500,166 @@ do
     hook.Add( "Tick", "Ticking", function()
         for _, pl in player_Iterator() do
             hook_Run( "PlayerThink", pl )
+        end
+    end )
+
+end
+
+do
+
+    local table_remove = table.remove
+
+    ---@class ash.player.SpawnPoint
+    ---@field id integer
+    ---@field position Vector
+    ---@field angles Angle
+    ---@field entity Entity
+
+    ---@type ash.player.SpawnPoint[]
+    local spawnpoints = {}
+
+    ash_player.SpawnPoints = spawnpoints
+
+    ---@type integer
+    local spawnpoint_count = 0
+
+    ash_player.SpawnPointCount = spawnpoint_count
+
+    --- [SERVER]
+    ---
+    --- Returns a spawnpoint for the player or nil if there are no spawnpoints.
+    ---
+    ---@param pl Player
+    ---@return ash.player.SpawnPoint | nil spawnpoint
+    function ash_player.getSpawnPoint( pl )
+        for i = 1, spawnpoint_count, 1 do
+            local spawnpoint = spawnpoints[ i ]
+            if hook_Run( "PlayerSelectSpawnPoint", pl, spawnpoint ) ~= false then
+                return spawnpoint
+            end
+        end
+
+        return nil
+    end
+
+    ---@type table<Entity, integer>
+    local spawn_entities = {}
+
+    hook.Add( "EntityRemoved", "SpawnControl", function( entity )
+        local id = spawn_entities[ entity ]
+        if id ~= nil then
+            ash_player.removeSpawnPoint( id )
+        end
+    end, PRE_HOOK )
+
+    --- [SERVER]
+    ---
+    --- Adds a spawnpoint.
+    ---
+    ---@param entity Entity | nil
+    ---@param position Vector | nil
+    ---@param angles Angle | nil
+    ---@return ash.player.SpawnPoint spawnpoint
+    function ash_player.addSpawnPoint( entity, position, angles )
+        if entity ~= nil and Entity_IsValid( entity ) then
+            if position == nil then
+                position = entity:GetPos()
+            end
+
+            if angles == nil then
+                angles = entity:GetAngles()
+            end
+        end
+
+        if position == nil then
+            error( "spawnpoint has no position or entity", 2 )
+        end
+
+        spawnpoint_count = spawnpoint_count + 1
+        ash_player.SpawnPointCount = spawnpoint_count
+
+        if entity ~= nil and Entity_IsValid( entity ) then
+            spawn_entities[ entity ] = spawnpoint_count
+        end
+
+        local spawnpoint = {
+            id = spawnpoint_count,
+            position = position,
+            angles = angles or Angle( 0, 0, 0 ),
+            entity = entity or NULL
+        }
+
+        spawnpoints[ spawnpoint_count ] = spawnpoint
+        return spawnpoint
+    end
+
+    --- [SERVER]
+    ---
+    --- Removes a spawnpoint.
+    ---
+    ---@param spawnpoint_id integer
+    ---@return boolean is_removed
+    function ash_player.removeSpawnPoint( spawnpoint_id )
+        if spawnpoints[ spawnpoint_id ] == nil then
+            return false
+        end
+
+        table_remove( spawnpoints, spawnpoint_id )
+
+        spawnpoint_count = spawnpoint_count - 1
+        ash_player.SpawnPointCount = spawnpoint_count
+
+        return true
+    end
+
+    --- [SERVER]
+    ---
+    --- Removes all spawnpoints.
+    ---
+    function ash_player.cleanSpawnPoints()
+        for i = spawnpoint_count, 1, -1 do
+            spawnpoints[ i ] = nil
+        end
+
+        spawnpoint_count = 0
+    end
+
+    hook.Add( "PlayerSetupPosition", "SpawnControl", function( pl )
+        local spawnpoint = ash_player.getSpawnPoint( pl )
+        if spawnpoint ~= nil then
+            local entity = spawnpoint.entity
+            if entity ~= nil and Entity_IsValid( entity ) then
+                return entity:GetPos()
+            end
+
+            return spawnpoint.position
+        end
+    end )
+
+    local utils_isSpawnpointClass = ash_utils.isSpawnpointClass
+    local Vector_DistToSqr = Vector.DistToSqr
+
+    hook.Add( "EntityCreated", "SpawnControl", function( entity, class_name )
+        if utils_isSpawnpointClass( class_name ) then
+            local position = entity:GetPos()
+
+            for i = 1, spawnpoint_count, 1 do
+                local spawnpoint = spawnpoints[ i ]
+                local point_position
+
+                local point_entity = spawnpoint.entity
+                if point_entity ~= nil and Entity_IsValid( point_entity ) then
+                    point_position = point_entity:GetPos()
+                else
+                    point_position = spawnpoint.position
+                end
+
+                if Vector_DistToSqr( point_position, position ) < 16384 then
+                    return
+                end
+            end
+
+            spawn_entities[ entity ] = ash_player.addSpawnPoint( entity ).id
         end
     end )
 

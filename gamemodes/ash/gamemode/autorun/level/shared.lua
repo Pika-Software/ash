@@ -16,7 +16,6 @@ do
     ---@param entity Entity
     ---@param name string
     hook.Add( "WorldEntityCreated", "Initialize", function( entity, name )
-        print( entity, name )
         if entity == nil or entity == NULL or not entity:IsWorld() or name == nil or string.byte( name, 1, 1 ) == nil then
             return
         end
