@@ -1,8 +1,11 @@
 local util_GetModelInfo = util.GetModelInfo
+local Vector_Distance = Vector.Distance
+
 local string_lower = string.lower
 local string_match = string.match
 local string_byte = string.byte
 local string_gsub = string.gsub
+
 local rawset = rawset
 local pairs = pairs
 
@@ -162,10 +165,10 @@ end
 ---@field hands string
 ---@field mins Vector
 ---@field maxs Vector
+---@field scale number
 ---@field has_wings boolean
 ---@field skin_count integer
 ---@field surface_material string
----@field extras table<string, any>
 ---@field materials string[]
 ---@field material_count integer
 ---@field bones ash.model.Bone[]
@@ -200,9 +203,8 @@ end
 ---@param model_name string
 ---@param model_path string | nil
 ---@param hands_path string | nil
----@param extras table<string, any> | nil
 ---@return ash.model.Info model_info
-function ash_model.set( model_name, model_path, hands_path, extras )
+function ash_model.set( model_name, model_path, hands_path )
     if model_path ~= nil then
         model_path = model_path_fix( model_path )
     end
@@ -221,10 +223,6 @@ function ash_model.set( model_name, model_path, hands_path, extras )
             hands_path = fallback_info.hands
         end
 
-        if extras == nil then
-            extras = {}
-        end
-
         model_info = {
             version = 0,
             name = model_name,
@@ -233,10 +231,10 @@ function ash_model.set( model_name, model_path, hands_path, extras )
             hands = hands_path,
             mins = Vector( -16, -16, 0 ),
             maxs = Vector( 16, 16, 72 ),
+            scale = 1,
             has_wings = false,
             skin_count = 0,
             surface_material = "flesh",
-            extras = extras,
             materials = {},
             material_count = 0,
             bones = {},
@@ -260,13 +258,8 @@ function ash_model.set( model_name, model_path, hands_path, extras )
             hands_path = model_info.hands or fallback_info.hands
         end
 
-        if extras == nil then
-            extras = model_info.extras or {}
-        end
-
         model_info.model = model_path
         model_info.hands = hands_path
-        model_info.extras = extras
 
     end
 
@@ -286,8 +279,9 @@ function ash_model.set( model_name, model_path, hands_path, extras )
     model_info.surface_material = engine_info.SurfacePropName or model_info.surface_material
     model_info.version = engine_info.Version or model_info.version
 
-    model_info.mins = engine_info.HullMin
-    model_info.maxs = engine_info.HullMax
+    local mins, maxs = engine_info.HullMin, engine_info.HullMax
+    model_info.scale = Vector_Distance( mins, maxs ) / 80
+    model_info.mins, model_info.maxs = mins, maxs
 
     local sub_models = engine_info.IncludeModels or {}
 
