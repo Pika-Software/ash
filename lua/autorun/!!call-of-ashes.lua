@@ -2034,4 +2034,6 @@ do
 
     environment.ConVar = addMetatable( "ConVar", CreateConVar )
 
+    environment.Physics = addMetatable( "PhysObj" )
+
 end

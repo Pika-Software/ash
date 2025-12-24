@@ -81,6 +81,9 @@ Player = {}
 ---@class ash.UserCommand : CUserCmd
 UserCommand = {}
 
+---@class ash.Physics : PhysObj
+Physics = {}
+
 ---@class ash.Vector : Vector
 ---@overload fun( x: number, y: number, z: number ): Vector
 Vector = {}
