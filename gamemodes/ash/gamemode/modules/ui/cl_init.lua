@@ -1,6 +1,7 @@
 ---@class ash.ui
 ---@field ScreenWidth integer
 ---@field ScreenHeight integer
+---@field ScreenAspect number
 ---@field ScreenCenterX integer
 ---@field ScreenCenterY integer
 local ui = {}
@@ -16,7 +17,7 @@ local pairs = pairs
 
 local logger = ash.Logger
 
-local screen_width, screen_height = 0, 0
+local screen_width, screen_height, screen_aspect = 0, 0, 0
 local viewport_width, viewport_height = 0, 0
 local viewport_min, viewport_max = 0, 0
 
@@ -208,8 +209,9 @@ do
     ---@param height integer
     local function perform_layout( width, height )
         screen_width, screen_height = width, height
+        screen_aspect = screen_width / screen_height
 
-        ui.ScreenWidth, ui.ScreenHeight = screen_width, screen_height
+        ui.ScreenWidth, ui.ScreenHeight, ui.ScreenAspect = screen_width, screen_height, screen_aspect
         ui.ScreenCenterX, ui.ScreenCenterY = math_floor( screen_width * 0.5 ), math_floor( screen_height * 0.5 )
 
         viewport_width, viewport_height = screen_width * 0.01, screen_height * 0.01
@@ -226,8 +228,7 @@ do
             logger:debug( "Font '%s' was re-scaled, %s -> %spx", font_names[ font_data ], font_sizes[ font_data ], font_data.size )
 		end
 
-        hook_Run( "ScreenResolutionChanged", width, height )
-
+        hook_Run( "ScreenResolutionChanged", width, height, screen_aspect )
     end
 
     hook.Add( "OnScreenSizeChanged", "RescalingEvent", function( _, __, width, height )
