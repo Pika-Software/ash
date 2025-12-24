@@ -553,4 +553,63 @@ do
 
 end
 
+do
+
+    local Entity_GetPhysicsObjectCount = Entity.GetPhysicsObjectCount
+    local Entity_GetPhysicsObjectNum = Entity.GetPhysicsObjectNum
+    local Physics_GetMass = Physics.GetMass
+
+    --- [SHARED]
+    ---
+    --- Returns the mass of the entity in kilograms ( not sure ).
+    ---
+    ---@param entity Entity
+    ---@return number mass
+    function ash_entity.getMass( entity )
+        local mass = 0
+
+        for i = 0, Entity_GetPhysicsObjectCount( entity ) - 1, 1 do
+            mass = mass + Physics_GetMass( Entity_GetPhysicsObjectNum( entity, i ) )
+        end
+
+        return mass
+    end
+
+end
+
+do
+
+    ---@alias ash.entity.WaterLevel `0` | `1` | `2` | `3`
+
+    ---@type table<Entity, ash.entity.WaterLevel>
+    local water_levels = {}
+
+    setmetatable( water_levels, {
+        __index = function( self, entity )
+            return 0
+        end,
+        __mode = "k"
+    } )
+
+    --- [SHARED]
+    ---
+    --- Returns the water level of the entity.
+    ---
+    --- - 0 - The entity isn't in water.
+    --- - 1 - Slightly submerged (at least to the feet).
+    --- - 2 - The majority of the entity is submerged (at least to the waist).
+    --- - 3 - Completely submerged.
+    ---
+    ---@param entity Entity
+    ---@return ash.entity.WaterLevel water_level
+    function ash_entity.getWaterLevel( entity )
+        return water_levels[ entity ]
+    end
+
+    hook.Add( "OnEntityWaterLevelChanged", "DataCapture", function( entity, _, new )
+        water_levels[ entity ] = new
+    end, PRE_HOOK )
+
+end
+
 return ash_entity
