@@ -17,7 +17,7 @@ do
                 in_water_reflection = true
 
                 if is_skybox_drawing then
-                    return hook_Run( "PreDrawTranslucentSkyboxReflection", is_depth_pass, is_3d_skybox )
+                    return hook_Run( "PreDrawTranslucentSkyboxReflection", is_3d_skybox, is_depth_pass )
                 end
 
                 return hook_Run( "PreDrawTranslucentReflection", is_depth_pass )
@@ -25,7 +25,7 @@ do
                 in_water_refraction = true
 
                 if is_skybox_drawing then
-                    return hook_Run( "PreDrawTranslucentSkyboxRefraction", is_depth_pass, is_3d_skybox )
+                    return hook_Run( "PreDrawTranslucentSkyboxRefraction", is_3d_skybox, is_depth_pass )
                 end
 
                 return hook_Run( "PreDrawTranslucentRefraction", is_depth_pass )
@@ -33,7 +33,7 @@ do
         end
 
         if is_skybox_drawing then
-            return hook_Run( "PreDrawTranslucentSkybox", is_depth_pass, is_3d_skybox )
+            return hook_Run( "PreDrawTranslucentSkybox", is_3d_skybox, is_depth_pass )
         end
 
         return hook_Run( "PreDrawTranslucentWorld", is_depth_pass )
@@ -44,7 +44,7 @@ do
             in_water_reflection = false
 
             if is_skybox_drawing then
-                hook_Run( "PostDrawTranslucentSkyboxReflection", is_depth_pass, is_3d_skybox )
+                hook_Run( "PostDrawTranslucentSkyboxReflection", is_3d_skybox, is_depth_pass )
             else
                 hook_Run( "PostDrawTranslucentReflection", is_depth_pass )
             end
@@ -54,7 +54,7 @@ do
             in_water_refraction = false
 
             if is_skybox_drawing then
-                hook_Run( "PostDrawTranslucentSkyboxRefraction", is_depth_pass, is_3d_skybox )
+                hook_Run( "PostDrawTranslucentSkyboxRefraction", is_3d_skybox, is_depth_pass )
             else
                 hook_Run( "PostDrawTranslucentRefraction", is_depth_pass )
             end
@@ -63,7 +63,7 @@ do
         end
 
         if is_skybox_drawing then
-            hook_Run( "PostDrawTranslucentSkybox", is_depth_pass, is_3d_skybox )
+            hook_Run( "PostDrawTranslucentSkybox", is_3d_skybox, is_depth_pass )
             return
         end
 
@@ -85,7 +85,7 @@ do
                 in_water_reflection = true
 
                 if is_skybox_drawing then
-                    return hook_Run( "PreDrawOpaqueSkyboxReflection", is_depth_pass, is_3d_skybox )
+                    return hook_Run( "PreDrawOpaqueSkyboxReflection", is_3d_skybox, is_depth_pass )
                 end
 
                 return hook_Run( "PreDrawOpaqueReflection", is_depth_pass )
@@ -93,7 +93,7 @@ do
                 in_water_refraction = true
 
                 if is_skybox_drawing then
-                    return hook_Run( "PreDrawOpaqueSkyboxRefraction", is_depth_pass, is_3d_skybox )
+                    return hook_Run( "PreDrawOpaqueSkyboxRefraction", is_3d_skybox, is_depth_pass )
                 end
 
                 return hook_Run( "PreDrawOpaqueRefraction", is_depth_pass )
@@ -101,7 +101,7 @@ do
         end
 
         if is_skybox_drawing then
-            return hook_Run( "PreDrawOpaqueSkybox", is_depth_pass, is_3d_skybox )
+            return hook_Run( "PreDrawOpaqueSkybox", is_3d_skybox, is_depth_pass )
         end
 
         return hook_Run( "PreDrawOpaqueWorld", is_depth_pass )
@@ -112,7 +112,7 @@ do
             in_water_reflection = false
 
             if is_skybox_drawing then
-                hook_Run( "PostDrawOpaqueSkyboxReflection", is_depth_pass, is_3d_skybox )
+                hook_Run( "PostDrawOpaqueSkyboxReflection", is_3d_skybox, is_depth_pass )
             else
                 hook_Run( "PostDrawOpaqueReflection", is_depth_pass )
             end
@@ -122,7 +122,7 @@ do
             in_water_refraction = false
 
             if is_skybox_drawing then
-                hook_Run( "PostDrawOpaqueSkyboxRefraction", is_depth_pass, is_3d_skybox )
+                hook_Run( "PostDrawOpaqueSkyboxRefraction", is_3d_skybox, is_depth_pass )
             else
                 hook_Run( "PostDrawOpaqueRefraction", is_depth_pass )
             end
@@ -131,11 +131,10 @@ do
         end
 
         if is_skybox_drawing then
-            hook_Run( "PostDrawOpaqueSkybox", is_depth_pass, is_3d_skybox )
-            return
+            hook_Run( "PostDrawOpaqueSkybox", is_3d_skybox, is_depth_pass )
+        else
+            hook_Run( "PostDrawOpaqueWorld", is_depth_pass )
         end
-
-        hook_Run( "PostDrawOpaqueWorld", is_depth_pass )
     end, POST_HOOK )
 
 end
