@@ -14,6 +14,15 @@ do
     local EffectData = EffectData
     local math_ceil = math.ceil
 
+	--- [SERVER]
+	---
+	--- Creates an explosion at the given position.
+	---
+	---@param origin Vector
+	---@param radius number
+	---@param damage number
+	---@param attacker Entity
+	---@param inflictor Entity
 	function ash_damage.explosion( origin, radius, damage, attacker, inflictor )
         if inflictor == nil then
             inflictor = attacker
@@ -82,12 +91,12 @@ hook.Add( "EntityTakeDamage", "DamageHandler", function( arguments, entity, dama
 	end
 
 	if utils_isRagdollClass( class_name ) then
-		if hook_Run( "PreRagdollTakeDamage", entity, damage_info ) == false or
-			hook_Run( "RagdollTakeDamage", entity, damage_info ) == false then
+		if hook_Run( "PreRagdollTakeDamage", entity, damage_info, class_name ) == false or
+			hook_Run( "RagdollTakeDamage", entity, damage_info, class_name ) == false then
 			return true
 		end
 
-		hook_Run( "PostRagdollTakeDamage", entity, damage_info )
+		hook_Run( "PostRagdollTakeDamage", entity, damage_info, class_name )
 		return false
 	end
 
@@ -97,42 +106,42 @@ hook.Add( "EntityTakeDamage", "DamageHandler", function( arguments, entity, dama
 	end
 
 	if utils_isButtonClass( class_name ) then
-		if hook_Run( "PreButtonTakeDamage", entity, damage_info ) == false or
-			hook_Run( "ButtonTakeDamage", entity, damage_info ) == false then
+		if hook_Run( "PreButtonTakeDamage", entity, damage_info, class_name ) == false or
+			hook_Run( "ButtonTakeDamage", entity, damage_info, class_name ) == false then
 			return true
 		end
 
-		hook_Run( "PostButtonTakeDamage", entity, damage_info )
+		hook_Run( "PostButtonTakeDamage", entity, damage_info, class_name )
 		return false
 	end
 
 	if utils_isDoorClass( class_name ) then
-		if hook_Run( "PreDoorTakeDamage", entity, damage_info ) == false or
-			hook_Run( "DoorTakeDamage", entity, damage_info ) == false then
+		if hook_Run( "PreDoorTakeDamage", entity, damage_info, class_name ) == false or
+			hook_Run( "DoorTakeDamage", entity, damage_info, class_name ) == false then
 			return true
 		end
 
-		hook_Run( "PostDoorTakeDamage", entity, damage_info )
+		hook_Run( "PostDoorTakeDamage", entity, damage_info, class_name )
 		return false
 	end
 
 	if utils_isPropClass( class_name ) then
-		if hook_Run( "PrePropTakeDamage", entity, damage_info ) == false or
-			hook_Run( "PropTakeDamage", entity, damage_info ) == false then
+		if hook_Run( "PrePropTakeDamage", entity, damage_info, class_name ) == false or
+			hook_Run( "PropTakeDamage", entity, damage_info, class_name ) == false then
 			return true
 		end
 
-		hook_Run( "PostPropTakeDamage", entity, damage_info )
+		hook_Run( "PostPropTakeDamage", entity, damage_info, class_name )
 		return false
 	end
 
 	if entity:IsWeapon() then
-		if hook_Run( "PreWeaponTakeDamage", entity, damage_info ) == false or
-			hook_Run( "WeaponTakeDamage", entity, damage_info ) == false then
+		if hook_Run( "PreWeaponTakeDamage", entity, damage_info, class_name ) == false or
+			hook_Run( "WeaponTakeDamage", entity, damage_info, class_name ) == false then
 			return true
 		end
 
-		hook_Run( "PostWeaponTakeDamage", entity, damage_info )
+		hook_Run( "PostWeaponTakeDamage", entity, damage_info, class_name )
 		return false
 	end
 
