@@ -9,6 +9,7 @@ local ash_animator = require( "ash.player.animator" )
 ---@field SpawnPoints ash.player.SpawnPoint[]
 ---@field SpawnPointCount integer
 local ash_player = include( "shared.lua" )
+local player_BitCount = ash_player.BitCount
 local player_isInitialized = ash_player.isInitialized
 
 ---@type ash.entity
@@ -199,6 +200,12 @@ do
         [ 0 ] = function( pl )
             if not player_isInitialized( pl ) then
                 Entity_SetNWBool( pl, "m_bInitialized", true )
+
+                net.Start( "network" )
+                net.WriteUInt( 3, 8 )
+                net.WriteUInt( pl:EntIndex(), player_BitCount )
+                net.SendOmit( pl )
+
                 hook_Run( "PlayerInitialized", pl )
             end
         end
@@ -237,7 +244,7 @@ do
         net.Start( "network" )
         net.WriteUInt( 0, 8 )
 
-        net.WriteUInt( pl:EntIndex(), ash_player.BitCount )
+        net.WriteUInt( pl:EntIndex(), player_BitCount )
         net.WriteBool( on_crouch )
 
         net.WriteDouble( mins[ 1 ] )

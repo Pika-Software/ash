@@ -14,6 +14,7 @@ local NULL = NULL
 
 ---@class ash.player
 ---@field Entity Player The local player entity.
+---@field ViewEntity Entity The view entity.
 local ash_player = include( "shared.lua" )
 
 do
@@ -92,6 +93,18 @@ do
 
     end
 
+    net_commands[ 3 ] = function()
+        local index = net.ReadUInt( ash_player.BitCount )
+
+        timer_Simple( 0, function()
+            local pl = Entity( index )
+            if pl ~= nil and Entity_IsValid( pl ) then
+                hook.Run( "PlayerInitialized", pl, false )
+            end
+        end )
+    end
+
+
     net.Receive( "network", function( length )
         local cmd_fn = net_commands[ net.ReadUInt( 8 ) ]
         if cmd_fn ~= nil then
@@ -111,22 +124,22 @@ do
     local thread = coroutine.create( function()
         ::retry_loop::
 
-        player_entity = LocalPlayer()
+        local entity = LocalPlayer()
 
-        if player_entity == nil or not Entity_IsValid( player_entity ) then
+        if entity == nil or not Entity_IsValid( entity ) then
             coroutine_yield( false )
             goto retry_loop
         end
 
-        ash_player.Entity = player_entity
-        -- player_entity:SetIK( true )
+        ash_player.Entity = entity
+        player_entity = entity
 
-        if not player_isInitialized( player_entity ) then
+        if not player_isInitialized( entity ) then
             net.Start( "network" )
             net.WriteUInt( 0, 8 )
             net.SendToServer()
 
-            hook.Run( "PlayerInitialized", player_entity )
+            hook.Run( "PlayerInitialized", entity, true )
         end
 
         coroutine_yield( true )
@@ -160,12 +173,31 @@ do
         local player_Iterator = player.Iterator
 
         hook.Add( "Tick", "Ticking", function()
+            if player_entity == nil then return end
+            hook_Run( "LocalPlayerThink", player_entity )
+
             for _, pl in player_Iterator() do
                 hook_Run( "PlayerThink", pl, player_entity, pl == player_entity )
             end
         end )
 
     end
+
+end
+
+do
+
+    local GetViewEntity = GetViewEntity
+
+    ash_player.ViewEntity = GetViewEntity() or NULL
+
+    timer.Create( "ViewEntity", 0.5, 0, function()
+        local entity = GetViewEntity() or NULL
+        if entity ~= ash_player.ViewEntity then
+            hook_Run( "ViewEntityChanged", entity, ash_player.ViewEntity )
+            ash_player.ViewEntity = entity
+        end
+    end )
 
 end
 
