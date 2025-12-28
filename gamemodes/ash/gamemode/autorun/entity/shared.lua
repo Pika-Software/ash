@@ -12,6 +12,103 @@ local NULL = NULL
 ---@class ash.entity
 local ash_entity = {}
 
+do
+
+    local entity_Create = SERVER and ents.Create or ents.CreateClientside
+    local entity_Register = scripted_ents.Register
+
+    local Entity_DrawModel = Entity.DrawModel
+    local Entity_IsValid = Entity.IsValid
+
+    local getfenv = getfenv
+
+    ---@class ash.entity.Structure : ENT
+    ---@field ClassName string The class name of the entity to register.
+    ---@field Type "anim" | "brush" | "point" | "ai" | "nextbot" | "filter" | nil The type of the entity. Defaults to `"anim"`.
+    ---@field PrintName string | nil The name of the entity. Defaults use the class name.
+    ---@field Spawnable boolean | nil Whether the entity can be spawned by players. Defaults to `false`.
+    ---@field Editable boolean | nil Whether the entity can be edited by players. Defaults to `false`.
+    ---@field Category string | nil The name of the entity category. Defaults to `nil`.
+    ---@field RenderGroup RENDERGROUP | integer | nil The render group of the entity. Defaults to `RENDERGROUP_TRANSLUCENT`.
+    ---@field WantsTranslucency boolean | nil Whether the entity wants translucency. Defaults to `true`.
+    ---@field DisableDuplicator boolean | nil Whether the entity should be disabled in the duplicator. Defaults to `false`.
+    ---@field IconOverride string | nil The icon of the entity. Defaults to `nil`.
+    ---@field PhysicsSolidMask CONTENTS | integer | nil The physics solid mask of the entity. Defaults to `nil`.
+    ---@field OnCreate nil | fun( self: Entity, ... ) The function to call when the entity is created. Defaults to `nil`.
+
+    --- [SHARED]
+    ---
+    --- Register an entity and return a creation function to create it.
+    ---
+    ---@generic T : ash.entity.Structure
+    ---@param entity_structure T The entity structure to register.
+    ---@param ignore_environment? boolean If `true` entity will be registered without a module prefix.
+    ---@return fun( ... ): T | nil entity The entity creation function.
+    function ash_entity.register( entity_structure, ignore_environment )
+        ---@diagnostic disable-next-line: undefined-field
+        local class_name = entity_structure.ClassName
+        if class_name == nil then
+            error( "failed to register entity, 'ClassName' field cannot be nil", 2 )
+        end
+
+        if entity_structure.Type == nil then
+            ---@diagnostic disable-next-line: inject-field
+            entity_structure.Type = "anim"
+        end
+
+        if entity_structure.Draw == nil then
+            entity_structure.Draw = Entity_DrawModel
+        end
+
+        if entity_structure.DrawTranslucent == nil then
+            entity_structure.DrawTranslucent = Entity_DrawModel
+        end
+
+        if not ignore_environment then
+            local environment = getfenv( 3 )
+            if environment ~= nil then
+                ---@type ash.Module
+                local module = environment.MODULE
+                if module ~= nil then
+                    class_name = module.Prefix .. class_name
+                end
+            end
+        end
+
+        entity_structure.Spawnable = entity_structure.Spawnable == true
+        entity_structure.Editable = entity_structure.Editable == true
+
+        entity_structure.WantsTranslucency = entity_structure.WantsTranslucency ~= false
+        entity_structure.DisableDuplicator = entity_structure.DisableDuplicator == true
+
+        if entity_structure.RenderGroup == nil then
+            entity_structure.RenderGroup = 8
+        end
+
+        entity_Register( entity_structure, class_name )
+
+        local on_create = entity_structure.OnCreate
+        if not isfunction( on_create ) then
+            on_create = nil
+        end
+
+        return function( ... )
+            local entity = entity_Create( class_name )
+
+            if entity ~= nil and entity ~= NULL and Entity_IsValid( entity ) then
+                if on_create ~= nil then
+                    on_create( entity, ... )
+                end
+
+                return entity
+            end
+
+            return nil
+        end
+    end
+
+end
+
 ash_entity.isPlayer = Entity.IsPlayer
 
 ---@type ash.utils
@@ -386,10 +483,14 @@ do
     local Entity_SetNW2Bool = Entity.SetNW2Bool
     local Entity_GetModel = Entity.GetModel
 
-    hook.Add( "OnEntityCreated", "Handler", function( entity )
-        local class_name = Entity_GetClass( entity )
+    ---@type Entity[]
+    local queue = {}
 
-        if hook_Run( "AllowEntityCreation", entity, class_name ) == false then
+    ---@type integer
+    local queue_size = 0
+
+    hook.Add( "OnEntityCreated", "Handler", function( entity )
+        if hook_Run( "AllowEntityCreation", entity ) == false then
             if entity ~= nil and entity:IsValid() then
                 entity:Remove()
             end
@@ -397,31 +498,45 @@ do
             return false
         end
 
-        hook_Run( "EntityCreated", entity, class_name )
+        queue_size = queue_size + 1
+        queue[ queue_size ] = entity
+    end, PRE_HOOK )
 
-        if class_name == "player" then
-            hook_Run( "PlayerEntityCreated", entity )
-        -- elseif class_name == "world" then
-        --     hook_Run( "WorldEntityCreated", entity )
-        elseif utils_isPropClass( class_name ) then
-            Entity_SetNW2Bool( entity, "m_bProp", true )
-            hook_Run( "PropEntityCreated", entity, class_name, Entity_GetModel( entity ) )
-        elseif utils_isDoorClass( class_name ) then
-            Entity_SetNW2Bool( entity, "m_bDoor", true )
-            hook_Run( "DoorEntityCreated", entity, class_name )
-        elseif utils_isButtonClass( class_name ) then
-            Entity_SetNW2Bool( entity, "m_bButton", true )
-            hook_Run( "ButtonEntityCreated", entity, class_name )
-        elseif utils_isRagdollClass( class_name ) then
-            Entity_SetNW2Bool( entity, "m_bRagdoll", true )
-            hook_Run( "RagdollEntityCreated", entity, class_name )
-        elseif entity:IsWeapon() then
-            hook_Run( "WeaponEntityCreated", entity, class_name )
+    hook.Add( "Think", "Processor", function()
+        for i = queue_size, 1, -1 do
+            local entity = queue[ i ]
+
+            queue_size = queue_size - 1
+            queue[ i ] = nil
+
+            local class_name = Entity_GetClass( entity )
+            hook_Run( "EntityCreated", entity, class_name )
+
+            if class_name == "player" then
+                hook_Run( "PlayerEntityCreated", entity )
+            -- elseif class_name == "world" then
+            --     hook_Run( "WorldEntityCreated", entity )
+            elseif utils_isPropClass( class_name ) then
+                Entity_SetNW2Bool( entity, "m_bProp", true )
+                hook_Run( "PropEntityCreated", entity, class_name, Entity_GetModel( entity ) )
+            elseif utils_isDoorClass( class_name ) then
+                Entity_SetNW2Bool( entity, "m_bDoor", true )
+                hook_Run( "DoorEntityCreated", entity, class_name )
+            elseif utils_isButtonClass( class_name ) then
+                Entity_SetNW2Bool( entity, "m_bButton", true )
+                hook_Run( "ButtonEntityCreated", entity, class_name )
+            elseif utils_isRagdollClass( class_name ) then
+                Entity_SetNW2Bool( entity, "m_bRagdoll", true )
+                hook_Run( "RagdollEntityCreated", entity, class_name )
+            elseif entity:IsWeapon() then
+                hook_Run( "WeaponEntityCreated", entity, class_name )
+            end
         end
     end, PRE_HOOK )
 
     hook.Add( "EntityRemoved", "Handler", function( entity, is_full_update )
         local class_name = Entity_GetClass( entity )
+
         if class_name == "player" then
             hook_Run( "PlayerEntityRemoved", entity, class_name, is_full_update )
         elseif utils_isPropClass( class_name ) then
@@ -434,6 +549,8 @@ do
             hook_Run( "RagdollEntityRemoved", entity, class_name, is_full_update )
         elseif entity:IsWeapon() then
             hook_Run( "WeaponEntityRemoved", entity, class_name, is_full_update )
+        else
+            hook_Run( "EntityClassRemoved", entity, class_name, is_full_update )
         end
     end, PRE_HOOK )
 
@@ -496,7 +613,7 @@ hook.Add( "EntityFireBullets", "BulletCallback", function( arguments, entity, bu
     local callback = bullet.Callback
 
     bullet.Callback = function( attacker, trace_result, damage_info )
-        local do_effects, do_damage = hook.Run( "EntityFireBulletsImpact", attacker, trace_result, damage_info )
+        local do_effects, do_damage = hook.Run( "EntityFireBulletsImpact", bullet, attacker, trace_result, damage_info )
         local result = { do_effects == true, do_damage == true }
 
         if callback ~= nil then
@@ -579,14 +696,16 @@ end
 
 do
 
+    local Entity_WaterLevel = Entity.WaterLevel
+
     ---@alias ash.entity.WaterLevel `0` | `1` | `2` | `3`
 
     ---@type table<Entity, ash.entity.WaterLevel>
     local water_levels = {}
 
     setmetatable( water_levels, {
-        __index = function( self, entity )
-            return 0
+        __index = function( _, entity )
+            return Entity_WaterLevel( entity ) or 0
         end,
         __mode = "k"
     } )

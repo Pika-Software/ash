@@ -65,7 +65,7 @@ local ChannelClass = class.create( Channel )
 
 ---@type table<ash.sound.bass.Channel, IGModAudioChannel>
 local channels = {}
-setmetatable( channels, { __mode = "k" } )
+gc.setTableRules( channels, true )
 
 ---@param channel IGModAudioChannel
 ---@protected

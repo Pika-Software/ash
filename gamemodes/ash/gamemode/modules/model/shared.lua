@@ -462,8 +462,6 @@ function ash_model.set( model_name, model_path, hands_path )
     return model_info
 end
 
-fallback_info = ash_model.set( "default", "models/player/mossman.mdl", "models/weapons/c_arms_citizen.mdl" )
-
-ash_model.set( "mothica", "models/player/p1ka/mothica.mdl", "models/player/p1ka/mothica_carms.mdl" )
+fallback_info = ash_model.set( "default", "models/player/infoplayerstart.mdl", "models/weapons/c_arms_infoplayerstart.mdl" )
 
 return ash_model
