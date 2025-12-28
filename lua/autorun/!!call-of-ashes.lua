@@ -62,8 +62,10 @@ local util_Compress = glua_util.Compress
 local util_SHA256 = glua_util.SHA256
 
 local path_getDirectory = path.getDirectory
-
 local Color = std.Color
+
+local hook_Add = glua_hook.Add
+local hook_Run = glua_hook.Run
 
 ---
 --- The ash global namespace.
@@ -72,7 +74,7 @@ local Color = std.Color
 ash = ash or {}
 
 ash.Name = "Ash"
-ash.Version = "0.2.0"
+ash.Version = "0.3.0"
 ash.Author = "Unknown Developer"
 ash.Tag = string_lower( string_match( ash.Name, "[^%s%p]+" ) ) .. "@" .. ash.Version
 
@@ -753,7 +755,7 @@ if _G[ active_gamemode ] == nil then
         } )
     }
 
-    glua_hook.Add( "PostGamemodeLoaded", "ash.gamemode", function()
+    hook_Add( "PostGamemodeLoaded", "ash.gamemode", function()
         ---@type GM
         local GM = GM or GAMEMODE
 
@@ -794,7 +796,9 @@ environment.futures = std.futures
 environment.string = string
 environment.math = std.math
 environment.class = class
+environment.debug = debug
 environment.path = path
+environment.gc = std.gc
 
 environment.printf = std.printf
 environment.Color = Color
@@ -868,449 +872,6 @@ function Module:__init( name, location )
     self.Prefix = name .. "::"
     self.Location = location
     self.Name = name
-end
-
-do
-
-    ---@type table<ash.Module, table<string, any[]>>
-    local hooks = {}
-
-    ---@type table<ash.Module, string[]>
-    local timers = {}
-
-    ---@type table<ash.Module, table<string, integer>>
-    local networks = {}
-
-    ---@type table<ash.Module, table<string, string[]>>
-    local cvar_callbacks = {}
-
-    do
-
-        local events_metatable = {
-            __index = function( self, event_name )
-                local identifiers = {}
-                self[ event_name ] = identifiers
-                return identifiers
-            end
-        }
-
-        setmetatable( hooks, {
-            -- __mode = "k",
-            __index = function( self, module_object )
-                local events = {}
-                setmetatable( events, events_metatable )
-                self[ module_object ] = events
-                return events
-            end
-        } )
-
-        setmetatable( timers, events_metatable )
-        setmetatable( networks, events_metatable )
-
-        setmetatable( cvar_callbacks, {
-            __index = function( self, module_object )
-                local identifiers = {}
-                setmetatable( identifiers, events_metatable )
-                self[ module_object ] = identifiers
-                return identifiers
-            end
-        } )
-
-    end
-
-    local cvars_RemoveChangeCallback = glua_cvars.RemoveChangeCallback
-
-    do
-
-
-        local cvars = {}
-        environment.cvars = cvars
-
-        local cvars_AddChangeCallback = glua_cvars.AddChangeCallback
-
-        ---@param cvar_name string
-        ---@param fn function
-        ---@param identifier? string
-        function cvars.AddChangeCallback( cvar_name, fn, identifier )
-            if identifier == nil then
-                identifier = "Default"
-            end
-
-            local call_environment = getfenv( 2 )
-            if call_environment ~= nil then
-                ---@type ash.Module | nil
-                local module_object = call_environment.MODULE
-                if module_object ~= nil then
-                    local identifiers = cvar_callbacks[ module_object ][ cvar_name ]
-
-                    for i = #identifiers, 1, -1 do
-                        if identifiers[ i ] == identifier then
-                            table_remove( identifiers, i )
-                            break
-                        end
-                    end
-
-                    table_insert( identifiers, identifier )
-
-                    identifier = module_object.Prefix .. identifier
-                end
-            end
-
-            return cvars_AddChangeCallback( cvar_name, fn, identifier )
-        end
-
-        ---@param cvar_name string
-        ---@param identifier? string
-        function cvars.RemoveChangeCallback( cvar_name, identifier )
-            if identifier == nil then
-                identifier = "Default"
-            end
-
-            local call_environment = getfenv( 2 )
-            if call_environment ~= nil then
-                ---@type ash.Module | nil
-                local module_object = call_environment.MODULE
-                if module_object ~= nil then
-                    local identifiers = cvar_callbacks[ module_object ][ cvar_name ]
-
-                    for i = #identifiers, 1, -1 do
-                        if identifiers[ i ] == identifier then
-                            identifier = module_object.Prefix .. identifier
-                            table_remove( identifiers, i )
-                            break
-                        end
-                    end
-                end
-            end
-
-            return cvars_RemoveChangeCallback( cvar_name, identifier )
-        end
-
-        setmetatable( cvars, {
-            __index = glua_cvars,
-            -- __newindex = glua_cvars
-        } )
-
-    end
-
-    if LUA_SERVER then
-
-        local util = {}
-        environment.util = util
-
-        local util_AddNetworkString = glua_util.AddNetworkString
-
-        function util.AddNetworkString( network_name )
-            local call_environment = getfenv( 2 )
-            if call_environment ~= nil then
-                ---@type ash.Module | nil
-                local module_object = call_environment.MODULE
-                if module_object ~= nil then
-                    network_name = module_object.Prefix .. network_name
-
-                    local network_id = util_AddNetworkString( network_name )
-                    networks[ module_object ][ network_name ] = network_id
-                    return network_id
-                end
-            end
-
-            return util_AddNetworkString( network_name )
-        end
-
-        setmetatable( util, {
-            __index = glua_util,
-            -- __newindex = glua_util
-        } )
-
-    end
-
-    local net_Receive = glua_net.Receive
-
-    do
-
-        local net = {}
-        environment.net = net
-
-        local net_Start = glua_net.Start
-
-        ---@param network_name string
-        ---@param unreliable boolean
-        ---@return boolean
-        function net.Start( network_name, unreliable )
-            local call_environment = getfenv( 2 )
-            if call_environment ~= nil then
-                ---@type ash.Module | nil
-                local module_object = call_environment.MODULE
-                if module_object ~= nil then
-                    network_name = module_object.Prefix .. network_name
-                end
-            end
-
-            return net_Start( network_name, unreliable )
-        end
-
-        ---@param network_name string
-        ---@param fn function
-        function net.Receive( network_name, fn )
-            local call_environment = getfenv( 2 )
-            if call_environment ~= nil then
-                ---@type ash.Module | nil
-                local module_object = call_environment.MODULE
-                if module_object ~= nil then
-                    network_name = module_object.Prefix .. network_name
-                end
-            end
-
-            return net_Receive( network_name, fn )
-        end
-
-        setmetatable( net, {
-            __index = glua_net,
-            -- __newindex = glua_net
-        } )
-
-
-    end
-
-    if LUA_SERVER then
-
-        local resource = {}
-        environment.resource = resource
-
-        function resource.AddWorkshop( wsid )
-            ash.setWorkshopDL( wsid, true )
-        end
-
-        setmetatable( resource, {
-            __index = _G.resource,
-            -- __newindex = _G.resource
-        } )
-
-    end
-
-    local ash_hook = {}
-    environment.hook = ash_hook
-
-    do
-
-        local hook_Add = glua_hook.Add
-
-        ---@param event_name string
-        ---@param identifier any
-        ---@param fn function
-        ---@param priority? integer
-        function ash_hook.Add( event_name, identifier, fn, priority )
-            if isString( identifier ) then
-                local call_environment = getfenv( 2 )
-                if call_environment ~= nil then
-                    ---@type ash.Module | nil
-                    local module_object = call_environment.MODULE
-                    if module_object ~= nil then
-                        local identifiers = hooks[ module_object ][ event_name ]
-
-                        for i = #identifiers, 1, -1 do
-                            if identifiers[ i ] == identifier then
-                                table_remove( identifiers, i )
-                                break
-                            end
-                        end
-
-                        table_insert( identifiers, identifier )
-
-                        ---@diagnostic disable-next-line: redundant-parameter
-                        return hook_Add( event_name, module_object.Prefix .. identifier, fn, priority )
-                    end
-                end
-            end
-
-            ---@diagnostic disable-next-line: redundant-parameter
-            return hook_Add( event_name, identifier, fn, priority )
-        end
-
-    end
-
-    ash_hook.Call = glua_hook.Call
-    ash_hook.Run = glua_hook.Run
-
-    local ash_timer = {}
-    environment.timer = ash_timer
-
-    do
-
-        local timer_Create = glua_timer.Create
-
-        ---@param identifier string
-        ---@param delay number
-        ---@param repetitions integer
-        ---@param event_fn function
-        function ash_timer.Create( identifier, delay, repetitions, event_fn )
-            local call_environment = getfenv( 2 )
-            if call_environment ~= nil then
-                ---@type ash.Module | nil
-                local module_object = call_environment.MODULE
-                if module_object ~= nil then
-                    local identifiers = timers[ module_object ]
-
-                    for i = #identifiers, 1, -1 do
-                        if identifiers[ i ] == identifier then
-                            table_remove( identifiers, i )
-                            break
-                        end
-                    end
-
-                    table_insert( identifiers, identifier )
-
-                    return timer_Create( module_object.Prefix .. identifier, delay, repetitions, event_fn )
-                end
-            end
-
-            return timer_Create( identifier, delay, repetitions, event_fn )
-        end
-
-    end
-
-    setmetatable( ash_timer, {
-        __index = glua_timer,
-        -- __newindex = glua_timer
-    } )
-
-    do
-
-        ---@param fn function
-        ---@return fun( identifier: string, ... ): ...
-        local function timer_fn( fn )
-            return function( identifier, ... )
-                local call_environment = getfenv( 2 )
-                if call_environment ~= nil then
-                    ---@type ash.Module | nil
-                    local module_object = call_environment.MODULE
-                    if module_object ~= nil then
-                        local identifiers = timers[ module_object ]
-
-                        for i = #identifiers, 1, -1 do
-                            if identifiers[ i ] == identifier then
-                                return fn( module_object.Prefix .. identifier, ... )
-                            end
-                        end
-                    end
-                end
-
-                return fn( identifier, ... )
-            end
-        end
-
-        ash_timer.Adjust = timer_fn( glua_timer.Adjust )
-        ash_timer.Create = timer_fn( glua_timer.Create )
-        ash_timer.Exists = timer_fn( glua_timer.Exists )
-
-        ash_timer.Start = timer_fn( glua_timer.Start )
-        ash_timer.Stop = timer_fn( glua_timer.Stop )
-
-        ash_timer.Pause = timer_fn( glua_timer.Pause )
-        ash_timer.UnPause = timer_fn( glua_timer.UnPause )
-        ash_timer.Toggle = timer_fn( glua_timer.Toggle )
-
-        ash_timer.RepsLeft = timer_fn( glua_timer.RepsLeft )
-        ash_timer.TimeLeft = timer_fn( glua_timer.TimeLeft )
-
-    end
-
-    do
-
-        local hook_Remove = glua_hook.Remove
-
-        ---@param event_name string
-        ---@param identifier any
-        function ash_hook.Remove( event_name, identifier )
-            if isString( identifier ) then
-                local call_environment = getfenv( 2 )
-                if call_environment ~= nil then
-                    ---@type ash.Module | nil
-                    local module_object = call_environment.MODULE
-                    if module_object ~= nil then
-                        local identifiers = hooks[ module_object ][ event_name ]
-
-                        for i = #identifiers, 1, -1 do
-                            if identifiers[ i ] == identifier then
-                                table_remove( identifiers, i )
-                                return hook_Remove( event_name, module_object.Prefix .. identifier )
-                            end
-                        end
-                    end
-                end
-            end
-
-            return hook_Remove( event_name, identifier )
-        end
-
-        local timer_Remove = glua_timer.Remove
-
-        ---@param timer_name string
-        function ash_timer.Remove( timer_name )
-            local call_environment = getfenv( 2 )
-            if call_environment ~= nil then
-                ---@type ash.Module | nil
-                local module_object = call_environment.MODULE
-                if module_object ~= nil then
-                    local identifiers = hooks[ module_object ]
-
-                    for i = #identifiers, 1, -1 do
-                        if identifiers[ i ] == timer_name then
-                            table_remove( identifiers, i )
-                            return timer_Remove( module_object.Prefix .. timer_name )
-                        end
-                    end
-                end
-            end
-
-            return timer_Remove( timer_name )
-        end
-
-        --- [SHARED]
-        ---
-        --- Unloads the module.
-        ---
-        function Module:unload()
-            if self.Environment == nil then return end
-
-            self.Environment = nil
-            self.Result = nil
-            self.Error = nil
-
-            local prefix = self.Prefix
-
-            for event_name, identifiers in raw_pairs( hooks[ self ] ) do
-                for i = #identifiers, 1, -1 do
-                    local identifier = identifiers[ i ]
-
-                    if isString( identifier ) then
-                        identifier = prefix .. identifier
-                    end
-
-                    hook_Remove( event_name, identifier )
-                end
-            end
-
-            local timer_list = timers[ self ]
-
-            for i = #timer_list, 1, -1 do
-                timer_Remove( timer_list[ i ] )
-            end
-
-            for network_name, network_id in raw_pairs( networks[ self ] ) do
-                ---@diagnostic disable-next-line: param-type-mismatch
-                net_Receive( network_name, nil )
-            end
-
-            for cvar_name, identifiers in raw_pairs( cvar_callbacks[ self ] ) do
-                for i = 1, #identifiers, 1 do
-                    cvars_RemoveChangeCallback( cvar_name, identifiers[ i ] )
-                end
-            end
-        end
-
-    end
-
 end
 
 ---@param file_path string
@@ -1544,6 +1105,463 @@ function Module:load( stack_level )
     else
         self.Error = self.EntryPoint .. ":0: " .. ( string_match( result, "^[^:]+:%d+: (.*)$" ) or result )
     end
+
+    hook_Run( "ash.ModuleLoaded", self )
+end
+
+--- [SHARED]
+---
+--- Unloads the module.
+---
+function Module:unload()
+    if self.Environment == nil then return end
+
+    self.Environment = nil
+    self.Result = nil
+    self.Error = nil
+
+    hook_Run( "ash.ModuleUnloaded", self )
+end
+
+do
+
+    local sub_metatable = {
+        __index = function( self, event_name )
+            local identifiers = {}
+            self[ event_name ] = identifiers
+            return identifiers
+        end
+    }
+
+    do
+
+        ---@type table<ash.Module, table<string, any[]>>
+        local hooks = {}
+
+        setmetatable( hooks, {
+            __index = function( self, module_object )
+                local events = {}
+                setmetatable( events, sub_metatable )
+                self[ module_object ] = events
+                return events
+            end,
+            __mode = "k"
+        } )
+
+        local hook_Remove = glua_hook.Remove
+
+        local ash_hook = {}
+        environment.hook = ash_hook
+
+        ---@param event_name string
+        ---@param identifier any
+        ---@param fn function
+        ---@param priority? integer
+        function ash_hook.Add( event_name, identifier, fn, priority )
+            if isString( identifier ) then
+                local call_environment = getfenv( 2 )
+                if call_environment ~= nil then
+                    ---@type ash.Module | nil
+                    local module_object = call_environment.MODULE
+                    if module_object ~= nil then
+                        local identifiers = hooks[ module_object ][ event_name ]
+
+                        for i = #identifiers, 1, -1 do
+                            if identifiers[ i ] == identifier then
+                                table_remove( identifiers, i )
+                                break
+                            end
+                        end
+
+                        table_insert( identifiers, identifier )
+
+                        ---@diagnostic disable-next-line: redundant-parameter
+                        return hook_Add( event_name, module_object.Prefix .. identifier, fn, priority )
+                    end
+                end
+            end
+
+            ---@diagnostic disable-next-line: redundant-parameter
+            return hook_Add( event_name, identifier, fn, priority )
+        end
+
+        ---@param event_name string
+        ---@param identifier any
+        function ash_hook.Remove( event_name, identifier )
+            if isString( identifier ) then
+                local call_environment = getfenv( 2 )
+                if call_environment ~= nil then
+                    ---@type ash.Module | nil
+                    local module_object = call_environment.MODULE
+                    if module_object ~= nil then
+                        local identifiers = hooks[ module_object ][ event_name ]
+
+                        for i = #identifiers, 1, -1 do
+                            if identifiers[ i ] == identifier then
+                                table_remove( identifiers, i )
+                                return hook_Remove( event_name, module_object.Prefix .. identifier )
+                            end
+                        end
+                    end
+                end
+            end
+
+            return hook_Remove( event_name, identifier )
+        end
+
+        ash_hook.Call = glua_hook.Call
+        ash_hook.Run = hook_Run
+
+        ---@param module_object ash.Module
+        hook_Add( "ash.ModuleUnloaded", "ash.UnloadHooks", function( module_object )
+            local prefix = module_object.Prefix
+
+            for event_name, identifiers in raw_pairs( hooks[ module_object ] ) do
+                for i = #identifiers, 1, -1 do
+                    local identifier = identifiers[ i ]
+
+                    if isString( identifier ) then
+                        identifier = prefix .. identifier
+                    end
+
+                    hook_Remove( event_name, identifier )
+                end
+            end
+        end )
+
+    end
+
+    do
+
+        ---@type table<ash.Module, string[]>
+        local timers = {}
+
+        setmetatable( timers, {
+            __index = function( self, event_name )
+                local names = {}
+                self[ event_name ] = names
+                return names
+            end,
+            __mode = "k"
+        } )
+
+        local timer_Create = glua_timer.Create
+        local timer_Remove = glua_timer.Remove
+
+        local ash_timer = {}
+        environment.timer = ash_timer
+
+        ---@param identifier string
+        ---@param delay number
+        ---@param repetitions integer
+        ---@param event_fn function
+        function ash_timer.Create( identifier, delay, repetitions, event_fn )
+            local call_environment = getfenv( 2 )
+            if call_environment ~= nil then
+                ---@type ash.Module | nil
+                local module_object = call_environment.MODULE
+                if module_object ~= nil then
+                    local identifiers = timers[ module_object ]
+
+                    for i = #identifiers, 1, -1 do
+                        if identifiers[ i ] == identifier then
+                            table_remove( identifiers, i )
+                            break
+                        end
+                    end
+
+                    table_insert( identifiers, identifier )
+
+                    return timer_Create( module_object.Prefix .. identifier, delay, repetitions, event_fn )
+                end
+            end
+
+            return timer_Create( identifier, delay, repetitions, event_fn )
+        end
+
+        ---@param timer_name string
+        function ash_timer.Remove( timer_name )
+            local call_environment = getfenv( 2 )
+            if call_environment ~= nil then
+                ---@type ash.Module | nil
+                local module_object = call_environment.MODULE
+                if module_object ~= nil then
+                    local identifiers = timers[ module_object ]
+
+                    for i = #identifiers, 1, -1 do
+                        if identifiers[ i ] == timer_name then
+                            table_remove( identifiers, i )
+                            return timer_Remove( module_object.Prefix .. timer_name )
+                        end
+                    end
+                end
+            end
+
+            return timer_Remove( timer_name )
+        end
+
+        ---@param fn function
+        ---@return fun( identifier: string, ... ): ...
+        local function timer_fn( fn )
+            return function( identifier, ... )
+                local call_environment = getfenv( 2 )
+                if call_environment ~= nil then
+                    ---@type ash.Module | nil
+                    local module_object = call_environment.MODULE
+                    if module_object ~= nil then
+                        local identifiers = timers[ module_object ]
+
+                        for i = #identifiers, 1, -1 do
+                            if identifiers[ i ] == identifier then
+                                return fn( module_object.Prefix .. identifier, ... )
+                            end
+                        end
+                    end
+                end
+
+                return fn( identifier, ... )
+            end
+        end
+
+        ash_timer.Adjust = timer_fn( glua_timer.Adjust )
+        ash_timer.Create = timer_fn( glua_timer.Create )
+        ash_timer.Exists = timer_fn( glua_timer.Exists )
+
+        ash_timer.Start = timer_fn( glua_timer.Start )
+        ash_timer.Stop = timer_fn( glua_timer.Stop )
+
+        ash_timer.Pause = timer_fn( glua_timer.Pause )
+        ash_timer.UnPause = timer_fn( glua_timer.UnPause )
+        ash_timer.Toggle = timer_fn( glua_timer.Toggle )
+
+        ash_timer.RepsLeft = timer_fn( glua_timer.RepsLeft )
+        ash_timer.TimeLeft = timer_fn( glua_timer.TimeLeft )
+
+        ---@param module_object ash.Module
+        hook_Add( "ash.ModuleUnloaded", "ash.UnloadTimers", function( module_object )
+            local timer_list = timers[ module_object ]
+
+            for i = #timer_list, 1, -1 do
+                timer_Remove( timer_list[ i ] )
+            end
+        end )
+
+        setmetatable( ash_timer, {
+            __index = glua_timer,
+            -- __newindex = glua_timer
+        } )
+
+    end
+
+    do
+
+        ---@type table<ash.Module, table<string, integer>>
+        local networks = {}
+
+        setmetatable( networks, {
+            __index = function( self, module_object )
+                local name = {}
+                self[ module_object ] = name
+                return name
+            end,
+            __mode = "k"
+        } )
+
+        if LUA_SERVER then
+
+            local ash_util = {}
+            environment.util = ash_util
+
+            local util_AddNetworkString = glua_util.AddNetworkString
+
+            function ash_util.AddNetworkString( network_name )
+                local call_environment = getfenv( 2 )
+                if call_environment ~= nil then
+                    ---@type ash.Module | nil
+                    local module_object = call_environment.MODULE
+                    if module_object ~= nil then
+                        network_name = module_object.Prefix .. network_name
+
+                        local network_id = util_AddNetworkString( network_name )
+                        networks[ module_object ][ network_name ] = network_id
+                        return network_id
+                    end
+                end
+
+                return util_AddNetworkString( network_name )
+            end
+
+            setmetatable( ash_util, {
+                __index = glua_util,
+                -- __newindex = glua_util
+            } )
+
+        end
+
+        local net_Receive = glua_net.Receive
+        local net_Start = glua_net.Start
+
+        local ash_net = {}
+        environment.net = ash_net
+
+        ---@param network_name string
+        ---@param unreliable boolean
+        ---@return boolean
+        function ash_net.Start( network_name, unreliable )
+            local call_environment = getfenv( 2 )
+            if call_environment ~= nil then
+                ---@type ash.Module | nil
+                local module_object = call_environment.MODULE
+                if module_object ~= nil then
+                    network_name = module_object.Prefix .. network_name
+                end
+            end
+
+            return net_Start( network_name, unreliable )
+        end
+
+        ---@param network_name string
+        ---@param fn function
+        function ash_net.Receive( network_name, fn )
+            local call_environment = getfenv( 2 )
+            if call_environment ~= nil then
+                ---@type ash.Module | nil
+                local module_object = call_environment.MODULE
+                if module_object ~= nil then
+                    network_name = module_object.Prefix .. network_name
+                end
+            end
+
+            return net_Receive( network_name, fn )
+        end
+
+        ---@param module_object ash.Module
+        hook_Add( "ash.ModuleUnloaded", "ash.UnloadNetworks", function( module_object )
+            for network_name, network_id in raw_pairs( networks[ module_object ] ) do
+                ---@diagnostic disable-next-line: param-type-mismatch
+                net_Receive( network_name, nil )
+            end
+        end )
+
+        setmetatable( ash_net, {
+            __index = glua_net,
+            -- __newindex = glua_net
+        } )
+
+    end
+
+    do
+
+        ---@type table<ash.Module, table<string, string[]>>
+        local cvar_callbacks = {}
+
+        setmetatable( cvar_callbacks, {
+            __index = function( self, module_object )
+                local identifiers = {}
+                setmetatable( identifiers, sub_metatable )
+
+                self[ module_object ] = identifiers
+                return identifiers
+            end,
+            __mode = "k"
+        } )
+
+        local cvars_RemoveChangeCallback = glua_cvars.RemoveChangeCallback
+        local cvars_AddChangeCallback = glua_cvars.AddChangeCallback
+
+        local ash_cvars = {}
+        environment.cvars = ash_cvars
+
+        ---@param cvar_name string
+        ---@param fn function
+        ---@param identifier? string
+        function ash_cvars.AddChangeCallback( cvar_name, fn, identifier )
+            if identifier == nil then
+                identifier = "Default"
+            end
+
+            local call_environment = getfenv( 2 )
+            if call_environment ~= nil then
+                ---@type ash.Module | nil
+                local module_object = call_environment.MODULE
+                if module_object ~= nil then
+                    local identifiers = cvar_callbacks[ module_object ][ cvar_name ]
+
+                    for i = #identifiers, 1, -1 do
+                        if identifiers[ i ] == identifier then
+                            table_remove( identifiers, i )
+                            break
+                        end
+                    end
+
+                    table_insert( identifiers, identifier )
+
+                    identifier = module_object.Prefix .. identifier
+                end
+            end
+
+            return cvars_AddChangeCallback( cvar_name, fn, identifier )
+        end
+
+        ---@param cvar_name string
+        ---@param identifier? string
+        function ash_cvars.RemoveChangeCallback( cvar_name, identifier )
+            if identifier == nil then
+                identifier = "Default"
+            end
+
+            local call_environment = getfenv( 2 )
+            if call_environment ~= nil then
+                ---@type ash.Module | nil
+                local module_object = call_environment.MODULE
+                if module_object ~= nil then
+                    local identifiers = cvar_callbacks[ module_object ][ cvar_name ]
+
+                    for i = #identifiers, 1, -1 do
+                        if identifiers[ i ] == identifier then
+                            identifier = module_object.Prefix .. identifier
+                            table_remove( identifiers, i )
+                            break
+                        end
+                    end
+                end
+            end
+
+            return cvars_RemoveChangeCallback( cvar_name, identifier )
+        end
+
+        ---@param module_object ash.Module
+        hook_Add( "ash.ModuleUnloaded", "ash.UnloadCvars", function( module_object )
+            for cvar_name, identifiers in raw_pairs( cvar_callbacks[ module_object ] ) do
+                for i = 1, #identifiers, 1 do
+                    cvars_RemoveChangeCallback( cvar_name, identifiers[ i ] )
+                end
+            end
+        end )
+
+        setmetatable( ash_cvars, {
+            __index = glua_cvars,
+            -- __newindex = glua_cvars
+        } )
+
+    end
+
+    if LUA_SERVER then
+
+        local ash_resource = {}
+        environment.resource = ash_resource
+
+        function ash_resource.AddWorkshop( wsid )
+            ash.setWorkshopDL( wsid, true )
+        end
+
+        setmetatable( ash_resource, {
+            __index = _G.resource,
+            -- __newindex = _G.resource
+        } )
+
+    end
+
 end
 
 do
@@ -1959,8 +1977,6 @@ end
 
 do
 
-    local FindMetaTable = _G.FindMetaTable
-
     local cls2fn = {}
 
     local function call( cls, ... )
@@ -1981,7 +1997,7 @@ do
         obj_metatable.MetaName = name
         obj_metatable.__call = call
 
-        local metatable = FindMetaTable( name )
+        local metatable = debug.findmetatable( name )
         obj_metatable.__newindex = metatable
         obj_metatable.__index = metatable
 

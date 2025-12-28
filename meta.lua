@@ -332,6 +332,9 @@ Color = std.Color
 printf = std.printf
 
 ---@diagnostic disable-next-line: lowercase-global
+debug = std.debug
+
+---@diagnostic disable-next-line: lowercase-global
 class = std.class
 
 ---@diagnostic disable-next-line: lowercase-global
@@ -345,3 +348,6 @@ path = std.path
 
 ---@diagnostic disable-next-line: lowercase-global
 futures = std.futures
+
+---@diagnostic disable-next-line: lowercase-global
+gc = std.gc
