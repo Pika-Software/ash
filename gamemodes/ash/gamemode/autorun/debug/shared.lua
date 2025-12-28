@@ -3,7 +3,7 @@
 local debug = {}
 
 setmetatable( debug, {
-    __index = _G.dreamwork.std.debug
+    __index = debug
 } )
 
 return debug

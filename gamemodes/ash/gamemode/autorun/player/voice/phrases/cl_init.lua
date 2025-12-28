@@ -14,7 +14,7 @@ local ash_bass = require( "ash.sound.bass" )
 
 ---@type table<Player, ash.sound.bass.Channel>
 local channels = {}
-setmetatable( channels, { __mode = "k" } )
+gc.setTableRules( channels, true )
 
 ---@param pl Player
 local function stop( pl )

@@ -210,12 +210,12 @@ do
     local player_shoes_registry = {}
 
     setmetatable( player_shoes_registry, {
-        __mode = "k",
         __index = function( self, pl )
             local shoes_type = "default"
             self[ pl ] = shoes_type
             return shoes_type
-        end
+        end,
+        __mode = "k"
     } )
 
     --- [SHARED]

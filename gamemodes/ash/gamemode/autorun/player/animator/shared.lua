@@ -17,6 +17,7 @@ local Entity_SetNW2Int = Entity.SetNW2Int
 local Entity_GetNW2String = Entity.GetNW2String
 local Entity_SetNW2String = Entity.SetNW2String
 
+local setmetatable = setmetatable
 local string_byte = string.byte
 local hook_Run = hook.Run
 
@@ -490,7 +491,8 @@ do
     setmetatable( velocities, {
         __index = function()
             return Vector( 0, 0, 0 )
-        end
+        end,
+        __mode = "k"
     } )
 
     --- [SHARED]
@@ -723,7 +725,7 @@ do
         translation_cache[ pl ] = nil
     end
 
-    -- hook.Add( "PlayerActivityChanged", "TranslationCacher", cleanup_cache, PRE_HOOK )
+    hook.Add( "PlayerActivityChanged", "TranslationCacher", cleanup_cache, PRE_HOOK )
     hook.Add( "PlayerSequenceChanged", "TranslationCacher", cleanup_cache, PRE_HOOK )
     hook.Add( "PlayerSwitchWeapon", "TranslationCacher", cleanup_cache, PRE_HOOK )
 

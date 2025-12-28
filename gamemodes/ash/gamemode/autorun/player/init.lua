@@ -234,6 +234,7 @@ do
     ---@param on_crouch boolean
     ---@param mins Vector
     ---@param maxs Vector
+    ---@diagnostic disable-next-line: duplicate-set-field
     function ash_player.setHull( pl, on_crouch, mins, maxs )
         if on_crouch then
             Player_SetHullDuck( pl, mins, maxs )
@@ -373,7 +374,8 @@ do
         setmetatable( respawn_keys, {
             __index = function()
                 return default_respawn_keys
-            end
+            end,
+            __mode = "k"
         } )
 
     end
@@ -408,7 +410,8 @@ do
         setmetatable( awaiting_respawn, {
             __index = function( _, pl )
                 return player_isDead( pl )
-            end
+            end,
+            __mode = "k"
         } )
 
     end

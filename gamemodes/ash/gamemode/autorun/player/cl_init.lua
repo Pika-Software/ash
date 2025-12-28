@@ -19,35 +19,50 @@ local ash_player = include( "shared.lua" )
 
 do
 
+    local Player_SetHullDuck = Player.SetHullDuck
+    local Player_SetHull = Player.SetHull
+
+    --- [SERVER]
+    ---
+    --- Sets the player's hull.
+    ---
+    ---@param pl Player
+    ---@param on_crouch boolean
+    ---@param mins Vector
+    ---@param maxs Vector
+    ---@diagnostic disable-next-line: duplicate-set-field
+    function ash_player.setHull( pl, on_crouch, mins, maxs )
+        if on_crouch then
+            Player_SetHullDuck( pl, mins, maxs )
+        else
+            Player_SetHull( pl, mins, maxs )
+        end
+    end
+
+end
+
+do
+
     ---@type table<integer, function>
     local net_commands = {}
 
-    do
+    -- player hull setup
+    net_commands[ 0 ] = function()
+        local index = net.ReadUInt( ash_player.BitCount )
 
-        local Player_SetHullDuck = Player.SetHullDuck
-        local Player_SetHull = Player.SetHull
+        local is_crouch = net.ReadBool()
 
-        -- player hull setup
-        net_commands[ 0 ] = function()
-            local index = net.ReadUInt( ash_player.BitCount )
+        local mins = Vector( net.ReadDouble(), net.ReadDouble(), net.ReadDouble() )
+        local maxs = Vector( net.ReadDouble(), net.ReadDouble(), net.ReadDouble() )
 
-            local is_crouch = net.ReadBool()
-
-            local mins = Vector( net.ReadDouble(), net.ReadDouble(), net.ReadDouble() )
-            local maxs = Vector( net.ReadDouble(), net.ReadDouble(), net.ReadDouble() )
-
-            timer_Simple( 0, function()
-                local pl = Entity( index )
-                if pl ~= nil and Entity_IsValid( pl ) then
-                    if is_crouch then
-                        Player_SetHullDuck( pl, mins, maxs )
-                    else
-                        Player_SetHull( pl, mins, maxs )
-                    end
-                end
-            end )
-        end
-
+        timer_Simple( 0, function()
+            ---@type Player
+            ---@diagnostic disable-next-line: assign-type-mismatch
+            local pl = Entity( index )
+            if pl ~= nil and Entity_IsValid( pl ) then
+                ash_player.setHull( pl, is_crouch, mins, maxs )
+            end
+        end )
     end
 
     do

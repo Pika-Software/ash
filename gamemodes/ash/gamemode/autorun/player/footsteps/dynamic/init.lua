@@ -43,12 +43,12 @@ local debug = require( "ash.debug" )
 local foot_states = {}
 
 setmetatable( foot_states, {
-    __mode = "k",
     __index = function( self, pl )
         local bone_ids = {}
         self[ pl ] = bone_ids
         return bone_ids
-    end
+    end,
+    __mode = "k"
 } )
 
 ---@param pl Player
