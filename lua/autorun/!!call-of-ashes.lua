@@ -565,7 +565,7 @@ if LUA_SERVER then
                     if not file_Exists( path_to .. file_name, "GAME" ) then
                         ---@type File | nil
                         ---@diagnostic disable-next-line: assign-type-mismatch
-                        local file_handler = file_Open( parent_path .. file_name, "rb", "GAME" )
+                        local file_handler = file_Open( path_getDirectory( parent_path, true ) .. file_name, "rb", "GAME" )
                         if file_handler ~= nil then
                             add_file( path_to .. file_name, file_handler:Read( file_handler:Size() ) )
                             file_handler:Close()
@@ -579,11 +579,7 @@ if LUA_SERVER then
             end
 
             for i = 1, #chain, 1 do
-                local info_name = chain[ i ].name
-                bake_content( info_name, "maps/" )
-                bake_content( info_name, "sound/" )
-                bake_content( info_name, "models/" )
-                bake_content( info_name, "materials/" )
+                bake_content( chain[ i ].name, "" )
             end
 
         end
