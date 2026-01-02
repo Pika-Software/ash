@@ -152,7 +152,9 @@ local function error_handler( err_msg )
 
     if isString( err_msg ) then
         ---@cast err_msg string
-        table.insert( stack, 1, err_msg )
+        table.insert( stack, 1, {
+            short_src = err_msg
+        } )
     else
         ---@cast err_msg debuginfo[]
         for i = 1, #err_msg, 1 do
@@ -170,14 +172,13 @@ do
 
     ---@param stack debuginfo[]
     function error_display( stack )
-        local title
-
-        local level_info = stack[ 2 ] or stack[ 1 ]
-        if level_info ~= nil then
-            title = string_match( level_info.source, "^@?addons/([^/]+)" )
+        local top_error = stack[ 1 ]
+        if top_error == nil then
+            ErrorNoHalt( "Unknown error.\n" )
+            return
         end
 
-        local strings = { "\n[" .. ( title or "LUA ERROR" ) .. "] " .. tostring( stack[ 1 ] or "unknown" ) }
+        local strings = { "\n[" .. ( string_match( top_error.source, "^@?addons/([^/]+)" ) or top_error.source or "LUA ERROR" ) .. "] " .. tostring( top_error.short_src or "unknown" ) }
         local size = 1
 
         while true do
@@ -191,7 +192,7 @@ do
         end
 
         size = size + 1
-        strings[ size ] = "\n"
+        strings[ size ] = "\n\n"
 
         ErrorNoHalt( table_concat( strings, "\n", 1, size ) )
     end
