@@ -16,13 +16,6 @@ MODULE = {}
 
 --- [SHARED]
 ---
---- The current gamemode.
----
----@class ash.Game
-GAME = {}
-
---- [SHARED]
----
 --- The name of the current file.
 ---
 ---@type string

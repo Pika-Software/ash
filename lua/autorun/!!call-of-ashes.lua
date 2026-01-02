@@ -19,6 +19,7 @@ local ErrorNoHaltWithStack = _G.ErrorNoHaltWithStack
 
 local setmetatable = std.setmetatable
 local setfenv = std.setfenv
+local getfenv = std.getfenv
 local pcall = std.pcall
 
 local isString = std.isString
@@ -874,24 +875,48 @@ function Module:__init( name, location )
     self.Name = name
 end
 
----@param file_path string
----@param stack_level? integer
----@return string file_path
-local function path_perform( file_path, stack_level )
-    if stack_level == nil then
-        stack_level = 1
+local path_perform
+
+do
+
+    local debug_getfmain = debug.getfmain
+    local path_normalize = path.normalize
+
+    ---@param file_path string
+    ---@param stack_level? integer
+    ---@return string file_path
+    function path_perform( file_path, stack_level )
+        if stack_level == nil then
+            stack_level = 1
+        end
+
+        stack_level = stack_level + 1
+
+        local uint8_1, uint8_2 = string_byte( file_path, 1, 2 )
+        if uint8_1 == 0x2F --[[ / ]] then
+            return string_sub( file_path, 2 )
+        end
+
+        local env = getfenv( debug_getfmain( stack_level ) or stack_level )
+
+        if uint8_1 == 0x7E --[[ ~ ]] and uint8_2 == 0x2F --[[ / ]] then
+            local home_path = env.__homedir
+
+            if home_path == nil then
+                error( "home directory not found", 2 )
+            end
+
+            return path_normalize( home_path .. string_sub( file_path, 2 ) )
+        end
+
+        local directory_path = env.__dir
+        if directory_path == nil then
+            error( "current directory not found", 2 )
+        end
+
+        return path_normalize( directory_path .. "/" .. file_path )
     end
 
-    stack_level = stack_level + 1
-
-    local uint8_1, uint8_2 = string_byte( file_path, 1, 2 )
-    if uint8_1 == 0x7E --[[ ~ ]] and uint8_2 == 0x2F --[[ / ]] then
-        return path.normalize( getfenv( stack_level ).__homedir .. string_sub( file_path, 2 ) )
-    elseif uint8_1 == 0x2F --[[ / ]] then
-        return string_sub( file_path, 2 )
-    end
-
-    return path.normalize( getfenv( stack_level ).__dir .. "/" .. file_path )
 end
 
 if LUA_SERVER then
