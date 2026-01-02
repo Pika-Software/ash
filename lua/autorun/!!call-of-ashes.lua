@@ -20,6 +20,7 @@ local ErrorNoHaltWithStack = _G.ErrorNoHaltWithStack
 local setmetatable = std.setmetatable
 local setfenv = std.setfenv
 local getfenv = std.getfenv
+local xpcall = std.xpcall
 local pcall = std.pcall
 
 local isString = std.isString
@@ -144,6 +145,59 @@ ash.ChecksumFile = "ash/" .. active_gamemode .. "_checksums.lua"
 local DEBUG = glua_cvars.Number( "developer", 0 ) ~= 0
 ash.Debug = DEBUG
 
+---@param err_msg debuginfo[] | string
+---@return debuginfo[]
+local function error_handler( err_msg )
+    local stack, stack_size = debug.getstack( 3 )
+
+    if isString( err_msg ) then
+        ---@cast err_msg string
+        table.insert( stack, 1, err_msg )
+    else
+        ---@cast err_msg debuginfo[]
+        for i = 1, #err_msg, 1 do
+            stack[ stack_size + i ] = err_msg[ i ]
+        end
+    end
+
+    return stack
+end
+
+local error_display
+do
+
+    local ErrorNoHalt = ErrorNoHalt
+
+    ---@param stack debuginfo[]
+    function error_display( stack )
+        local title
+
+        local level_info = stack[ 2 ] or stack[ 1 ]
+        if level_info ~= nil then
+            title = string_match( level_info.source, "^@?addons/([^/]+)" )
+        end
+
+        local strings = { "\n[" .. ( title or "LUA ERROR" ) .. "] " .. tostring( stack[ 1 ] or "unknown" ) }
+        local size = 1
+
+        while true do
+            local info = stack[ size + 1 ]
+            if info == nil then
+                break
+            end
+
+            size = size + 1
+            strings[ size ] = table_concat( { string.rep( " ", size ), ( size - 1 ), ". ", info.name or "unknown", " - ", info.short_src or "unknown", ":", info.currentline or -1 } )
+        end
+
+        size = size + 1
+        strings[ size ] = "\n"
+
+        ErrorNoHalt( table_concat( strings, "\n", 1, size ) )
+    end
+
+end
+
 ---@type table<string, string>
 local client_checksums = {}
 local clientFileSend
@@ -203,7 +257,7 @@ if LUA_SERVER then
         local file_sha256 = util_SHA256( lua_code .. "\0" )
 
         if file_sha256 ~= client_checksums[ file_path ] then
-            if pcall( AddCSLuaFile, file_path ) then
+            if xpcall( AddCSLuaFile, error_handler, file_path ) then
                 logger:debug( "File '%s' with SHA-256 '%s' successfully sent to the client.", file_path, file_sha256 )
                 client_checksums[ file_path ] = file_sha256
 
@@ -516,16 +570,18 @@ if LUA_SERVER then
             end
         end
 
+        local function resend( chain )
+            for i = #chain, 1, -1 do
+                folder_send( chain[ i ].name .. "/gamemode/modules/" )
+            end
+        end
+
         --- [SERVER]
         ---
         --- Resend all files to clients.
         ---
         function ash.resend()
-            local chain = ash.Chain
-
-            for i = #chain, 1, -1 do
-                folder_send( chain[ i ].name .. "/gamemode/modules/" )
-            end
+            xpcall( resend, error_display, ash.Chain )
         end
 
     end
@@ -1123,12 +1179,13 @@ function Module:load( stack_level )
     setmetatable( module_enviroment, enviroment_metatable )
     self.Environment = module_enviroment
 
-    local success, result = pcall( file_compile( self.EntryPoint, module_enviroment, stack_level ) )
+    local success, result = xpcall( file_compile( self.EntryPoint, module_enviroment, stack_level ), error_handler )
 
     if success then
         self.Result = result
     else
-        self.Error = self.EntryPoint .. ":0: " .. ( string_match( result, "^[^:]+:%d+: (.*)$" ) or result )
+        -- self.Error = self.EntryPoint .. ":0: " .. ( string_match( result, "^[^:]+:%d+: (.*)$" ) or result )
+        self.Error = result
     end
 
     hook_Run( "ash.ModuleLoaded", self )
@@ -1611,7 +1668,12 @@ do
             call_environment = module_object.Environment
         end
 
-        local fn, fn_environment = file_compile( abs_path, call_environment, 2 )
+        local success, fn, fn_environment = pcall( file_compile, abs_path, call_environment, 2 )
+
+        if not success then
+            ---@diagnostic disable-next-line: param-type-mismatch
+            error_display( fn )
+        end
 
         if module_object ~= nil then
             raw_set( fn_environment, "__homedir", module_object.Location )
@@ -1626,8 +1688,6 @@ do
 end
 
 do
-
-    local ErrorNoHalt = _G.ErrorNoHalt
 
     ---@type table<string, ash.Module> | table<integer, string>
     ---@diagnostic disable-next-line: assign-type-mismatch
@@ -1796,8 +1856,9 @@ do
 
         local error_msg = module_object.Error
         if error_msg ~= nil then
-            ErrorNoHalt( error_msg .. "\n" )
-            return
+            error( error_msg, 2 )
+            -- ErrorNoHalt( error_msg .. "\n" )
+            -- return
         end
 
         -- if LUA_SERVER then
@@ -1885,13 +1946,7 @@ do
 
         local raw_tonumber = raw.tonumber
 
-        --- [SHARED]
-        ---
-        --- Reloads all modules.
-        ---
-        function ash.reload()
-            local chain = ash.Chain
-
+        local function reload( chain )
             for i = #chain, 1, -1 do
                 local gamemode_info = chain[ i ]
                 local root_name = gamemode_info.name
@@ -1908,11 +1963,19 @@ do
                     if module_object ~= nil then
                         local err_msg = module_object.Error
                         if err_msg ~= nil then
-                            ErrorNoHalt( err_msg .. "\n" )
+                            error( err_msg, 2 )
                         end
                     end
                 end
             end
+        end
+
+        --- [SHARED]
+        ---
+        --- Reloads all modules.
+        ---
+        function ash.reload()
+            xpcall( reload, error_display, ash.Chain )
         end
 
     end
@@ -1960,7 +2023,8 @@ do
                     if module_object ~= nil then
                         local err_msg = module_object.Error
                         if err_msg ~= nil then
-                            ErrorNoHalt( err_msg .. "\n" )
+                            -- ErrorNoHalt( err_msg .. "\n" )
+                            error( err_msg, 2 )
                         end
                     end
                 end )
