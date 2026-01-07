@@ -190,4 +190,48 @@ do
 
 end
 
+do
+
+    local vgui_GetHoveredPanel = vgui.GetHoveredPanel
+    local vgui_CursorVisible = vgui.CursorVisible
+
+    local gui_IsGameUIVisible = gui.IsGameUIVisible
+    local input_GetCursorPos = input.GetCursorPos
+    local Panel_IsValid = Panel.IsValid
+
+    local Panel_SetCursor = Panel.__SetCursor or Panel.SetCursor
+    Panel.__SetCursor = Panel_SetCursor
+
+    ---@type table<Panel, string>
+    local cursors = {}
+
+    setmetatable( cursors, {
+        __index = function()
+            return "arrow"
+        end,
+        __mode = "k"
+    } )
+
+    function Panel:SetCursor( name )
+        Panel_SetCursor( self, name )
+        cursors[ self ] = name
+    end
+
+    hook.Add( "PostRenderVGUI", "MouseCursor", function()
+        if not gui_IsGameUIVisible() and vgui_CursorVisible() then
+            local pnl = vgui_GetHoveredPanel()
+            if pnl ~= nil and Panel_IsValid( pnl ) then
+                if hook_Run( "DrawCursor", cursors[ pnl ], input_GetCursorPos() ) then
+                    Panel_SetCursor( pnl, "blank" )
+                end
+
+                return
+            end
+
+            hook_Run( "DrawCursor", "arrow", input_GetCursorPos() )
+        end
+    end, PRE_HOOK )
+
+end
+
 return ash_engine

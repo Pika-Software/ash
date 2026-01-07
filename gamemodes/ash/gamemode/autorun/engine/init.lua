@@ -21,4 +21,6 @@ hook.Add( "InitPostEntity", "Defaults", function()
     end
 end, PRE_HOOK )
 
+resource.AddWorkshop( "129739986" )
+
 return ash_engine

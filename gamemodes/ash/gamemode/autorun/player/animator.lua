@@ -338,7 +338,6 @@ local Entity_LookupSequence = Entity.LookupSequence
 local Entity_IsValid = Entity.IsValid
 
 local Player_GetActiveWeapon = Player.GetActiveWeapon
-local Player_InVehicle = Player.InVehicle
 
 local Weapon_GetHoldType = Weapon.GetHoldType
 
@@ -383,6 +382,7 @@ do
 
     local player_isInCrouchingAnim = ash_player.isInCrouchingAnim
     local player_getMoveType = ash_player.getMoveType
+    local player_isInVehicle = ash_player.isInVehicle
     local player_isOnGround = ash_player.isOnGround
     local player_isInWater = ash_player.isInWater
 
@@ -485,7 +485,7 @@ do
                 goto activity_selected
             end
 
-            if Player_InVehicle( pl ) then
+            if player_isInVehicle( pl ) then
                 activity = getSitActivity( pl )
 
                 local weapon_entity = Player_GetActiveWeapon( pl )

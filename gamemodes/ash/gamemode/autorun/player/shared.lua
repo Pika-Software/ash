@@ -362,7 +362,30 @@ do
     local Entity_GetFlags = Entity.GetFlags
     local Entity_GetSkin = Entity.GetSkin
 
+    local Player_GetVehicle = Player.GetVehicle
     local Player_InVehicle = Player.InVehicle
+
+    ---@type table<Player, Entity>
+    local players_vehicle = {}
+
+    --- [SHARED]
+    ---
+    --- Gets the player's vehicle.
+    ---
+    ---@param pl Player
+    ---@return Entity vehicle
+    function ash_player.getVehicle( pl )
+        return players_vehicle[ pl ]
+    end
+
+    setmetatable( players_vehicle, {
+        __index = function( self, pl )
+            local vehicle = Player_GetVehicle( pl )
+            self[ pl ] = vehicle
+            return vehicle
+        end,
+        __mode = "k"
+    } )
 
     setmetatable( players_in_vehicle, {
         __index = function( self, pl )
@@ -408,7 +431,6 @@ do
         end,
         __mode = "k"
     } )
-
 
     setmetatable( players_in_crouching, {
         __index = function( self, pl )
@@ -591,7 +613,8 @@ do
     hook.Add( "PlayerThink", "PerformStates", function( pl )
         local in_vehicle = Player_InVehicle( pl )
         if in_vehicle ~= players_in_vehicle[ pl ] then
-
+            players_in_vehicle[ pl ] = in_vehicle
+            players_vehicle[ pl ] = Player_GetVehicle( pl )
         end
 
         local move_type = Entity_GetMoveType( pl )
