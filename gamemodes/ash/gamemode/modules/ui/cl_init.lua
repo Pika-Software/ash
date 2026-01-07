@@ -4,18 +4,19 @@
 ---@field ScreenAspect number
 ---@field ScreenCenterX integer
 ---@field ScreenCenterY integer
-local ui = {}
+local ash_ui = {}
 
-local math_min, math_max = math.min, math.max
+local math = math
 local math_floor = math.floor
+local math_min, math_max = math.min, math.max
 
-local string_match = string.match
-local ScrW, ScrH = ScrW, ScrH
-local tonumber = tonumber
 local hook_Run = hook.Run
-local pairs = pairs
-local IsValid = IsValid
 local vgui_Create = vgui.Create
+local string_match = string.match
+
+local pairs = pairs
+local tonumber = tonumber
+local ScrW, ScrH = ScrW, ScrH
 
 local logger = ash.Logger
 
@@ -92,7 +93,7 @@ local function ui_unit( str )
     return math_floor( units[ unit ]( tonumber( number, 10 ) or 0 ) )
 end
 
-ui.scale = ui_unit
+ash_ui.scale = ui_unit
 
 ---@type table<string, string>
 local unit_sizes = {}
@@ -114,7 +115,7 @@ do
     ---
     ---@param map_params table<string, string>
     ---@return table<string, integer> map_obj
-    function ui.scaleMap( map_params )
+    function ash_ui.scaleMap( map_params )
         local map = {}
 
         setmetatable( map, map_metatable )
@@ -157,7 +158,7 @@ do
     ---@param name string
     ---@param font_data asg.ui.FontData
     ---@return string
-    function ui.font( name, font_data )
+    function ash_ui.font( name, font_data )
         font_data.extended = font_data.extended ~= false
         font_data.antialias = font_data.antialias ~= false
 
@@ -213,8 +214,8 @@ do
         screen_width, screen_height = width, height
         screen_aspect = screen_width / screen_height
 
-        ui.ScreenWidth, ui.ScreenHeight, ui.ScreenAspect = screen_width, screen_height, screen_aspect
-        ui.ScreenCenterX, ui.ScreenCenterY = math_floor( screen_width * 0.5 ), math_floor( screen_height * 0.5 )
+        ash_ui.ScreenWidth, ash_ui.ScreenHeight, ash_ui.ScreenAspect = screen_width, screen_height, screen_aspect
+        ash_ui.ScreenCenterX, ash_ui.ScreenCenterY = math_floor( screen_width * 0.5 ), math_floor( screen_height * 0.5 )
 
         viewport_width, viewport_height = screen_width * 0.01, screen_height * 0.01
         viewport_min, viewport_max = math_min( viewport_width, viewport_height ), math_max( viewport_width, viewport_height )
@@ -242,43 +243,52 @@ do
 end
 
 do
-    local panel_storage = {}
-    ui.panel_storage = panel_storage
+
+    ---@type table<string, Panel>
+    local panels = {}
 
     --- [CLIENT]
     ---
-    --- Create and save panel to table.
+    --- Creates a panel and stores it in the internal naming table.
     ---
-    ---@param key string | nil
-    ---@param class_name string | nil
-    ---@param parent Panel | nil
-    ---@return Panel | nil
-    function ui.setPanel( key, class_name, parent, custom_name )
-        if key == nil then
-            return
+    ---@param store_name string
+    ---@param panel_class string
+    ---@param panel_parent? Panel
+    ---@param panel_name? string
+    ---@return Panel panel
+    function ash_ui.setPanel( store_name, panel_class, panel_parent, panel_name )
+        local panel = panels[ store_name ]
+        if panel ~= nil and panel:IsValid() then
+            panel:Remove()
         end
 
-        local old_panel = panel_storage[ key ]
-        if IsValid( old_panel ) then
-            old_panel:Remove()
-        end
-
-        local panel = vgui_Create( class_name, parent, custom_name )
-
-        panel_storage[ key ] = panel
-
+        panel = vgui_Create( panel_class, panel_parent, panel_name )
+        panels[ store_name ] = panel
         return panel
     end
 
     --- [CLIENT]
     ---
-    --- Get panel from table by key.
+    --- Get panel by key from the internal naming table.
     ---
-    ---@param key string
-    ---@return Panel
-    function ui.getPanel( key )
-        return panel_storage[ key ]
+    ---@param store_name string
+    ---@return Panel panel
+    function ash_ui.getPanel( store_name )
+        return panels[ store_name ]
     end
 
-    return ui
+    hook.Add( "ash.ModuleUnloaded", "StorageCleanup", function( module )
+        if module ~= MODULE then return end
+
+        for name, panel in pairs( panels ) do
+            if panel ~= nil and panel:IsValid() then
+                panel:Remove()
+            end
+
+            panels[ name ] = nil
+        end
+    end, PRE_HOOK )
+
 end
+
+return ash_ui
