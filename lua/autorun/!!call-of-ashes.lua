@@ -194,7 +194,7 @@ do
         size = size + 1
         strings[ size ] = "\n\n"
 
-        ErrorNoHalt( table_concat( strings, "\n", 1, size ) )
+        std.error( table_concat( strings, "\n", 1, size ), 2, true )
     end
 
 end
@@ -850,6 +850,7 @@ setmetatable( environment, {
     end
 } )
 
+environment.console = std.console
 environment.futures = std.futures
 environment.string = string
 environment.math = std.math
@@ -1119,7 +1120,7 @@ do
                 std.errorf( stack_level, false, "File '%s' has been modified.", file_path )
             end
 
-            local success, result = pcall( CompileString, lua_code, file_path, false )
+            success, result = pcall( CompileString, lua_code, file_path, false )
 
             if isString( result ) then
                 success = false

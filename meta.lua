@@ -344,3 +344,6 @@ futures = std.futures
 
 ---@diagnostic disable-next-line: lowercase-global
 gc = std.gc
+
+---@diagnostic disable-next-line: lowercase-global
+console = std.console
