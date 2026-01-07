@@ -4,6 +4,10 @@ local std = _G.dreamwork.std
 local math = std.math
 local math_huge = math.huge
 
+local Entity_GetNW2Var = Entity.GetNW2Var
+local Entity_SetNW2Var = Entity.SetNW2Var
+local Entity_IsValid = Entity.IsValid
+
 local Variable = std.console.Variable
 local hook_Run = hook.Run
 
@@ -16,10 +20,7 @@ do
 
     local entity_Create = SERVER and ents.Create or ents.CreateClientside
     local entity_Register = scripted_ents.Register
-
     local Entity_DrawModel = Entity.DrawModel
-    local Entity_IsValid = Entity.IsValid
-
     local getfenv = getfenv
 
     ---@class ash.entity.Structure : ENT
@@ -333,7 +334,6 @@ end
 
 do
 
-    local Entity_GetNW2Vector = Entity.GetNW2Vector
     local math_floor = math.floor
 
     local default_color = Vector( 0.33, 0.33, 0.33 )
@@ -345,7 +345,7 @@ do
     ---@param entity Entity
     ---@return Vector color_vec3
     function Entity.GetPlayerColor( entity )
-        return Entity_GetNW2Vector( entity, "m_vPlayerColor", default_color )
+        return Entity_GetNW2Var( entity, "m_vPlayerColor", default_color )
     end
 
     Player.GetPlayerColor = Entity.GetPlayerColor
@@ -357,26 +357,20 @@ do
     ---@param entity Entity
     ---@return Color color
     function ash_entity.getPlayerColor( entity )
-        local vector = Entity_GetNW2Vector( entity, "m_vPlayerColor", default_color )
+        local vector = Entity_GetNW2Var( entity, "m_vPlayerColor", default_color )
         return Color( math_floor( vector[ 1 ] * 255 ), math_floor( vector[ 2 ] * 255 ), math_floor( vector[ 3 ] * 255 ), 255 )
     end
 
 end
 
-do
-
-    local Entity_GetNW2Bool = Entity.GetNW2Bool
-
-    --- [SHARED]
-    ---
-    --- Check if entity is button.
-    ---
-    ---@param entity Entity
-    ---@return boolean is_button
-    function ash_entity.isButton( entity )
-        return Entity_GetNW2Bool( entity, "m_bButton", false )
-    end
-
+--- [SHARED]
+---
+--- Check if entity is button.
+---
+---@param entity Entity
+---@return boolean is_button
+function ash_entity.isButton( entity )
+    return Entity_GetNW2Var( entity, "m_bButton", false ) == true
 end
 
 local Entity_GetClass = Entity.GetClass
@@ -480,7 +474,6 @@ do
     local utils_isPropClass = utils.isPropClass
     local utils_isDoorClass = utils.isDoorClass
 
-    local Entity_SetNW2Bool = Entity.SetNW2Bool
     local Entity_GetModel = Entity.GetModel
 
     ---@type Entity[]
@@ -509,27 +502,29 @@ do
             queue_size = queue_size - 1
             queue[ i ] = nil
 
-            local class_name = Entity_GetClass( entity )
-            hook_Run( "EntityCreated", entity, class_name )
+            if Entity_IsValid( entity ) then
+                local class_name = Entity_GetClass( entity )
+                hook_Run( "EntityCreated", entity, class_name )
 
-            if class_name == "player" then
-                hook_Run( "PlayerEntityCreated", entity )
-            -- elseif class_name == "world" then
-            --     hook_Run( "WorldEntityCreated", entity )
-            elseif utils_isPropClass( class_name ) then
-                Entity_SetNW2Bool( entity, "m_bProp", true )
-                hook_Run( "PropEntityCreated", entity, class_name, Entity_GetModel( entity ) )
-            elseif utils_isDoorClass( class_name ) then
-                Entity_SetNW2Bool( entity, "m_bDoor", true )
-                hook_Run( "DoorEntityCreated", entity, class_name )
-            elseif utils_isButtonClass( class_name ) then
-                Entity_SetNW2Bool( entity, "m_bButton", true )
-                hook_Run( "ButtonEntityCreated", entity, class_name )
-            elseif utils_isRagdollClass( class_name ) then
-                Entity_SetNW2Bool( entity, "m_bRagdoll", true )
-                hook_Run( "RagdollEntityCreated", entity, class_name )
-            elseif entity:IsWeapon() then
-                hook_Run( "WeaponEntityCreated", entity, class_name )
+                if class_name == "player" then
+                    hook_Run( "PlayerEntityCreated", entity )
+                -- elseif class_name == "world" then
+                --     hook_Run( "WorldEntityCreated", entity )
+                elseif utils_isPropClass( class_name ) then
+                    Entity_SetNW2Var( entity, "m_bProp", true )
+                    hook_Run( "PropEntityCreated", entity, class_name, Entity_GetModel( entity ) )
+                elseif utils_isDoorClass( class_name ) then
+                    Entity_SetNW2Var( entity, "m_bDoor", true )
+                    hook_Run( "DoorEntityCreated", entity, class_name )
+                elseif utils_isButtonClass( class_name ) then
+                    Entity_SetNW2Var( entity, "m_bButton", true )
+                    hook_Run( "ButtonEntityCreated", entity, class_name )
+                elseif utils_isRagdollClass( class_name ) then
+                    Entity_SetNW2Var( entity, "m_bRagdoll", true )
+                    hook_Run( "RagdollEntityCreated", entity, class_name )
+                elseif entity:IsWeapon() then
+                    hook_Run( "WeaponEntityCreated", entity, class_name )
+                end
             end
         end
     end, PRE_HOOK )
@@ -586,14 +581,14 @@ do
 		local entity = data.Entity
 		if entity ~= nil and entity:IsValid() then
 			if entity:IsPlayer() then
-				result = hook_Run( "PlayerEmitSound", entity, data )
+                result = hook_Run( "PlayerEmitsSound", entity, data )
 				if result ~= nil then return result end
 			else
-				result = hook_Run( "ValidEntityEmitSound", entity, data )
+				result = hook_Run( "EntityEmitsSound", entity, data )
 				if result ~= nil then return result end
 			end
 		elseif entity:IsWorld() then
-			result = hook_Run( "WorldEmitSound", entity, data )
+			result = hook_Run( "WorldEmitsSound", entity, data )
 			if result ~= nil then return result end
 		end
 

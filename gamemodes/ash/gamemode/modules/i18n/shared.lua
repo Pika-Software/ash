@@ -76,6 +76,9 @@ end
 ---
 --- Resolves and interpolate all phrases in a string.
 ---
+--- The string can contain the following format:
+--- `$(key)`
+---
 ---@param str string
 ---@param variables? table<string, string>
 ---@return string text
