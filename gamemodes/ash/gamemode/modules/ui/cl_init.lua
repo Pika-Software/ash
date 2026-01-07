@@ -275,6 +275,7 @@ do
     --- Get panel from table by key.
     ---
     ---@param key string
+    ---@return Panel
     function ui.getPanel( key )
         return panel_storage[ key ]
     end
