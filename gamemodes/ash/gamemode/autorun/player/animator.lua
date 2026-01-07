@@ -1,3 +1,10 @@
+---@class ash.player
+local ash_player = ...
+
+---@type ash.entity
+local ash_entity = require( "ash.entity" )
+local entity_getWaterLevel = ash_entity.getWaterLevel
+
 local ACT_MP_CROUCH_IDLE = ACT_MP_CROUCH_IDLE
 local ACT_MP_STAND_IDLE = ACT_MP_STAND_IDLE
 
@@ -23,6 +30,7 @@ local hook_Run = hook.Run
 
 ---@class ash.player.animator
 local animator = {}
+ash_player.animator = animator
 
 --- [SHARED]
 ---
@@ -299,48 +307,6 @@ end
 
 --- [SHARED]
 ---
---- Gets the player run without weapon activity.
----
----@return integer activity
-local function getRunUnarmedActivity( pl )
-    return Entity_GetNW2Int( pl, "m_iRunUnarmedActivity", ACT_HL2MP_RUN_PANICKED )
-end
-
-animator.getRunUnarmedActivity = getRunUnarmedActivity
-
---- [SHARED]
----
---- Sets the player run without weapon activity.
----
----@param pl Player
----@param activity integer
-function animator.setRunUnarmedActivity( pl, activity )
-    Entity_SetNW2Int( pl, "m_iRunUnarmedActivity", activity )
-end
-
---- [SHARED]
----
---- Gets the player run fast without weapon activity.
----
----@return integer activity
-local function getRunFastUnarmedActivity( pl )
-    return Entity_GetNW2Int( pl, "m_iRunFastUnarmedActivity", ACT_HL2MP_RUN_PANICKED )
-end
-
-animator.getRunFastUnarmedActivity = getRunFastUnarmedActivity
-
---- [SHARED]
----
---- Sets the player run fast without weapon activity.
----
----@param pl Player
----@param activity integer
-function animator.setRunFastUnarmedActivity( pl, activity )
-    Entity_SetNW2Int( pl, "m_iRunFastUnarmedActivity", activity )
-end
-
---- [SHARED]
----
 --- Gets the player crouch without weapon sequence.
 ---
 ---@return string sequence
@@ -365,26 +331,16 @@ local MOVETYPE_NOCLIP = MOVETYPE_NOCLIP
 local MOVETYPE_LADDER = MOVETYPE_LADDER
 local MOVETYPE_WALK = MOVETYPE_WALK
 
-local FL_ANIMDUCKING = FL_ANIMDUCKING
-
 local Vector_Length2DSqr = Vector.Length2DSqr
 local Vector_LengthSqr = Vector.LengthSqr
--- local Vector_Length2D = Vector.Length2D
--- local Vector_Length = Vector.Length
 
 local Entity_LookupSequence = Entity.LookupSequence
-local Entity_GetMoveType = Entity.GetMoveType
-local Entity_IsOnGround = Entity.IsOnGround
-local Entity_WaterLevel = Entity.WaterLevel
-local Entity_GetFlags = Entity.GetFlags
 local Entity_IsValid = Entity.IsValid
 
 local Player_GetActiveWeapon = Player.GetActiveWeapon
 local Player_InVehicle = Player.InVehicle
 
 local Weapon_GetHoldType = Weapon.GetHoldType
-
-local bit_band = bit.band
 
 ---@type table<string, boolean>
 local unarmed_holdtypes = {
@@ -424,6 +380,11 @@ local walk_move_types = {
 animator.WalkMoveTypes = walk_move_types
 
 do
+
+    local player_isInCrouchingAnim = ash_player.isInCrouchingAnim
+    local player_getMoveType = ash_player.getMoveType
+    local player_isOnGround = ash_player.isOnGround
+    local player_isInWater = ash_player.isInWater
 
     ---@type table<string, string>
     local sit_sequences_cache = {
@@ -507,7 +468,7 @@ do
 
     do
 
-        local is_standing, move_type = false, 0
+        local is_crouching, move_type = false, 0
 
         ---@param arguments integer[]
         ---@param pl Player
@@ -538,9 +499,11 @@ do
                 if sequence_id == -1 or sequence_id == 0 then
                     sequence_id = Entity_LookupSequence( pl, "sit_rollercoaster" )
                 end
+
+                goto activity_selected
             end
 
-            move_type = Entity_GetMoveType( pl )
+            move_type = player_getMoveType( pl )
 
             if unhandled_move_types[ move_type ] then
                 activity = getStandActivity( pl )
@@ -550,75 +513,57 @@ do
                 goto activity_selected
             end
 
-            is_standing = bit_band( Entity_GetFlags( pl ), FL_ANIMDUCKING ) == 0
+            is_crouching = player_isInCrouchingAnim( pl )
 
             if move_type == MOVETYPE_LADDER then
-                if is_standing then
-                    activity = getLadderActivity( pl )
-                else
+                if is_crouching then
                     activity = getLadderCrouchActivity( pl )
+                else
+                    activity = getLadderActivity( pl )
                 end
 
                 goto activity_selected
             elseif walk_move_types[ move_type ] then
                 local vertical_speed = Vector_Length2DSqr( velocity )
-                local water_level = Entity_WaterLevel( pl )
 
-                if Entity_IsOnGround( pl ) then
-                    if water_level == 3 then
+                if player_isOnGround( pl ) then
+                    if entity_getWaterLevel( pl ) == 3 then
                         activity = getSwimActivity( pl )
-                        goto activity_selected
-                    elseif is_standing then
-                        if vertical_speed > 22500 then
-                            local weapon_entity = Player_GetActiveWeapon( pl )
-                            if weapon_entity ~= nil and Entity_IsValid( weapon_entity ) and unarmed_holdtypes[ Weapon_GetHoldType( weapon_entity ) ] then
-                                if vertical_speed > 360000 then
-                                    activity = getRunFastUnarmedActivity( pl )
-                                else
-                                    activity = getRunUnarmedActivity( pl )
-                                end
-
-                                goto activity_selected
-                            end
-
-                            if vertical_speed > 360000 then
-                                activity = getRunFastActivity( pl )
-                            else
-                                activity = getRunActivity( pl )
-                            end
-
-                            goto activity_selected
-                        elseif vertical_speed < 0.25 then
-                            activity = getStandActivity( pl )
+                    elseif is_crouching then
+                        if vertical_speed > 256 then
+                            activity = getCrouchWalkActivity( pl )
                         else
-                            activity = getWalkActivity( pl )
+                            activity = getCrouchActivity( pl )
+
+                            local weapon_entity = Player_GetActiveWeapon( pl )
+                            if weapon_entity == nil or not Entity_IsValid( weapon_entity ) or unarmed_holdtypes[ Weapon_GetHoldType( weapon_entity ) ] then
+                                local sequence_name = getCrouchUnarmedSequence( pl )
+                                if string_byte( sequence_name, 1, 1 ) ~= nil then
+                                    sequence_id = Entity_LookupSequence( pl, sequence_name )
+                                end
+                            end
                         end
-
-                        goto activity_selected
-                    end
-
-                    if vertical_speed > 0.25 then
-                        activity = getCrouchWalkActivity( pl )
-                        goto activity_selected
-                    end
-
-                    local weapon_entity = Player_GetActiveWeapon( pl )
-                    if weapon_entity ~= nil and Entity_IsValid( weapon_entity ) and unarmed_holdtypes[ Weapon_GetHoldType( weapon_entity ) ] then
-                        local sequence_name = getCrouchUnarmedSequence( pl )
-                        if string_byte( sequence_name, 1, 1 ) ~= nil then
-                            sequence_id = Entity_LookupSequence( pl, sequence_name )
+                    elseif vertical_speed > 22500 then
+                        if vertical_speed > 360000 then
+                            activity = getRunFastActivity( pl )
+                        elseif vertical_speed > 22500 then
+                            activity = getRunActivity( pl )
                         end
+                    elseif vertical_speed < 256 then
+                        activity = getStandActivity( pl )
+                    else
+                        activity = getWalkActivity( pl )
                     end
 
-                    activity = getCrouchActivity( pl )
-                elseif water_level ~= 0 then
+                    goto activity_selected
+                elseif player_isInWater( pl ) then
                     activity = getSwimActivity( pl )
-                elseif vertical_speed > 62500 then
-                    activity = getFallingActivity( pl )
-                elseif is_standing then
-                    activity = getJumpActivity( pl )
-                else
+                elseif is_crouching then
                     activity = getCrouchActivity( pl )
+                elseif velocity[ 3 ] < -512 then
+                    activity = getFallingActivity( pl )
+                else
+                    activity = getJumpActivity( pl )
                 end
 
                 goto activity_selected
@@ -628,12 +573,12 @@ do
             ::activity_selected::
 
             if activity ~= activities[ pl ] then
-                hook_Run( "PlayerActivityChanged", pl, activity, activities[ pl ] )
+                hook_Run( "PlayerActivitySelected", pl, activity, activities[ pl ] )
                 activities[ pl ] = activity
             end
 
             if sequence_id ~= sequences[ pl ] then
-                hook_Run( "PlayerSequenceChanged", pl, sequence_id, sequences[ pl ] )
+                hook_Run( "PlayerSequenceSelected", pl, sequence_id, sequences[ pl ] )
                 sequences[ pl ] = sequence_id
             end
 
@@ -647,7 +592,7 @@ do
 
     timer.Create( "AnimationUpdate", 0.25, 0, function()
         for _, pl in player_Iterator() do
-            local move_type = Entity_GetMoveType( pl )
+            local move_type = player_getMoveType( pl )
             local rate = 1
 
             if flight_move_types[ move_type ] then
@@ -725,8 +670,9 @@ do
         translation_cache[ pl ] = nil
     end
 
-    hook.Add( "PlayerActivityChanged", "TranslationCacher", cleanup_cache, PRE_HOOK )
     hook.Add( "PlayerSequenceChanged", "TranslationCacher", cleanup_cache, PRE_HOOK )
+    hook.Add( "PlayerActivitySelected", "TranslationCacher", cleanup_cache, PRE_HOOK )
+    hook.Add( "PlayerSequenceSelected", "TranslationCacher", cleanup_cache, PRE_HOOK )
     hook.Add( "PlayerSwitchWeapon", "TranslationCacher", cleanup_cache, PRE_HOOK )
 
 end

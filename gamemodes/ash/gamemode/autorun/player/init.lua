@@ -2,8 +2,18 @@ MODULE.Networks = {
     "network"
 }
 
----@type ash.player.animator
-local ash_animator = require( "ash.player.animator" )
+MODULE.ClientFiles = {
+    "animator.lua",
+    "cl_init.lua",
+    "shared.lua"
+}
+
+do
+
+    local mp_show_voice_icons = console.Variable.get( "mp_show_voice_icons", "boolean" )
+    mp_show_voice_icons.value = false
+
+end
 
 ---@class ash.player
 ---@field SpawnPoints ash.player.SpawnPoint[]
@@ -83,14 +93,14 @@ do
     ---@param pl Player
     function ash_player.ragdollRemove( pl )
         local ragdoll = player_getRagdoll( pl )
-        if ragdoll ~= nil and Entity_IsValid( ragdoll ) and hook_Run( "PrePlayerRagdollRemove", pl, ragdoll ) ~= false then
-            hook_Run( "PlayerRagdollRemove", pl, ragdoll )
+        if ragdoll ~= nil and Entity_IsValid( ragdoll ) and hook_Run( "ShouldRemoveRagdoll", pl, ragdoll ) ~= false then
+            hook_Run( "RagdollRemove", pl, ragdoll )
         end
 
-        hook_Run( "PostPlayerRagdollRemove", pl )
+        hook_Run( "RagdollRemoved", pl )
     end
 
-    hook.Add( "PlayerRagdollRemove", "DefaultRagdoll", function( pl, ragdoll )
+    hook.Add( "RagdollRemove", "DefaultRagdoll", function( pl, ragdoll )
         ragdoll:Remove()
     end )
 
@@ -105,8 +115,8 @@ do
     local Entity_GetPhysicsObjectNum = Entity.GetPhysicsObjectNum
     local Entity_SetCollisionGroup = Entity.SetCollisionGroup
 
+    local animator_getVelocity = ash_player.animator.getVelocity
     local level_containsPosition = ash_level.containsPosition
-    local animator_getVelocity = ash_animator.getVelocity
 
     local trace_result = {}
 
@@ -544,7 +554,7 @@ do
     function ash_player.getSpawnPoint( pl )
         for i = 1, spawnpoint_count, 1 do
             local spawnpoint = spawnpoints[ i ]
-            if hook_Run( "PlayerSelectSpawnPoint", pl, spawnpoint ) ~= false then
+            if hook_Run( "PlayerSelectsSpawnPoint", pl, spawnpoint ) ~= false then
                 return spawnpoint
             end
         end
@@ -674,5 +684,18 @@ do
     end )
 
 end
+
+hook.Add( "PlayerSay", "ChatHandler", function( arguments, sender, text, is_team_chat )
+    local output = arguments[ 2 ]
+    if output ~= nil and hook_Run( "ShouldPlayerChat", sender, output, is_team_chat ) ~= false then
+        return output
+    end
+
+    if hook_Run( "ShouldPlayerChat", sender, text, is_team_chat ) ~= false then
+        return text
+    end
+
+    return ""
+end, POST_HOOK_RETURN )
 
 return ash_player
