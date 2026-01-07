@@ -17,6 +17,9 @@ local NULL = NULL
 ---@field ViewEntity Entity The view entity.
 local ash_player = include( "shared.lua" )
 
+---@type ash.entity
+local ash_entity = require( "ash.entity" )
+
 do
 
     local Player_SetHullDuck = Player.SetHullDuck
@@ -323,6 +326,77 @@ do
             active_weapons[ pl ] = active_weapon
         end
     end, PRE_HOOK )
+
+end
+
+do
+
+    local Entity_DrawModel = Entity.DrawModel
+    local player_Iterator = player.Iterator
+
+    ---@type table<ash.player.Model, boolean>
+    local render_restricted = {}
+    gc.setTableRules( render_restricted, true )
+
+    hook.Add( "PreDrawTranslucentWorld", "Render", function( _, is_depth_pass )
+        for _, pl in player_Iterator() do
+            if hook_Run( "ShouldDrawPlayer", pl, false ) ~= false then
+                hook_Run( "PreDrawPlayer", pl, false, is_depth_pass )
+
+                render_restricted[ pl ] = false
+
+                Entity_DrawModel( pl, 1 )
+
+                local wep = pl:GetActiveWeapon()
+                if wep ~= nil and Entity_IsValid( wep ) then
+                    Entity_DrawModel( wep, 1 )
+                end
+
+                -- Entity_DrawModel( entity, 4 )
+                render_restricted[ pl ] = true
+
+                hook_Run( "DrawPlayerAppearance", pl, false, is_depth_pass )
+                hook_Run( "PostDrawPlayer", pl, false, is_depth_pass )
+            end
+        end
+    end, POST_HOOK )
+
+    hook.Add( "PreDrawTranslucentReflection", "Render", function( _, is_depth_pass )
+        for _, pl in player_Iterator() do
+            if hook_Run( "ShouldDrawPlayer", pl, true ) ~= false then
+                hook_Run( "PreDrawPlayer", pl, true, is_depth_pass )
+
+                render_restricted[ pl ] = false
+
+                Entity_DrawModel( pl, 1 )
+
+                local wep = pl:GetActiveWeapon()
+                if wep ~= nil and Entity_IsValid( wep ) then
+                    Entity_DrawModel( wep, 1 )
+                end
+
+                -- Entity_DrawModel( entity, 4 )
+                render_restricted[ pl ] = true
+
+                hook_Run( "DrawPlayerAppearance", pl, true, is_depth_pass )
+                hook_Run( "PostDrawPlayer", pl, true, is_depth_pass )
+            end
+        end
+    end, POST_HOOK )
+
+    hook.Add( "PrePlayerDraw", "Render", function( pl )
+        return render_restricted[ pl ]
+    end, PRE_HOOK_RETURN )
+
+    do
+
+        local player_isDead = ash_player.isDead
+
+        hook.Add( "ShouldDrawPlayer", "Defaults", function( pl )
+            if player_isDead( pl ) then return false end
+        end )
+
+    end
 
 end
 
