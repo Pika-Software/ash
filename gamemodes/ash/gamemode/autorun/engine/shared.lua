@@ -1,3 +1,6 @@
+---@class ash.engine
+local ash_engine = {}
+
 local hook_Run = hook.Run
 
 cvars.AddChangeCallback( "gmod_language", function( _, __, new_language )
@@ -6,3 +9,4 @@ cvars.AddChangeCallback( "gmod_language", function( _, __, new_language )
 	end )
 end, "LanguageChange" )
 
+return ash_engine

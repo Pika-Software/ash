@@ -1,8 +1,59 @@
-include( "shared.lua" )
+---@class ash.engine
+local ash_engine = include( "shared.lua" )
 
 local render_GetRenderTarget = render.GetRenderTarget
 local Texture_GetName = Texture.GetName
 local hook_Run = hook.Run
+
+---@type ash.ui
+local ash_ui = require( "ash.ui" )
+
+do
+
+    local render_View = render.RenderView
+    local cam_Start2D = cam.Start2D
+    local cam_End2D = cam.End2D
+
+    ---@type ViewData
+    local view = {
+        drawviewmodel = true,
+        dopostprocess = true,
+        drawmonitors = false,
+        drawviewer = false,
+        bloomtone = true,
+        drawhud = true
+    }
+
+    view.offcenter = {}
+    ash_engine.View = view
+
+    local function resolutionChanged( w, h, aspect )
+        view.w, view.h = w, h
+        view.aspect = aspect
+
+        local offcenter = view.offcenter
+
+        offcenter.left = 0
+        offcenter.right = w
+
+        offcenter.top = 0
+        offcenter.bottom = h
+    end
+
+    hook.Add( "ScreenResolutionChanged", "Render", resolutionChanged )
+    resolutionChanged( ash_ui.ScreenWidth, ash_ui.ScreenHeight, ash_ui.ScreenAspect )
+
+    hook.Add( "RenderScene", "Render", function( arguments )
+        if arguments[ 2 ] == true then return true end
+        hook_Run( "PerformView", view )
+        cam_Start2D()
+        render_View( view )
+        hook_Run( "RenderOverlay" )
+        cam_End2D()
+        return true
+    end, POST_HOOK_RETURN )
+
+end
 
 do
 
@@ -138,3 +189,5 @@ do
     end, POST_HOOK )
 
 end
+
+return ash_engine
