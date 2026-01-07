@@ -726,4 +726,51 @@ do
 
 end
 
+--- [SHARED]
+---
+--- Calls use event for entity.
+---
+---@param entity Entity
+---@param activator Entity
+---@param controller? Entity
+---@param use_type? USE
+---@param value? any
+function ash_entity.use( entity, activator, controller, use_type, value )
+    if hook_Run( "ShouldUseEntity", entity, activator, controller, use_type, value ) ~= false then
+        local fn = entity.Use
+        if fn ~= nil then
+            fn( entity, activator, controller, use_type, value )
+        end
+    end
+end
+
+do
+
+    local Entity_GetPoseParameter = Entity.GetPoseParameter
+    local Entity_GetPoseParameterRange = Entity.GetPoseParameterRange
+
+    local math_remap = math.remap
+
+    ash_entity.getPoseParamaterCount = Entity.GetNumPoseParameters
+
+    --- [SHARED]
+    ---
+    --- Returns the value of a pose parameter.
+    ---
+    ---@param entity Entity
+    ---@param index integer
+    ---@return number value
+    function ash_entity.getPoseParameter( entity, index )
+        return math_remap( Entity_GetPoseParameter( entity, index ), 0, 1, Entity_GetPoseParameterRange( entity, index ) )
+    end
+
+    ash_entity.setPoseParameter = Entity.SetPoseParameter
+    ash_entity.resetPoseParameters = Entity.ClearPoseParameters
+    ash_entity.lookupPoseParameter = Entity.LookupPoseParameter
+    ash_entity.getPoseParamaterProgress = Entity_GetPoseParameter
+    ash_entity.getPosteParameterName = Entity.GetPoseParameterName
+    ash_entity.getPoseParamaterRange = Entity.GetPoseParameterRange
+
+end
+
 return ash_entity
