@@ -1,0 +1,9 @@
+"flame"
+{
+	"base"          "ash"
+	"title"			"The Flame"
+	"author"		"Unknown Developer"
+	"version"		"1.0.0"
+	"category"	    "other"
+	"menusystem"	"0"
+}
