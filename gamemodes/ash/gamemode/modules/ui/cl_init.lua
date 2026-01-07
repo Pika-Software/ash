@@ -14,6 +14,8 @@ local ScrW, ScrH = ScrW, ScrH
 local tonumber = tonumber
 local hook_Run = hook.Run
 local pairs = pairs
+local IsValid = IsValid
+local vgui_Create = vgui.Create
 
 local logger = ash.Logger
 
@@ -129,8 +131,8 @@ end
 
 do
 
-	local surface_CreateFont = surface.CreateFont
-	local table_remove = table.remove
+    local surface_CreateFont = surface.CreateFont
+    local table_remove = table.remove
 
     ---@class asg.ui.FontData : FontData
     ---@diagnostic disable-next-line: duplicate-doc-field
@@ -155,7 +157,7 @@ do
     ---@param name string
     ---@param font_data asg.ui.FontData
     ---@return string
-	function ui.font( name, font_data )
+    function ui.font( name, font_data )
         font_data.extended = font_data.extended ~= false
         font_data.antialias = font_data.antialias ~= false
 
@@ -187,23 +189,23 @@ do
 
         font_data.size = ui_unit( font_sizes[ font_data ] )
 
-		for i = 1, font_count, 1 do
-			local font_data_i = font_list[ i ]
+        for i = 1, font_count, 1 do
+            local font_data_i = font_list[ i ]
             if font_names[ font_data_i ] == name then
                 table_remove( font_list, i )
                 font_count = font_count - 1
                 break
             end
-		end
+        end
 
         font_names[ name ] = font_data
 
         font_count = font_count + 1
         font_list[ font_count ] = font_data
 
-		surface_CreateFont( name, font_data )
+        surface_CreateFont( name, font_data )
         return name
-	end
+    end
 
     ---@param width integer
     ---@param height integer
@@ -226,7 +228,7 @@ do
             font_data.size = ui_unit( font_sizes[ font_data ] )
             surface_CreateFont( font_names[ font_data ], font_data )
             logger:debug( "Font '%s' was re-scaled, %s -> %spx", font_names[ font_data ], font_sizes[ font_data ], font_data.size )
-		end
+        end
 
         hook_Run( "ScreenResolutionChanged", width, height, screen_aspect )
     end
@@ -239,4 +241,43 @@ do
 
 end
 
-return ui
+do
+    local panel_storage = {}
+    ui.panel_storage = panel_storage
+
+    --- [CLIENT]
+    ---
+    --- Create and save panel to table.
+    ---
+    ---@param key string | nil
+    ---@param class_name string | nil
+    ---@param parent Panel | nil
+    ---@return Panel | nil
+    function ui.setPanel( key, class_name, parent, custom_name )
+        if key == nil then
+            return
+        end
+
+        local old_panel = panel_storage[ key ]
+        if IsValid( old_panel ) then
+            old_panel:Remove()
+        end
+
+        local panel = vgui_Create( class_name, parent, custom_name )
+
+        panel_storage[ key ] = panel
+
+        return panel
+    end
+
+    --- [CLIENT]
+    ---
+    --- Get panel from table by key.
+    ---
+    ---@param key string
+    function ui.getPanel( key )
+        return panel_storage[ key ]
+    end
+
+    return ui
+end
