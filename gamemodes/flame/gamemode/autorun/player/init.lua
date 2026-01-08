@@ -6,10 +6,7 @@ MODULE.ClientFiles = {
 
 ---@class flame.player
 local flame_player = include( "shared.lua" )
-
-hook.Add( "GetFallDamage", "Defaults", function( pl, speed )
-    return 0
-end )
+local hook_Run = hook.Run
 
 hook.Add( "CanPlayerSuicide", "Defaults", function( pl )
     return true
@@ -190,6 +187,78 @@ do
     hook.Add( "PlayerCanHearPlayersVoice", "Default", function( listener, speaker )
         return speaker == listener or speakers[ speaker ][ listener ], true
     end )
+
+end
+
+do
+
+    local player_isDead = ash_player.isDead
+    local temp_vector = Vector( 0, 0, 0 )
+
+    hook.Add( "PlayerLanded", "Defaults", function( pl, fall_speed, in_water, trace_result )
+        if player_isDead( pl ) then return end
+        fall_speed = -fall_speed
+
+        local damage_amount = hook_Run( "PlayerLandedDamage", pl, fall_speed, in_water, trace_result ) or 0
+        if damage_amount == 0 then return end
+
+        local hit_pos = trace_result.HitPos
+        local damage_info = DamageInfo()
+
+        damage_info:SetAttacker( pl )
+        damage_info:SetDamageType( 32 )
+        damage_info:SetDamage( damage_amount )
+        damage_info:SetDamagePosition( hit_pos )
+
+        pl:TakeDamageInfo( damage_info )
+
+        pl:EmitSound( "Player.FallDamage", 80, math.random( 80, 120 ), math.min( 1, damage_amount / pl:Health() ), CHAN_BODY, 0, 1 )
+
+        local fraction = pl:GetNW2Float( "m_fModelScale", 1 )
+        util.ScreenShake( hit_pos, 15, 150, 0.25 * fraction, 128 * fraction, false )
+
+        local entity = trace_result.Entity
+        if entity and entity:IsValid() and entity:GetMaxHealth() > 1 then
+            temp_vector[ 3 ] = fall_speed * 0.75
+            pl:SetVelocity( temp_vector )
+
+            damage_info:ScaleDamage( 0.5 )
+            entity:TakeDamageInfo( damage_info )
+
+        end
+    end, PRE_HOOK )
+
+    hook.Add( "PlayerLandedDamage", "Defaults", function( pl, fall_speed, in_water, trace_result )
+        if in_water then
+            return math.max( 0, math.ceil( 0.15 * fall_speed - 180 ) )
+        else
+        	return math.max( 0, math.ceil( 0.25 * fall_speed - 140 ) )
+        end
+    end )
+
+end
+
+---@param pl Player
+---@param ragdoll_entity Entity
+hook.Add( "PlayerSetupRagdoll", "Defaults", function( pl, ragdoll_entity )
+    pl:SpectateEntity( ragdoll_entity )
+    pl:Spectate( OBS_MODE_CHASE )
+end )
+
+do
+
+    ---@type table<Player, number>
+    local death_times = {}
+    gc.setTableRules( death_times, true )
+
+    hook.Add( "ShouldPlayerSpawn", "Defaults", function( pl )
+        if ( CurTime() - ( death_times[ pl ] or 0 ) ) > 3 then return end
+        return false
+    end )
+
+    hook.Add( "PostPlayerDeath", "Defaults", function( pl )
+        death_times[ pl ] = CurTime()
+    end, PRE_HOOK )
 
 end
 

@@ -8,6 +8,10 @@ local ash_model = require( "ash.model" )
 local ash_entity = require( "ash.entity" )
 local entity_getWaterLevel = ash_entity.getWaterLevel
 
+---@type ash.trace
+local ash_trace = require( "ash.trace" )
+local trace_cast = ash_trace.cast
+
 ---@class ash.player
 local ash_player = {
     BitCount = math.ceil( math.log( 1 + game.MaxPlayers() ) / math.log( 2 ) )
@@ -1204,11 +1208,74 @@ do
 
 end
 
--- hook.Add( "FindUseEntity", "UsageControl", debug.fempty, PRE_HOOK_RETURN )
+hook.Add( "EntityWaterLevelChanged", "WaterLevel", function( entity, old, new )
+    if entity:IsPlayer() then
+        hook_Run( "PlayerWaterLevelChanged", entity, old, new )
+    end
+end, PRE_HOOK )
+
+hook.Add( "FindUseEntity", "UsageControl", debug.fempty, PRE_HOOK_RETURN )
+
 hook.Add( "PlayerUse", "UsageControl", function( pl, entity )
     return false
 end, PRE_HOOK_RETURN )
 
-include( "animator.lua", ash_player )
+hook.Add( "PlayerShouldTakeDamage", "Defaults", function( arguments )
+    return arguments[ 2 ] ~= false
+end, POST_HOOK_RETURN )
+
+hook.Add( "PlayerNoClip", "Defaults", function( pl, requested )
+    if Player_Alive( pl ) then return end
+    return not requested
+end, PRE_HOOK_RETURN )
+
+---@type ash.player.animator
+local animator = include( "animator.lua", ash_player )
+
+do
+
+    local Entity_GetCollisionBounds = Entity.GetCollisionBounds
+    local math_min = math.min
+
+    ---@type ash.trace.Output
+    ---@diagnostic disable-next-line: missing-fields
+    local trace_result = {}
+
+    ---@type ash.trace.Params
+    local trace = {
+        output = trace_result
+    }
+
+    local temp_vector = Vector( 0, 0, 0 )
+
+    local function perform_trace( pl, speed )
+        trace.mins, trace.maxs = Entity_GetCollisionBounds( pl )
+        trace.filter = pl
+
+        temp_vector[ 3 ] = speed
+
+        local start = pl:GetPos()
+        trace.start = start
+        trace.endpos = start + temp_vector
+
+        trace_cast( trace )
+    end
+
+    hook.Add( "OnPlayerHitGround", "LandingHandler", function( pl, _, __, fall_speed )
+        fall_speed = -fall_speed
+        perform_trace( pl, fall_speed )
+        hook_Run( "PlayerLanded", pl, fall_speed, false, trace_result )
+    end, PRE_HOOK )
+
+    hook.Add( "PlayerWaterLevelChanged", "LandingHandler", function( pl, old, new )
+        if players_on_ground[ pl ] or players_in_water[ pl ] or old > new then return end
+
+        local fall_speed = math_min( 0, animator.getVelocity( pl )[ 3 ] )
+        perform_trace( pl, fall_speed )
+
+        hook_Run( "PlayerLanded", pl, fall_speed, true, trace_result )
+    end, PRE_HOOK )
+
+end
 
 return ash_player

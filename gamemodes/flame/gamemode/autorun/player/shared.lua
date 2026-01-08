@@ -10,8 +10,8 @@ local ash_entity = require( "ash.entity" )
 local ash_trace = require( "ash.trace" )
 local trace_cast = ash_trace.cast
 
-hook.Add( "PlayerNoClip", "Defaults", function( args, pl, requested )
-    local overridden = args[ 2 ]
+hook.Add( "PlayerNoClip", "Defaults", function( arguments, pl, requested )
+    local overridden = arguments[ 2 ]
 
     if overridden == nil then
         return not requested or pl:IsSuperAdmin()
@@ -19,6 +19,11 @@ hook.Add( "PlayerNoClip", "Defaults", function( args, pl, requested )
 
     return overridden
 end, POST_HOOK_RETURN )
+
+hook.Add( "PhysgunPickup", "Defaults", function( arguments, pl, entity )
+    return arguments[ 2 ] ~= false
+end, POST_HOOK_RETURN )
+
 
 do
 

@@ -700,7 +700,9 @@ do
 
     setmetatable( water_levels, {
         __index = function( _, entity )
-            return Entity_WaterLevel( entity ) or 0
+            local water_level = Entity_WaterLevel( entity ) or 0
+            water_levels[ entity ] = water_level
+            return water_level
         end,
         __mode = "k"
     } )
@@ -720,8 +722,31 @@ do
         return water_levels[ entity ]
     end
 
-    hook.Add( "OnEntityWaterLevelChanged", "DataCapture", function( entity, _, new )
-        water_levels[ entity ] = new
+    if SERVER then
+        hook.Add( "OnEntityWaterLevelChanged", "WaterLevel", function( entity, old, new )
+            water_levels[ entity ] = new
+            hook_Run( "EntityWaterLevelChanged", entity, old, new )
+        end, PRE_HOOK )
+    else
+        hook.Add( "EntityThink", "WaterLevel", function( entity )
+            local water_level = Entity_WaterLevel( entity ) or 0
+            if water_levels[ entity ] ~= water_level then
+                hook_Run( "EntityWaterLevelChanged", entity, water_levels[ entity ], water_level )
+                water_levels[ entity ] = water_level
+            end
+        end, PRE_HOOK )
+    end
+
+end
+
+do
+
+    local ents_Iterator = ents.Iterator
+
+    hook.Add( "Tick", "Think", function()
+        for _, entity in ents_Iterator() do
+            hook_Run( "EntityThink", entity )
+        end
     end, PRE_HOOK )
 
 end

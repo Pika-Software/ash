@@ -27,14 +27,15 @@ local ash_entity = require( "ash.entity" )
 local entity_getHitbox = ash_entity.getHitbox
 local entity_getHitboxBounds = ash_entity.getHitboxBounds
 
+---@type ash.trace
+local ash_trace = require( "ash.trace" )
+local trace_cast = ash_trace.cast
+
 ---@type ash.utils
 local ash_utils = require( "ash.utils" )
 
 ---@type ash.level
 local ash_level = require( "ash.level" )
-
-local util_TraceLine = util.TraceLine
-local util_TraceHull = util.TraceHull
 
 local Entity_GetBoneMatrix = Entity.GetBoneMatrix
 local Entity_IsValid = Entity.IsValid
@@ -118,8 +119,11 @@ do
     local animator_getVelocity = ash_player.animator.getVelocity
     local level_containsPosition = ash_level.containsPosition
 
+    ---@type ash.trace.Output
+    ---@diagnostic disable-next-line: missing-fields
     local trace_result = {}
 
+    ---@type ash.trace.Params
     local trace = {
         output = trace_result
     }
@@ -158,12 +162,11 @@ do
                                 trace.filter = { ragdoll_entity, pl }
 
                                 local hitbox, hitbox_group = entity_getHitbox( pl, bone_id )
-                                if hitbox == nil then
-                                    util_TraceLine( trace )
-                                else
+                                if hitbox ~= nil then
                                     trace.mins, trace.maxs = entity_getHitboxBounds( pl, hitbox, hitbox_group )
-                                    util_TraceHull( trace )
                                 end
+
+                                trace_cast( trace )
 
                                 if not trace_result.Hit then
                                     physics_object:SetPos( origin )
@@ -195,7 +198,7 @@ do
 
         local player_isNextBot = ash_player.isNextBot
 
-        hook.Add( "PlayerInitialSpawn", "Respawn", function( pl )
+        hook.Add( "PlayerInitialSpawn", "Initialization", function( pl )
             if player_isNextBot( pl ) then
                 Entity_SetNWBool( pl, "m_bInitialized", true )
                 hook_Run( "PlayerInitialized", pl )
@@ -475,7 +478,7 @@ do
         local Entity_Spawn = Entity.Spawn
 
         hook.Add( "KeyRelease", "Spawn", function( pl, key )
-            if awaiting_respawn[ pl ] and bit_band( key, respawn_keys[ pl ] ) ~= 0 and hook_Run( "CanPlayerRespawn", pl ) ~= false then
+            if awaiting_respawn[ pl ] and bit_band( key, respawn_keys[ pl ] ) ~= 0 and hook_Run( "ShouldPlayerSpawn", pl ) ~= false then
                 Entity_Spawn( pl )
             end
         end, PRE_HOOK )
@@ -685,17 +688,18 @@ do
 
 end
 
-hook.Add( "PlayerSay", "ChatHandler", function( arguments, sender, text, is_team_chat )
-    local output = arguments[ 2 ]
-    if output ~= nil and hook_Run( "ShouldPlayerChat", sender, output, is_team_chat ) ~= false then
-        return output
-    end
+hook.Add( "PlayerSay", "ChatHandler", function( arguments, sender, message, is_team_chat )
+    message = arguments[ 2 ] or message
 
-    if hook_Run( "ShouldPlayerChat", sender, text, is_team_chat ) ~= false then
-        return text
+    if hook_Run( "ShouldPlayerChat", sender, message, is_team_chat ) ~= false then
+        return message
     end
 
     return ""
+end, POST_HOOK_RETURN )
+
+hook.Add( "GetFallDamage", "LandingHandler", function( arguments, pl, fall_speed )
+    return arguments[ 2 ] or 0
 end, POST_HOOK_RETURN )
 
 return ash_player
