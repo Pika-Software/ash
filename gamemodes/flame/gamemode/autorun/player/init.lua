@@ -56,6 +56,8 @@ do
             local model_info = ash_model.get( pl:GetInfo( "flame_player_model" ) )
             pl:SetModel( model_info.model )
 
+            pl:SetSkin( math.clamp( pl:GetInfoNum( "flame_player_skin", 0 ), 0, model_info.skin_count ) )
+
             local scale = model_info.scale
             pl:SetNW2Float( "m_fModelScale", scale )
 
@@ -193,6 +195,9 @@ end
 do
 
     local player_isDead = ash_player.isDead
+    local math_ceil = math.ceil
+    local math_max = math.max
+
     local temp_vector = Vector( 0, 0, 0 )
 
     hook.Add( "PlayerLanded", "Defaults", function( pl, fall_speed, in_water, trace_result )
@@ -214,8 +219,8 @@ do
 
         pl:EmitSound( "Player.FallDamage", 80, math.random( 80, 120 ), math.min( 1, damage_amount / pl:Health() ), CHAN_BODY, 0, 1 )
 
-        local fraction = pl:GetNW2Float( "m_fModelScale", 1 )
-        util.ScreenShake( hit_pos, 15, 150, 0.25 * fraction, 128 * fraction, false )
+        -- local fraction = pl:GetNW2Float( "m_fModelScale", 1 )
+        -- util.ScreenShake( hit_pos, 15, 150, 0.25 * fraction, 128 * fraction, false )
 
         local entity = trace_result.Entity
         if entity and entity:IsValid() and entity:GetMaxHealth() > 1 then
@@ -230,9 +235,9 @@ do
 
     hook.Add( "PlayerLandedDamage", "Defaults", function( pl, fall_speed, in_water, trace_result )
         if in_water then
-            return math.max( 0, math.ceil( 0.15 * fall_speed - 180 ) )
+            return math_max( 0, math_ceil( 0.15 * fall_speed - 180 ) )
         else
-        	return math.max( 0, math.ceil( 0.25 * fall_speed - 140 ) )
+        	return math_max( 0, math_ceil( 0.25 * fall_speed - 140 ) )
         end
     end )
 

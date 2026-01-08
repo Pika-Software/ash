@@ -24,7 +24,6 @@ hook.Add( "PhysgunPickup", "Defaults", function( arguments, pl, entity )
     return arguments[ 2 ] ~= false
 end, POST_HOOK_RETURN )
 
-
 do
 
     local entity_isActivityExists = ash_entity.isActivityExists

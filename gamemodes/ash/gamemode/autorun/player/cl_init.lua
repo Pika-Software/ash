@@ -390,9 +390,17 @@ do
 
     do
 
+        local Player_ShouldDrawLocalPlayer = Player.ShouldDrawLocalPlayer
+
+        local Entity_GetNoDraw = Entity.GetNoDraw
+        local Entity_IsDormant = Entity.IsDormant
+
+        local player_isLocal = ash_player.isLocal
         local player_isDead = ash_player.isDead
 
         hook.Add( "ShouldDrawPlayer", "Defaults", function( pl )
+            if player_isLocal( pl ) and not Player_ShouldDrawLocalPlayer( pl ) then return false end
+            if Entity_GetNoDraw( pl ) or Entity_IsDormant( pl ) then return false end
             if player_isDead( pl ) then return false end
         end )
 
