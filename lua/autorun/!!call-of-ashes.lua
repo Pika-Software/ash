@@ -170,8 +170,13 @@ do
 
     local ErrorNoHalt = ErrorNoHalt
 
-    ---@param stack debuginfo[]
+    ---@param stack debuginfo[] | string
     function error_display( stack )
+        if isString( stack ) then
+            ErrorNoHalt( stack .. "\n" )
+            return
+        end
+
         local top_error = stack[ 1 ]
         if top_error == nil then
             ErrorNoHalt( "Unknown error.\n" )
@@ -1716,7 +1721,7 @@ do
         local segments, segments_count = string.byteSplit( module_path, 0x2e --[[ . ]] )
 
         if segments_count == 0 then
-            std.error( "Module path cannot be empty.", stack_level, false )
+            error( "Module path cannot be empty.", stack_level )
         end
 
         if segments_count == 1 then
@@ -1858,9 +1863,7 @@ do
 
         local error_msg = module_object.Error
         if error_msg ~= nil then
-            error( error_msg, 2 )
-            -- ErrorNoHalt( error_msg .. "\n" )
-            -- return
+            error_display( error_msg )
         end
 
         -- if LUA_SERVER then
