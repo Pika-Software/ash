@@ -51,7 +51,7 @@ do
 
         ---@param pl Player
         hook.Add( "PlayerSetupModel", "Default", function( pl )
-            ash_entity.setPlayerColor( pl, Color( flame_player.toRGB( pl:GetInfo( "flame_player_color" ) ) ) )
+            ash_entity.setPlayerColor( pl, Color( flame_player.StoRGB( pl:GetInfo( "flame_player_color" ) ) ) )
 
             local model_info = ash_model.get( pl:GetInfo( "flame_player_model" ) )
             pl:SetModel( model_info.model )
@@ -219,8 +219,8 @@ do
 
         pl:EmitSound( "Player.FallDamage", 80, math.random( 80, 120 ), math.min( 1, damage_amount / pl:Health() ), CHAN_BODY, 0, 1 )
 
-        -- local fraction = pl:GetNW2Float( "m_fModelScale", 1 )
-        -- util.ScreenShake( hit_pos, 15, 150, 0.25 * fraction, 128 * fraction, false )
+        local fraction = pl:GetNW2Float( "m_fModelScale", 1 )
+        util.ScreenShake( hit_pos, 15, 150, 0.25 * fraction, 128 * fraction, false )
 
         local entity = trace_result.Entity
         if entity and entity:IsValid() and entity:GetMaxHealth() > 1 then

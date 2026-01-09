@@ -33,7 +33,7 @@ do
         name = "flame_player_color",
         type = "string",
         ---@diagnostic disable-next-line: param-type-mismatch
-        default = string.format( "%d %d %d", flame_player.toRGB( cl_playercolor.value or cl_playercolor.default ) ),
+        default = string.format( "%d %d %d", flame_player.V3toRGB( cl_playercolor.value or cl_playercolor.default ) ),
         description = "The color of the player model to use, its RGB values, separated by spaces, from 0 to 255.",
         archive = true,
         userinfo = true,
@@ -58,7 +58,7 @@ do
         name = "flame_weapon_color",
         type = "string",
         ---@diagnostic disable-next-line: param-type-mismatch
-        default = string.format( "%d %d %d", flame_player.toRGB( cl_weaponcolor.value or cl_weaponcolor.default ) ),
+        default = string.format( "%d %d %d", flame_player.V3toRGB( cl_weaponcolor.value or cl_weaponcolor.default ) ),
         description = "The color of the player weapon to use, its RGB values, separated by spaces, from 0 to 255.",
         archive = true,
         userinfo = true,
