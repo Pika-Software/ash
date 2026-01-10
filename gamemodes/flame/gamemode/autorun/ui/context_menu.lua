@@ -4,12 +4,16 @@ local flame_ui = ...
 ---@type ash.ui
 local ash_ui = require( "ash.ui" )
 
+---@type ash.player
+local ash_player = require( "ash.player" )
+
+---@type ash.engine
+local ash_engine = require( "ash.engine" )
+
 local colors = ash_ui.Colors
 
 local dark_white = colors[ 200 ]
-local light_grey = colors[ 50 ]
 local dark_grey = colors[ 33 ]
-local black = colors.black
 local white = colors.white
 
 local Panel = Panel
@@ -278,33 +282,13 @@ do
 
 	end
 
-	-- function ContextMenu:Paint( width, height )
-	-- 	if GetRoundState() ~= ROUND_RUNNING then
-	-- 		return
-	-- 	end
+ 	function ContextMenu:Paint( width, height )
+		hook_Run( "ContextMenuRender", self, width, height )
+	end
 
-	-- 	local remainingTime = GetRemainingTime()
-	-- 	if remainingTime == 0 then
-	-- 		return
-	-- 	end
-
-	-- 	surface_SetFont( "Jailbreak::RoundState" )
-
-	-- 	local text = format( GetPhrase( "jb.round.2" ), remainingTime )
-	-- 	local x, y = Jailbreak.ScreenCenterX - surface_GetTextSize( text ) / 2, VMin( 1 )
-
-	-- 	surface_SetTextPos( x - 1, y - 1 )
-	-- 	surface_SetTextColor( black.r, black.g, black.b, 50 )
-	-- 	surface_DrawText( text )
-
-	-- 	surface_SetTextPos( x + 3, y + 3 )
-	-- 	surface_SetTextColor( black.r, black.g, black.b, 120 )
-	-- 	surface_DrawText( text )
-
-	-- 	surface_SetTextColor( white.r, white.g, white.b, 255 )
-	-- 	surface_SetTextPos( x, y )
-	-- 	surface_DrawText( text )
-	-- end
+	function ContextMenu:Think()
+		hook_Run( "ContextMenuThink", self )
+	end
 
 	vgui.Register( "flame.ui.ContextMenu", ContextMenu, "EditablePanel" )
 
@@ -574,5 +558,112 @@ do
 	end
 
 	Panel.GetSkin = getSkin
+
+end
+
+local entity
+
+do
+
+	local engine_getViewNormal = ash_engine.getViewNormal
+	local engine_View = ash_engine.View
+
+	local Entity_GetNoDraw = Entity.GetNoDraw
+	local Entity_GetSolid = Entity.GetSolid
+	local Entity_IsValid = Entity.IsValid
+
+	local util_TraceLine = util.TraceLine
+
+	---@type TraceResult
+	local trace_result = {}
+
+	---@type Trace
+	local trace = {
+		output = trace_result
+	}
+
+	hook.Add( "ContextMenuThink", "Properties", function( self )
+		local view_entity = ash_player.ViewEntity
+		local start = engine_View.origin
+
+		trace.start = start
+		trace.endpos = start + engine_getViewNormal() * ( hook_Run( "ContextMenuTraceLength", view_entity ) or 1024 )
+		trace.filter = view_entity
+
+		util_TraceLine( trace )
+
+		if not trace_result.Hit then
+			entity = nil
+			return
+		end
+
+		entity = trace_result.Entity
+
+		if not Entity_IsValid( entity ) or Entity_GetNoDraw( entity ) or Entity_GetSolid( entity ) == 0 or entity:IsPlayer()	 then
+			entity = nil
+		end
+	end )
+
+end
+
+do
+
+	local render = render
+	local render_SetBlend = render.SetBlend
+	local render_SuppressEngineLighting = render.SuppressEngineLighting
+
+	local render_SetStencilEnable = render.SetStencilEnable
+	local render_SetStencilTestMask = render.SetStencilTestMask
+	local render_SetStencilWriteMask = render.SetStencilWriteMask
+	local render_SetStencilPassOperation = render.SetStencilPassOperation
+	local render_SetStencilFailOperation = render.SetStencilFailOperation
+	local render_SetStencilZFailOperation = render.SetStencilZFailOperation
+	local render_SetStencilReferenceValue = render.SetStencilReferenceValue
+	local render_SetStencilCompareFunction = render.SetStencilCompareFunction
+
+	local STENCIL_ALWAYS, STENCIL_KEEP, STENCIL_REPLACE, STENCIL_EQUAL = STENCIL_ALWAYS, STENCIL_KEEP, STENCIL_REPLACE, STENCIL_EQUAL
+
+	local cam_Start2D, cam_End2D = cam.Start2D, cam.End2D
+	local cam_Start3D, cam_End3D = cam.Start3D, cam.End3D
+
+	local Entity_DrawModel = Entity.DrawModel
+
+	hook.Add( "ContextMenuRender", "Jailbreak::Properties", function( self, width, height )
+		if entity ~= nil then
+			cam_Start3D()
+
+			render_SetStencilEnable( true )
+			render_SetStencilWriteMask( 1 )
+			render_SetStencilTestMask( 1 )
+			render_SetStencilReferenceValue( 1 )
+			render_SetStencilCompareFunction( STENCIL_ALWAYS )
+			render_SetStencilPassOperation( STENCIL_REPLACE )
+			render_SetStencilFailOperation( STENCIL_KEEP )
+			render_SetStencilZFailOperation( STENCIL_KEEP )
+
+			render_SuppressEngineLighting( true )
+			render_SetBlend( 0 )
+
+			Entity_DrawModel( entity )
+
+			render_SetBlend( 1 )
+			render_SuppressEngineLighting( false )
+
+			render_SetStencilCompareFunction( STENCIL_EQUAL )
+			render_SetStencilPassOperation( STENCIL_KEEP )
+
+			cam_Start2D()
+			surface_SetDrawColor( 255, 255, 255, 10 )
+			surface_DrawRect( 0, 0, width, height )
+			cam_End2D()
+
+			render_SetStencilEnable( false )
+			render_SetStencilTestMask( 0 )
+			render_SetStencilWriteMask( 0 )
+			render_SetStencilReferenceValue( 0 )
+
+			cam_End3D()
+		end
+	end )
 
 end
