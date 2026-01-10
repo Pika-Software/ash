@@ -57,6 +57,22 @@ end
 
 do
 
+    local gui_ScreenToVector = gui.ScreenToVector
+    local input_GetCursorPos = input.GetCursorPos
+
+    --- [CLIENT]
+    ---
+    --- Returns the direction vector of the mouse cursor relative to the screen.
+    ---
+    ---@return Vector view_normal
+    function ash_engine.getViewNormal()
+        return gui_ScreenToVector( input_GetCursorPos() )
+    end
+
+end
+
+do
+
     local in_water_reflection = false
     local in_water_refraction = false
 
