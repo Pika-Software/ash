@@ -792,7 +792,7 @@ do
     ash_entity.setPoseParameter = Entity.SetPoseParameter
     ash_entity.resetPoseParameters = Entity.ClearPoseParameters
     ash_entity.lookupPoseParameter = Entity.LookupPoseParameter
-    ash_entity.getPoseParamaterProgress = Entity_GetPoseParameter
+    ash_entity.getPoseParamaterFloat = Entity_GetPoseParameter
     ash_entity.getPosteParameterName = Entity.GetPoseParameterName
     ash_entity.getPoseParamaterRange = Entity.GetPoseParameterRange
 

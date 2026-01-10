@@ -23,4 +23,25 @@ end, PRE_HOOK )
 
 resource.AddWorkshop( "129739986" )
 
+do
+
+    local timer_Remove = _G.timer.Remove
+    local hook_Remove = _G.hook.Remove
+
+    -- garrysmod/gamemodes/sandbox/gamemode/persistence.lua
+    hook_Remove( "InitPostEntity", "PersistenceInit" )
+    hook_Remove( "ShutDown", "SavePersistenceOnShutdown" )
+
+    hook_Remove( "PersistenceSave", "PersistenceSave" )
+
+    hook_Remove( "PersistenceLoad", "PersistenceLoad" )
+    hook_Remove( "PostCleanupMap", "GMod_Sandbox_PersistanceLoad" )
+
+    timer_Remove( "sbox_persist_change_timer" )
+
+    -- garrysmod/lua/includes/extensions/player_auth.lua
+    hook_Remove( "PlayerInitialSpawn", "PlayerAuthSpawn" ) -- purified piece of crap
+
+end
+
 return ash_engine

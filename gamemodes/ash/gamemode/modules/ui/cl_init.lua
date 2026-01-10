@@ -6,6 +6,8 @@
 ---@field ScreenCenterY integer
 local ash_ui = {}
 
+ash_ui.Colors = ash.Colors
+
 local math = math
 local math_floor = math.floor
 local math_min, math_max = math.min, math.max

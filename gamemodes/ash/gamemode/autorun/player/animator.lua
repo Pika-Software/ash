@@ -269,7 +269,7 @@ end
 ---
 ---@return integer activity
 local function getRunActivity( pl )
-    return Entity_GetNW2Int( pl, "m_iRunActivity", ACT_MP_RUN )
+    return Entity_GetNW2Int( pl, "m_iRunActivity", ACT_MP_RUN ) -- ACT_HL2MP_RUN_FAST
 end
 
 animator.getRunActivity = getRunActivity
@@ -282,27 +282,6 @@ animator.getRunActivity = getRunActivity
 ---@param activity integer
 function animator.setRunActivity( pl, activity )
     Entity_SetNW2Int( pl, "m_iRunActivity", activity )
-end
-
---- [SHARED]
----
---- Gets the player run fast activity.
----
----@return integer activity
-local function getRunFastActivity( pl )
-    return Entity_GetNW2Int( pl, "m_iRunFastActivity", ACT_HL2MP_RUN_FAST )
-end
-
-animator.getRunFastActivity = getRunFastActivity
-
---- [SHARED]
----
---- Sets the player run fast activity.
----
----@param pl Player
----@param activity integer
-function animator.setRunFastActivity( pl, activity )
-    Entity_SetNW2Int( pl, "m_iRunFastActivity", activity )
 end
 
 --- [SHARED]
@@ -468,6 +447,12 @@ do
 
     do
 
+        local player_getKeys = ash_player.getKeys
+        local bit_band = bit.band
+
+        local in_walk_keys = bit.bor( IN_FORWARD, IN_BACK, IN_MOVELEFT, IN_MOVERIGHT )
+        local IN_SPEED = IN_SPEED
+
         local is_crouching, move_type = false, 0
 
         ---@param arguments integer[]
@@ -515,7 +500,7 @@ do
 
             is_crouching = player_isInCrouchingAnim( pl )
 
-            if move_type == MOVETYPE_LADDER then
+            if move_type == 9 then
                 if is_crouching then
                     activity = getLadderCrouchActivity( pl )
                 else
@@ -524,17 +509,13 @@ do
 
                 goto activity_selected
             elseif walk_move_types[ move_type ] then
-                local vertical_speed = Vector_Length2DSqr( velocity )
-
                 if player_isOnGround( pl ) then
+                    local in_keys = player_getKeys( pl )
+
                     if entity_getWaterLevel( pl ) == 3 then
                         activity = getSwimActivity( pl )
                     elseif is_crouching then
-                        if vertical_speed > 256 then
-                            activity = getCrouchWalkActivity( pl )
-                        else
-                            activity = getCrouchActivity( pl )
-
+                        if bit_band( in_keys, in_walk_keys ) == 0 then
                             local weapon_entity = Player_GetActiveWeapon( pl )
                             if weapon_entity == nil or not Entity_IsValid( weapon_entity ) or unarmed_holdtypes[ Weapon_GetHoldType( weapon_entity ) ] then
                                 local sequence_name = getCrouchUnarmedSequence( pl )
@@ -542,17 +523,19 @@ do
                                     sequence_id = Entity_LookupSequence( pl, sequence_name )
                                 end
                             end
+
+                            activity = getCrouchActivity( pl )
+                        else
+                            activity = getCrouchWalkActivity( pl )
                         end
-                    elseif vertical_speed > 22500 then
-                        if vertical_speed > 360000 then
-                            activity = getRunFastActivity( pl )
-                        elseif vertical_speed > 22500 then
-                            activity = getRunActivity( pl )
+                    elseif bit_band( in_keys, IN_SPEED ) == 0 then
+                        if bit_band( in_keys, in_walk_keys ) == 0 then
+                            activity = getStandActivity( pl )
+                        else
+                            activity = getWalkActivity( pl )
                         end
-                    elseif vertical_speed < 256 then
-                        activity = getStandActivity( pl )
                     else
-                        activity = getWalkActivity( pl )
+                        activity = getRunActivity( pl )
                     end
 
                     goto activity_selected
@@ -587,21 +570,38 @@ do
 
     end
 
+    local Entity_GetSequenceGroundSpeed = Entity.GetSequenceGroundSpeed
     local Entity_SetPlaybackRate = Entity.SetPlaybackRate
+
+    local player_getSequence = ash_player.getSequence
     local player_Iterator = player.Iterator
+
+    local math_sqrt = math.sqrt
+    local math_min = math.min
 
     timer.Create( "AnimationUpdate", 0.25, 0, function()
         for _, pl in player_Iterator() do
             local move_type = player_getMoveType( pl )
-            local rate = 1
+            local rate = 1.00
 
-            if flight_move_types[ move_type ] then
+            if move_type == 2 then
+                local max_speed = Entity_GetSequenceGroundSpeed( pl, player_getSequence( pl ) )
+                if max_speed ~= 0 then
+                    rate = math_sqrt( Vector_LengthSqr( velocities[ pl ] ) ) / max_speed
+
+                    if player_isOnGround( pl ) then
+                        rate = math_min( 2, rate )
+                    else
+                        rate = math_min( 1, rate )
+                    end
+                end
+            elseif flight_move_types[ move_type ] then
                 if Vector_LengthSqr( velocities[ pl ] ) > 22500 then
-                    rate = 0
+                    rate = 0.00
                 else
                     rate = 0.25
                 end
-            elseif move_type == MOVETYPE_LADDER then
+            elseif move_type == 9 then
                 rate = 0.25
             end
 

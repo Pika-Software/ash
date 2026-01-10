@@ -82,12 +82,16 @@ do
 
     local Entity_GetNW2Float = Entity.GetNW2Float
 
-    hook.Add( "PlayerSpeed", "SpeedScale", function( arguments, pl, mv )
+    local function move_speed_multiplier( arguments, pl )
         local speed = arguments[ 2 ]
         if speed ~= nil then
             return speed * Entity_GetNW2Float( pl, "m_fModelScale", 1 )
         end
-    end, POST_HOOK_RETURN )
+    end
+
+    hook.Add( "PlayerLadderSpeed", "SpeedModifier", move_speed_multiplier, POST_HOOK_RETURN )
+    hook.Add( "PlayerWalkSpeed", "SpeedModifier", move_speed_multiplier, POST_HOOK_RETURN )
+    hook.Add( "PlayerSwimSpeed", "SpeedModifier", move_speed_multiplier, POST_HOOK_RETURN )
 
 end
 

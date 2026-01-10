@@ -48,7 +48,7 @@ do
         hook_Run( "PerformView", view )
         cam_Start2D()
         render_View( view )
-        hook_Run( "RenderOverlay" )
+        hook_Run( "OverlayRender" )
         cam_End2D()
         return true
     end, POST_HOOK_RETURN )
@@ -232,6 +232,95 @@ do
         end
     end, PRE_HOOK )
 
+end
+
+do
+
+    local timer_Remove = _G.timer.Remove
+    local hook_Remove = _G.hook.Remove
+
+    -- garrysmod/lua/includes/modules/properties.lua
+    hook_Remove( "PreDrawHalos", "PropertiesHover" )
+    hook_Remove( "GUIMousePressed", "PropertiesClick" )
+    hook_Remove( "PreventScreenClicks", "PropertiesPreventClicks" )
+    hook_Remove( "PlayerBindPress", "PlayerOptionInput" )
+    hook_Remove( "HUDPaint", "PlayerOptionDraw" )
+
+    -- garrysmod/gamemodes/base/gamemode/cl_voice.lua
+    hook_Remove( "InitPostEntity", "CreateVoiceVGUI" )
+    timer_Remove( "VoiceClean" ) -- skill issue timer
+
+    -- garrysmod/lua/includes/util/client.lua
+	hook_Remove( "Think", "RealFrameTime" )
+
+    -- garrysmod/lua/vgui/dtextentry.lua
+    -- hook_Remove( "VGUIMousePressed", "TextEntryLoseFocus" ) -- required rewrite
+
+    -- garrysmod/lua/postprocess/frame_blend.lua
+    hook_Remove( "PostRender", "RenderFrameBlend" )
+
+    -- garrysmod/lua/postprocess/overlay.lua
+    hook_Remove( "RenderScreenspaceEffects", "RenderMaterialOverlay" )
+
+    -- garrysmod/lua/postprocess/super_dof.lua
+    hook_Remove( "RenderScene", "RenderSuperDoF" )
+    hook_Remove( "GUIMouseReleased", "SuperDOFMouseUp" )
+    hook_Remove( "GUIMousePressed", "SuperDOFMouseDown" )
+    hook_Remove( "PreventScreenClicks", "SuperDOFPreventClicks" )
+
+    -- garrysmod/lua/postprocess/sunbeams.lua
+    hook_Remove( "RenderScreenspaceEffects", "RenderSunbeams" )
+
+    -- garrysmod/lua/postprocess/texturize.lua
+    hook_Remove( "RenderScreenspaceEffects", "RenderTexturize" )
+
+    -- garrysmod/lua/postprocess/stereoscopy.lua
+    hook_Remove( "RenderScene", "RenderStereoscopy" )
+
+    -- garrysmod/lua/postprocess/motion_blur.lua
+    hook_Remove( "RenderScreenspaceEffects", "RenderMotionBlur" )
+
+    -- garrysmod/lua/postprocess/bloom.lua
+    hook_Remove( "RenderScreenspaceEffects", "RenderBloom" )
+
+    -- garrysmod/lua/postprocess/bokeh_dof.lua
+    hook_Remove( "RenderScreenspaceEffects", "RenderBokeh" )
+    hook_Remove( "NeedsDepthPass", "NeedsDepthPass_Bokeh" )
+
+    -- garrysmod/lua/postprocess/color_modify.lua
+    hook_Remove( "RenderScreenspaceEffects", "RenderColorModify" )
+
+    -- garrysmod/lua/postprocess/dof.lua
+    hook_Remove( "Think", "DOFThink" )
+
+    -- garrysmod/lua/includes/extensions/client/panel/dragdrop.lua
+    hook_Remove( "DrawOverlay", "DragNDropPaint" )
+    hook_Remove( "Think", "DragNDropThink" )
+
+    -- garrysmod/lua/includes/modules/menubar.lua
+    hook_Remove( "OnGamemodeLoaded", "CreateMenuBar" )
+
+    -- garrysmod/lua/postprocess/sobel.lua
+    hook_Remove( "RenderScreenspaceEffects", "RenderSobel" )
+
+    -- garrysmod/lua/postprocess/toytown.lua
+    hook_Remove( "RenderScreenspaceEffects", "RenderToyTown" )
+
+    -- garrysmod/lua/postprocess/sharpen.lua
+    hook_Remove( "RenderScreenspaceEffects", "RenderSharpen" )
+
+    -- garrysmod/lua/includes/modules/halo.lua
+    hook_Remove( "PostDrawEffects", "RenderHalos" ) -- THE LAG MACHINE
+
+    -- garrysmod/lua/autorun/client/gm_demo.lua
+    hook_Remove( "HUDPaint", "DrawRecordingIcon" )
+
+end
+
+do
+    -- i hope in one day rubat just khs
+    local variables = debug.getupvalues( Player.ConCommand )
+    Player.ConCommand = variables.SendConCommand or Player.ConCommand
 end
 
 return ash_engine

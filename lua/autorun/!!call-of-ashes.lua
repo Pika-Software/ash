@@ -145,45 +145,56 @@ ash.ChecksumFile = "ash/" .. active_gamemode .. "_checksums.lua"
 local DEBUG = glua_cvars.Number( "developer", 0 ) ~= 0
 ash.Debug = DEBUG
 
----@param err_msg debuginfo[] | string
----@return debuginfo[]
-local function error_handler( err_msg )
-    local stack, stack_size = debug.getstack( 3 )
+---@class ash.ErrorData
+---@field name string
+---@field message string
+---@field size number
+---@field stack debuginfo[]
 
-    if isString( err_msg ) then
-        ---@cast err_msg string
-        table.insert( stack, 1, {
-            short_src = err_msg
-        } )
-    else
-        ---@cast err_msg debuginfo[]
-        for i = 1, #err_msg, 1 do
-            stack[ stack_size + i ] = err_msg[ i ]
-        end
+---@param message string | ash.ErrorData
+---@return ash.ErrorData
+local function error_handler( message )
+    if isString( message ) then
+        ---@cast message string
+        local stack, stack_size = debug.getstack( 3 )
+
+        local short_src = stack[ 1 ].source
+
+        return {
+            name = string_match( short_src, "^@?[^/]+/([^/]+)" ) or short_src,
+            message = message,
+            size = stack_size,
+            stack = stack
+        }
     end
 
-    return stack
+    ---@cast message ash.ErrorData
+    return message
 end
 
 local error_display
 do
 
-    local ErrorNoHalt = ErrorNoHalt
+    local engine_consoleMessageColored = dreamwork.engine.consoleMessageColored
+    local err_color = color_scheme.error
 
-    ---@param stack debuginfo[] | string
-    function error_display( stack )
-        if isString( stack ) then
-            ErrorNoHalt( stack .. "\n" )
+    ---@param message ash.ErrorData | string
+    function error_display( message )
+        if message == nil then
+            engine_consoleMessageColored( "Unknown error.\n", err_color )
             return
         end
 
-        local top_error = stack[ 1 ]
-        if top_error == nil then
-            ErrorNoHalt( "Unknown error.\n" )
+        if isString( message ) then
+            ---@cast message string
+            engine_consoleMessageColored( message .. "\n", err_color )
             return
         end
 
-        local strings = { "\n[" .. ( string_match( top_error.source, "^@?addons/([^/]+)" ) or top_error.source or "LUA ERROR" ) .. "] " .. tostring( top_error.short_src or "unknown" ) }
+        ---@cast message ash.ErrorData
+
+        local strings = { "\n[" .. message.name .. "] " .. message.message }
+        local stack = message.stack
         local size = 1
 
         while true do
@@ -199,7 +210,7 @@ do
         size = size + 1
         strings[ size ] = "\n\n"
 
-        std.error( table_concat( strings, "\n", 1, size ), 2, true )
+        engine_consoleMessageColored( table_concat( strings, "\n", 1, size ), err_color )
     end
 
 end
@@ -1679,7 +1690,7 @@ do
 
         if not success then
             ---@diagnostic disable-next-line: param-type-mismatch
-            error_display( fn )
+            error( fn, 2 )
         end
 
         if module_object ~= nil then

@@ -9,4 +9,18 @@ cvars.AddChangeCallback( "gmod_language", function( _, __, new_language )
 	end )
 end, "LanguageChange" )
 
+do
+
+    local hook_Remove = _G.hook.Remove
+	hook_Remove( "EntityRemoved", "RemoveWidgets" )
+	hook_Remove( "OnEntityCreated", "CreateWidgets" )
+
+	-- garrysmod/lua/includes/modules/notification.lua
+	hook_Remove( "Think", "NotificationThink" )
+
+	-- garrysmod/lua/includes/extensions/entity.lua
+	-- hook_Remove( "EntityRemoved", "DoDieFunction" ) -- still trash, but full removing take some time
+
+end
+
 return ash_engine

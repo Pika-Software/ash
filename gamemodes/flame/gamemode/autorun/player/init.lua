@@ -133,7 +133,12 @@ do
 
 end
 
-hook.Add( "PlayerCanSeePlayersChat", "Default", function( text, team_only, listener, speaker )
+---@diagnostic disable-next-line: redundant-parameter
+hook.Add( "PlayerSwitchFlashlight", "Defaults", function( arguments, pl, requested_state )
+    return not requested_state or arguments[ 2 ] ~= false
+end )
+
+hook.Add( "PlayerCanSeePlayersChat", "Defaults", function( text, team_only, listener, speaker )
     if not ( listener and listener:IsValid() ) or not ( speaker and speaker:IsValid() ) then
         return true
     end

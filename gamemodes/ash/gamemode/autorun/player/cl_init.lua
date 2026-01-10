@@ -334,7 +334,7 @@ do
     local Entity_DrawModel = Entity.DrawModel
     local player_Iterator = player.Iterator
 
-    ---@type table<ash.player.Model, boolean>
+    ---@type table<Player, boolean>
     local render_restricted = {}
     gc.setTableRules( render_restricted, true )
 

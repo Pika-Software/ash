@@ -131,12 +131,24 @@ end
 ---@type table<Player, integer>
 local players_keys = {}
 
-setmetatable( players_keys, {
-    __index = function()
-        return 0
-    end,
-    __mode = "k"
-} )
+do
+
+    ---@type table<Player, integer>
+    local keys_cache = {}
+    gc.setTableRules( keys_cache, true )
+
+    setmetatable( players_keys, {
+        __index = function( _, pl )
+            return Entity_GetNW2Var( pl, "m_iPlayerKeys", keys_cache[ pl ] or 0 )
+        end,
+        __newindex = function( self, pl, keys )
+            if keys_cache[ pl ] == keys then return end
+            Entity_SetNW2Var( pl, "m_iPlayerKeys", keys )
+            keys_cache[ pl ] = keys
+         end
+    } )
+
+end
 
 --- [SHARED]
 ---
@@ -358,6 +370,19 @@ function ash_player.isInWater( pl )
     return players_in_water[ pl ]
 end
 
+---@type table<Player, integer>
+local players_sequence = {}
+
+--- [SHARED]
+---
+--- Gets the player's sequence.
+---
+---@param pl Player
+---@return integer sequence
+function ash_player.getSequence( pl )
+    return players_sequence[ pl ]
+end
+
 do
 
     local Entity_GetMoveType = Entity.GetMoveType
@@ -459,6 +484,15 @@ do
             local is_in_water = bit_band( players_flags[ pl ], 1024 ) ~= 0
             self[ pl ] = is_in_water
             return is_in_water
+        end,
+        __mode = "k"
+    } )
+
+    setmetatable( players_sequence, {
+        __index = function( self, pl )
+            local sequence = Entity_GetSequence( pl )
+            self[ pl ] = sequence
+            return sequence
         end,
         __mode = "k"
     } )
@@ -601,18 +635,6 @@ do
         __mode = "k"
     } )
 
-    ---@type table<Player, integer>
-    local player_sequences = {}
-
-    setmetatable( player_sequences, {
-        __index = function( self, pl )
-            local sequence = Entity_GetSequence( pl )
-            self[ pl ] = sequence
-            return sequence
-        end,
-        __mode = "k"
-    } )
-
     ---@param pl Player
     hook.Add( "PlayerThink", "PerformStates", function( pl )
         local in_vehicle = Player_InVehicle( pl )
@@ -649,14 +671,14 @@ do
         end
 
         local sequence = Entity_GetSequence( pl )
-        if sequence ~= player_sequences[ pl ] then
-            local new_sequence = hook_Run( "PlayerSequenceChanged", pl, sequence, player_sequences[ pl ] ) or sequence
+        if sequence ~= players_sequence[ pl ] then
+            local new_sequence = hook_Run( "PlayerSequenceChanged", pl, sequence, players_sequence[ pl ] ) or sequence
 
             if new_sequence ~= sequence then
                 pl:ResetSequence( new_sequence )
             end
 
-            player_sequences[ pl ] = new_sequence
+            players_sequence[ pl ] = new_sequence
         end
 
         local flags = Entity_GetFlags( pl )
@@ -824,10 +846,7 @@ end
 
 do
 
-    local MoveData_GetMaxClientSpeed = MoveData.GetMaxClientSpeed
     local MoveData_SetMaxClientSpeed = MoveData.SetMaxClientSpeed
-
-    local MoveData_GetMaxSpeed = MoveData.GetMaxSpeed
     local MoveData_SetMaxSpeed = MoveData.SetMaxSpeed
 
     local MoveData_GetVelocity = MoveData.GetVelocity
@@ -838,13 +857,14 @@ do
     local MoveData_GetOrigin = MoveData.GetOrigin
     local MoveData_SetOrigin = MoveData.SetOrigin
 
-    local math_max = math.max
 
     local Angle_Forward = Angle.Forward
     local Angle_Right = Angle.Right
     local Angle_Up = Angle.Up
 
     local Vector_Add = Vector.Add
+
+    local math_max = math.max
 
     --- [SHARED]
     ---
@@ -982,29 +1002,40 @@ do
     ---@param mv CMoveData
     ---@diagnostic disable-next-line: redundant-parameter
     hook.Add( "Move", "SpeedController", function( arguments, pl, mv )
-        local max_speed = math_max( MoveData_GetMaxSpeed( mv ), MoveData_GetMaxClientSpeed( mv ) )
-        max_speed = hook_Run( "PlayerSpeed", pl, players_move_type[ pl ], players_keys[ pl ] ) or 0
-        MoveData_SetMaxClientSpeed( mv, max_speed )
-        MoveData_SetMaxSpeed( mv, max_speed )
-
         local suppress_engine = arguments[ 2 ]
-
-        if suppress_engine == nil then
-            if players_move_type[ pl ] == 8 then
-                local origin = MoveData_GetOrigin( mv )
-                local velocity = ( ( directions[ pl ] * max_speed ) - MoveData_GetVelocity( mv ) ) * tick_interval
-
-                Vector_Add( origin, velocity )
-                MoveData_SetOrigin( mv, origin )
-                MoveData_SetVelocity( mv, velocity )
-
-                return true
-            end
-
-            return
+        if suppress_engine ~= nil then
+            return suppress_engine
         end
 
-        return suppress_engine
+        local move_type = players_move_type[ pl ]
+        local player_speed = 0
+
+        if move_type == 2 then -- walking
+            local water_level = entity_getWaterLevel( pl )
+            if players_on_ground[ pl ] then
+                player_speed = hook_Run( "PlayerWalkSpeed", pl, players_keys[ pl ], players_crouching[ pl ], water_level ) or 200
+            elseif water_level == 0 then
+                player_speed = hook_Run( "PlayerFallSpeed", pl, players_keys[ pl ], players_crouching[ pl ] ) or 10
+            else
+                player_speed = hook_Run( "PlayerSwimSpeed", pl, players_keys[ pl ], water_level ) or 150
+            end
+        elseif move_type == 8 then -- noclip movement
+            player_speed = hook_Run( "PlayerNoclipSpeed", pl, players_keys[ pl ] ) or 1000
+
+            local origin = MoveData_GetOrigin( mv )
+            local velocity = ( ( directions[ pl ] * player_speed ) - MoveData_GetVelocity( mv ) ) * tick_interval
+
+            Vector_Add( origin, velocity )
+            MoveData_SetOrigin( mv, origin )
+            MoveData_SetVelocity( mv, velocity )
+
+            return true
+        elseif move_type == 9 then -- ladder movement
+            player_speed = hook_Run( "PlayerLadderSpeed", pl, players_keys[ pl ] ) or 150
+        end
+
+        MoveData_SetMaxClientSpeed( mv, player_speed )
+        MoveData_SetMaxSpeed( mv, player_speed )
     end, POST_HOOK_RETURN )
 
     if SERVER then
@@ -1068,76 +1099,105 @@ do
 
     end
 
-    ---@param pl Player
-    ---@return number
-    hook.Add( "PlayerSpeed", "SpeedController", function( pl, move_type, in_keys )
-        if move_type == 8 then -- noclip movement
-            return Entity_GetNW2Var( pl, "m_fNoclipSpeed", 500 )
-        elseif move_type == 9 then -- ladder movement
-            return 250
-        elseif move_type ~= 2 then -- not walking
-            return 0
-        end
+    hook.Add( "PlayerNoclipSpeed", "Defaults", function( pl )
+        return Entity_GetNW2Var( pl, "m_fNoclipSpeed", 500 )
+    end )
 
-        local water_level = entity_getWaterLevel( pl )
-        local speed = 0
+    local side_keys = bit_bor( IN_MOVELEFT, IN_MOVERIGHT )
 
-        if players_on_ground[ pl ] then
-            if players_crouching[ pl ] then -- crawling
-                if bit_band( in_keys, 262144 ) ~= 0 then -- in walk
-                    -- slowly crawling
-                    speed = 70
-                elseif bit_band( in_keys, 131072 ) ~= 0 then -- in run
-                    -- fast crawling
-                    speed = 150
+    hook.Add( "PlayerWalkSpeed", "Defaults", function( pl, in_keys, is_crouching )
+        if bit_band( in_keys, 262144 ) ~= 0 then -- in walk
+            if is_crouching then
+                -- slowly crawling
+                return 60
+            end
+
+            local player_speed = 0
+
+            if bit_band( in_keys, 16 ) ~= 0 then -- walking backwards
+                player_speed = 80
+            elseif bit_band( in_keys, 8 ) ~= 0 then -- walking forwards
+                player_speed = 100
+            end
+
+            if bit_band( in_keys, side_keys ) ~= 0 then -- walking sideways
+                if player_speed == 0 then
+                    player_speed = 65
                 else
-                    -- crawling
-                    speed = 100
+                    player_speed = player_speed * 0.9
                 end
-            elseif bit_band( in_keys, 262144 ) ~= 0 then -- in walk
-                -- slowly walking
-                speed = 130
-            elseif bit_band( in_keys, 131072 ) ~= 0 then -- in run
-                -- running
-                speed = 300
-            else
-                -- walking
-                speed = 180
             end
 
-            if water_level == 3 then
-                -- walking underwater
-                speed = speed * 0.25
-            elseif water_level == 2 then
-                -- walking waist-deep in water
-                speed = speed * 0.5
-            elseif water_level == 1 then
-                -- walking in shallow water
-                speed = speed * 0.75
-            end
-        elseif water_level == 0 then
-            -- freefalling
-            return 10
-        elseif bit_band( in_keys, 262144 ) ~= 0 then -- in walk
-            -- slowly swimming
-            speed = 80
+            return player_speed
         elseif bit_band( in_keys, 131072 ) ~= 0 then -- in run
-            -- fast swimming
-            speed = 250
-        else
-            -- swimming
-            speed = 150
+            if is_crouching then -- fast crawling
+                return 150
+            end
+
+            if bit_band( in_keys, 8 ) ~= 0 then
+                -- running
+                return 300
+            end
+
+            if bit_band( in_keys, 16 ) ~= 0 then -- player cannot run backwards
+                return 220
+            end
+
+            if bit_band( in_keys, side_keys ) ~= 0 then -- player cannot run sideways
+                return 180
+            end
         end
 
-        if water_level == 3 then
-            -- swimming underwater
+        if is_crouching then -- crawling
+            return 80
+        end
+
+        if bit_band( in_keys, 16 ) ~= 0 then -- player cannot run backwards
+            return 200
+        end
+
+        -- walking
+        return 180
+    end )
+
+    hook.Add( "PlayerWalkSpeed", "DefaultModifiers", function( arguments, pl, in_keys, is_crouching, water_level )
+        local speed = arguments[ 2 ] or 200
+
+        if water_level == 3 then -- walking underwater
+            speed = speed * 0.25
+        elseif water_level == 2 then -- walking waist-deep in water
+            speed = speed * 0.5
+        elseif water_level == 1 then -- walking in shallow water
+            speed = speed * 0.6
+        end
+
+        return speed
+    end, POST_HOOK_RETURN )
+
+    hook.Add( "PlayerSwimSpeed", "Defaults", function( pl, in_keys )
+         if bit_band( in_keys, 262144 ) ~= 0 then -- slowly swimming
+            return 80
+        elseif bit_band( in_keys, 131072 ) ~= 0 then -- fast swimming
+            return 250
+        else -- swimming
+            return 150
+        end
+    end )
+
+    hook.Add( "PlayerSwimSpeed", "DefaultModifiers", function( arguments, pl, in_keys, water_level )
+        local speed = arguments[ 2 ] or 150
+
+        if water_level == 3 then -- swimming underwater
             speed = speed * 0.5 + 50
-        elseif water_level == 2 then
-            -- surface swimming
+        elseif water_level == 2 then -- surface swimming
             speed = speed + 20
         end
 
         return speed
+    end, POST_HOOK_RETURN )
+
+    hook.Add( "PlayerLadderSpeed", "Defaults", function( pl )
+        return pl:GetLadderClimbSpeed()
     end )
 
 end
@@ -1228,6 +1288,10 @@ hook.Add( "PlayerNoClip", "Defaults", function( pl, requested )
     if Player_Alive( pl ) then return end
     return not requested
 end, PRE_HOOK_RETURN )
+
+hook.Add( "PlayerShouldTaunt", "NoMoreTaunts", function()
+    return false
+end, POST_HOOK_RETURN )
 
 ---@type ash.player.animator
 local animator = include( "animator.lua", ash_player )
