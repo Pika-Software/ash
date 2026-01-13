@@ -687,7 +687,7 @@ local female01 = {
 }
 
 ---@type table<string, ash.sound.Data>
-local male01 = table.Copy( female01 )
+local male01 = table.copy( female01 )
 
 for _, data in pairs( female01 ) do
     local sound = data.sound

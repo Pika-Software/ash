@@ -42,6 +42,9 @@ do
     -- garrysmod/lua/includes/extensions/player_auth.lua
     hook_Remove( "PlayerInitialSpawn", "PlayerAuthSpawn" ) -- purified piece of crap
 
+    -- garrysmod/lua/includes/extensions/util/worldpicker.lua
+    hook_Remove( "VGUIMousePressAllowed", "WorldPickerMouseDisable" )
+
 end
 
 return ash_engine
