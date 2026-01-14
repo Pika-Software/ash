@@ -72,7 +72,7 @@ local hook_Run = glua_hook.Run
 ---
 --- The ash global namespace.
 ---
----@class ash
+---@class ash : ash.Gamemode
 ash = ash or {}
 
 ash.Name = "Ash"

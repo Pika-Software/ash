@@ -36,9 +36,6 @@ local trace = {
     output = trace_result
 }
 
----@type ash.debug
-local debug = require( "ash.debug" )
-
 ---@type table<Player, table<integer, boolean>>
 local foot_states = {}
 
@@ -52,7 +49,7 @@ setmetatable( foot_states, {
 } )
 
 ---@param pl Player
-hook.Add( "PlayerPostThink", "FootstepsThink", function( pl )
+hook.Add( "ash.player.Think", "FootstepsThink", function( pl )
     if Entity_GetMoveType( pl ) ~= 2 --[[ MOVETYPE_WALK ]] then return end
 
     local move_state = player_getMoveState( pl )
@@ -102,10 +99,10 @@ hook.Add( "PlayerPostThink", "FootstepsThink", function( pl )
                             material_name = "water"
                         end
 
-                        hook_Run( "PlayerFootDown", pl, trace_result.HitPos, player_shoes, material_name, move_state, bone_id, fallback_sound )
+                        hook_Run( "ash.player.footsteps.FootDown", pl, trace_result.HitPos, player_shoes, material_name, move_state, bone_id, fallback_sound )
                     else
                         foot_states[ pl ][ bone_id ] = false
-                        hook_Run( "PlayerFootUp", pl, trace_result.HitPos, player_shoes, "default", move_state, bone_id )
+                        hook_Run( "ash.player.footsteps.FootUp", pl, trace_result.HitPos, player_shoes, "default", move_state, bone_id )
                     end
                 end
             end

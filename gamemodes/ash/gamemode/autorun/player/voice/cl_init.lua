@@ -20,7 +20,7 @@ local ash_voice = {}
 ---
 ---@param pl Player
 function ash_voice.isAudible( pl )
-    return hook_Run( "PlayerCanHearPlayersVoice", ash_player.Entity, pl ) or Player_IsVoiceAudible( pl )
+    return hook_Run( "ash.player.voice.CanHear", ash_player.Entity, pl ) or Player_IsVoiceAudible( pl )
 end
 
 --- [CLIENT]
@@ -30,7 +30,7 @@ end
 ---@return number volume The player's voice volume. Range is from 0 to 1.
 function ash_voice.getVolume( pl )
     local volume = Player_VoiceVolume( pl )
-    return hook_Run( "PlayerVoiceVolume", pl, volume ) or volume
+    return hook_Run( "ash.player.voice.Volume", pl, volume ) or volume
 end
 
 --- [CLIENT]
@@ -40,7 +40,7 @@ end
 ---@return number scale The player's voice volume scale. Range is from 0 to 1.
 local function getVolumeScale( pl )
     local scale = Entity_GetNW2Float( pl, "m_fVoiceVolumeScale", 1 )
-    return hook_Run( "PlayerVoiceVolumeScale", pl, scale ) or scale
+    return hook_Run( "ash.player.voice.VolumeScale", pl, scale ) or scale
 end
 
 ash_voice.getVolumeScale = getVolumeScale
@@ -56,7 +56,7 @@ function ash_voice.setVolumeScale( pl, scale )
     Entity_SetNW2Float( pl, "m_fVoiceVolumeScale", scale )
 end
 
-hook.Add( "PlayerThink", "VolumeController", function( pl, me, is_local )
+hook.Add( "ash.player.Think", "VolumeController", function( pl, is_local )
     if is_local then return end
 
     local scale = getVolumeScale( pl )

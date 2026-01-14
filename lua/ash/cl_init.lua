@@ -338,6 +338,7 @@ do
                 hook.Remove( "CreateMove", "ash.Workshop" )
                 hook.Remove( "PreRender", "ash.Workshop" )
                 timer.Remove( "ash.Workshop" )
+                hook.Run( "ash.Loaded" )
             end )
 
             return true

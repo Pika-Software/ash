@@ -17,9 +17,6 @@ local NULL = NULL
 ---@field ViewEntity Entity The view entity.
 local ash_player = include( "shared.lua" )
 
----@type ash.entity
-local ash_entity = require( "ash.entity" )
-
 do
 
     local Player_SetHullDuck = Player.SetHullDuck
@@ -117,7 +114,7 @@ do
         timer_Simple( 0, function()
             local pl = Entity( index )
             if pl ~= nil and Entity_IsValid( pl ) then
-                hook.Run( "PlayerInitialized", pl, false )
+                hook.Run( "ash.player.Initialized", pl, false )
             end
         end )
     end
@@ -157,7 +154,7 @@ do
             net.WriteUInt( 0, 8 )
             net.SendToServer()
 
-            hook.Run( "PlayerInitialized", entity, true )
+            hook.Run( "ash.player.Initialized", entity, true )
         end
 
         coroutine_yield( true )
@@ -191,11 +188,8 @@ do
         local player_Iterator = player.Iterator
 
         hook.Add( "Tick", "Ticking", function()
-            if player_entity == nil then return end
-            hook_Run( "LocalPlayerThink", player_entity )
-
             for _, pl in player_Iterator() do
-                hook_Run( "PlayerThink", pl, player_entity, pl == player_entity )
+                hook_Run( "ash.player.Think", pl, pl == player_entity )
             end
         end )
 
@@ -212,7 +206,7 @@ do
     timer.Create( "ViewEntity", 0.5, 0, function()
         local entity = GetViewEntity() or NULL
         if entity ~= ash_player.ViewEntity then
-            hook_Run( "ViewEntityChanged", entity, ash_player.ViewEntity )
+            hook_Run( "ash.player.ViewEntity", entity, ash_player.ViewEntity )
             ash_player.ViewEntity = entity
         end
     end )
@@ -258,11 +252,11 @@ do
                 player_spawns_count = player_spawns_count - 1
                 table.remove( player_spawns, i )
 
-                hook_Run( "PlayerSpawn", pl, false )
+                hook_Run( "ash.player.Spawn", pl, false )
 
                 if player_initial_spawns[ user_id ] then
                     player_initial_spawns[ user_id ] = nil
-                    hook_Run( "PlayerInitialSpawn", pl, false )
+                    hook_Run( "ash.player.InitialSpawn", pl, false )
                 end
             end
         end
@@ -288,17 +282,21 @@ do
     ---
     --- Checks if the player is speaking (using voice chat).
     ---
-    ---@return boolean
+    ---@param pl Player
+    ---@return boolean is_speaking
+    ---@diagnostic disable-next-line: duplicate-set-field
     function ash_player.isSpeaking( pl )
         return voice_statuses[ pl ]
     end
 
     hook.Add( "PlayerStartVoice", "Voice", function( pl, index )
         voice_statuses[ pl ] = true
+        hook_Run( "ash.player.Speaking", pl, true )
     end, PRE_HOOK )
 
     hook.Add( "PlayerEndVoice", "Voice", function( pl )
         voice_statuses[ pl ] = false
+        hook_Run( "ash.player.Speaking", pl, false )
     end, PRE_HOOK )
 
 end
@@ -317,13 +315,16 @@ do
         __mode = "k"
     } )
 
-    hook.Add( "PlayerThink", "WeaponChanger", function( pl, _, is_local )
+    hook.Add( "ash.player.Think", "WeaponLookup", function( pl, is_local )
         if is_local then return end
 
         local active_weapon = Player_GetActiveWeapon( pl ) or NULL
         if active_weapons[ pl ] ~= active_weapon then
-            hook_Run( "PlayerSwitchWeapon", pl, active_weapons[ pl ], active_weapon )
-            active_weapons[ pl ] = active_weapon
+            if hook_Run( "ash.player.SwitchedWeapon", pl, active_weapons[ pl ], active_weapon ) == false then
+                input.SelectWeapon( active_weapons[ pl ] )
+            else
+                active_weapons[ pl ] = active_weapon
+            end
         end
     end, PRE_HOOK )
 
@@ -340,8 +341,8 @@ do
 
     hook.Add( "PreDrawTranslucentWorld", "Render", function( _, is_depth_pass )
         for _, pl in player_Iterator() do
-            if hook_Run( "ShouldDrawPlayer", pl, false ) ~= false then
-                hook_Run( "PreDrawPlayer", pl, false, is_depth_pass )
+            if hook_Run( "ash.player.ShouldDraw", pl, false ) ~= false then
+                hook_Run( "ash.player.PreDraw", pl, false, is_depth_pass )
 
                 render_restricted[ pl ] = false
 
@@ -355,16 +356,16 @@ do
                 -- Entity_DrawModel( entity, 4 )
                 render_restricted[ pl ] = true
 
-                hook_Run( "DrawPlayerAppearance", pl, false, is_depth_pass )
-                hook_Run( "PostDrawPlayer", pl, false, is_depth_pass )
+                hook_Run( "ash.player.DrawAppearance", pl, false, is_depth_pass )
+                hook_Run( "ash.player.PostDraw", pl, false, is_depth_pass )
             end
         end
     end, POST_HOOK )
 
     hook.Add( "PreDrawTranslucentReflection", "Render", function( _, is_depth_pass )
         for _, pl in player_Iterator() do
-            if hook_Run( "ShouldDrawPlayer", pl, true ) ~= false then
-                hook_Run( "PreDrawPlayer", pl, true, is_depth_pass )
+            if hook_Run( "ash.player.ShouldDraw", pl, true ) ~= false then
+                hook_Run( "ash.player.PreDraw", pl, true, is_depth_pass )
 
                 render_restricted[ pl ] = false
 
@@ -378,15 +379,15 @@ do
                 -- Entity_DrawModel( entity, 4 )
                 render_restricted[ pl ] = true
 
-                hook_Run( "DrawPlayerAppearance", pl, true, is_depth_pass )
-                hook_Run( "PostDrawPlayer", pl, true, is_depth_pass )
+                hook_Run( "ash.player.DrawAppearance", pl, true, is_depth_pass )
+                hook_Run( "ash.player.PostDraw", pl, true, is_depth_pass )
             end
         end
     end, POST_HOOK )
 
-    hook.Add( "PrePlayerDraw", "Render", function( pl )
-        return render_restricted[ pl ]
-    end, PRE_HOOK_RETURN )
+    hook.Add( "PrePlayerDraw", "Render", function( arguments, pl )
+        return arguments[ 2 ] or render_restricted[ pl ]
+    end, POST_HOOK_RETURN )
 
     do
 
@@ -398,7 +399,7 @@ do
         local player_isLocal = ash_player.isLocal
         local player_isDead = ash_player.isDead
 
-        hook.Add( "ShouldDrawPlayer", "Defaults", function( pl )
+        hook.Add( "ash.player.ShouldDraw", "Defaults", function( pl )
             if player_isLocal( pl ) and not Player_ShouldDrawLocalPlayer( pl ) then return false end
             if Entity_GetNoDraw( pl ) or Entity_IsDormant( pl ) then return false end
             if player_isDead( pl ) then return false end
@@ -407,5 +408,22 @@ do
     end
 
 end
+
+-- do
+
+-- 	local GetPlayerColor = ENTITY.GetPlayerColor
+-- 	local SetVector = IMATERIAL.SetVector
+
+-- 	matproxy.Add( {
+-- 		name = "PlayerColor",
+-- 		init = function( self, _, values )
+-- 			self.ResultTo = values.resultvar
+-- 		end,
+-- 		bind = function( self, material, entity )
+-- 			return SetVector( material, self.ResultTo, GetPlayerColor( entity ) )
+-- 		end
+-- 	} )
+
+-- end
 
 return ash_player

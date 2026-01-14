@@ -556,12 +556,12 @@ do
             ::activity_selected::
 
             if activity ~= activities[ pl ] then
-                hook_Run( "PlayerActivitySelected", pl, activity, activities[ pl ] )
+                hook_Run( "ash.player.animator.Activity", pl, activity, activities[ pl ] )
                 activities[ pl ] = activity
             end
 
             if sequence_id ~= sequences[ pl ] then
-                hook_Run( "PlayerSequenceSelected", pl, sequence_id, sequences[ pl ] )
+                hook_Run( "ash.player.animator.Sequence", pl, sequence_id, sequences[ pl ] )
                 sequences[ pl ] = sequence_id
             end
 
@@ -670,10 +670,10 @@ do
         translation_cache[ pl ] = nil
     end
 
-    hook.Add( "PlayerSequenceChanged", "TranslationCacher", cleanup_cache, PRE_HOOK )
-    hook.Add( "PlayerActivitySelected", "TranslationCacher", cleanup_cache, PRE_HOOK )
-    hook.Add( "PlayerSequenceSelected", "TranslationCacher", cleanup_cache, PRE_HOOK )
-    hook.Add( "PlayerSwitchWeapon", "TranslationCacher", cleanup_cache, PRE_HOOK )
+    hook.Add( "ash.player.animator.Sequence", "TranslationCacher", cleanup_cache, PRE_HOOK )
+    hook.Add( "ash.player.animator.Activity", "TranslationCacher", cleanup_cache, PRE_HOOK )
+    hook.Add( "ash.player.Sequence", "TranslationCacher", cleanup_cache, PRE_HOOK )
+    hook.Add( "ash.player.SwitchedWeapon", "TranslationCacher", cleanup_cache, PRE_HOOK )
 
 end
 

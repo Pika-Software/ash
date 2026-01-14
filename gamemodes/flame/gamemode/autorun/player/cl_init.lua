@@ -105,10 +105,12 @@ end
 
 -- end
 
-hook.Add( "PlayerInitialized", "Defaults", function( pl, is_local )
+---@param pl Player
+hook.Add( "ash.player.Initialized", "Defaults", function( pl, is_local )
 	if is_local then
-		RunConsoleCommand( "dsp_player", "1" )
-		RunConsoleCommand( "dsp_room", "1" )
+        pl:ConCommand( "hud_draw_fixed_reticle 0" )
+        pl:ConCommand( "dsp_player 1" )
+		pl:ConCommand( "dsp_room 1" )
 	end
 end )
 

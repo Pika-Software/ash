@@ -276,27 +276,26 @@ do
             local state = entity_getEngineValue( entity, "m_eDoorState" )
 
             if Entity_GetNW2Int( entity, "m_eDoorState" ) ~= state then
-                local previous_state = Entity_GetNW2Int( entity, "m_eDoorState" )
+                hook_Run( "ash.entity.door.State", entity, Entity_GetNW2Int( entity, "m_eDoorState" ), state )
                 Entity_SetNW2Int( entity, "m_eDoorState", state )
-                hook_Run( "DoorStateChanged", entity, state, previous_state )
             end
 
             local is_locked = entity_getEngineValue( entity, "m_bLocked" )
             if Entity_GetNW2Bool( entity, "" ) ~= is_locked then
                 Entity_SetNW2Bool( entity, "m_bLocked", is_locked )
-                hook_Run( "DoorLockStateChanged", entity, is_locked )
+                hook_Run( "ash.entity.door.Lock", entity, is_locked )
             end
         end
 	end )
 
-    hook.Add( "DoorEntityCreated", "CreationHandler", function( door_entity, class_name )
+    hook.Add( "ash.entity.DoorCreated", "CreationHandler", function( door_entity, class_name )
         if class_name == "prop_door_rotating" then
             door_count = door_count + 1
             doors[ door_count ] = door_entity
         end
     end, PRE_HOOK )
 
-    hook.Add( "DoorEntityRemoved", "RemovalHandler", function( entity, class_name, is_full_update )
+    hook.Add( "ash.entity.DoorRemoved", "RemovalHandler", function( entity, class_name, is_full_update )
         if not is_full_update and class_name == "prop_door_rotating" then
             for i = door_count, 1, -1 do
                 if doors[ i ] == entity then

@@ -50,7 +50,7 @@ do
 		self:SetPaintedManually( true )
 		self:InvalidateLayout( true )
 
-		hook.Add( "OverlayRender", self, self.PaintManual )
+		hook.Add( "ash.view.DrawOverlay", self, self.PaintManual )
 	end
 
 	function Tooltip:Think()

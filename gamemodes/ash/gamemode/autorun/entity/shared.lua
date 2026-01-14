@@ -483,7 +483,7 @@ do
     local queue_size = 0
 
     hook.Add( "OnEntityCreated", "Handler", function( entity )
-        if hook_Run( "AllowEntityCreation", entity ) == false then
+        if hook_Run( "ash.entity.AllowCreation", entity ) == false then
             if entity ~= nil and entity:IsValid() then
                 entity:Remove()
             end
@@ -504,26 +504,26 @@ do
 
             if Entity_IsValid( entity ) then
                 local class_name = Entity_GetClass( entity )
-                hook_Run( "EntityCreated", entity, class_name )
+                hook_Run( "ash.entity.Created", entity, class_name )
 
                 if class_name == "player" then
-                    hook_Run( "PlayerEntityCreated", entity )
+                    hook_Run( "ash.entity.PlayerCreated", entity )
                 -- elseif class_name == "world" then
-                --     hook_Run( "WorldEntityCreated", entity )
+                --     hook_Run( "ash.level.Created", entity )
                 elseif utils_isPropClass( class_name ) then
                     Entity_SetNW2Var( entity, "m_bProp", true )
-                    hook_Run( "PropEntityCreated", entity, class_name, Entity_GetModel( entity ) )
+                    hook_Run( "ash.entity.PropCreated", entity, class_name, Entity_GetModel( entity ) )
                 elseif utils_isDoorClass( class_name ) then
                     Entity_SetNW2Var( entity, "m_bDoor", true )
-                    hook_Run( "DoorEntityCreated", entity, class_name )
+                    hook_Run( "ash.entity.DoorCreated", entity, class_name )
                 elseif utils_isButtonClass( class_name ) then
                     Entity_SetNW2Var( entity, "m_bButton", true )
-                    hook_Run( "ButtonEntityCreated", entity, class_name )
+                    hook_Run( "ash.entity.ButtonCreated", entity, class_name )
                 elseif utils_isRagdollClass( class_name ) then
                     Entity_SetNW2Var( entity, "m_bRagdoll", true )
-                    hook_Run( "RagdollEntityCreated", entity, class_name )
+                    hook_Run( "ash.entity.RagdollCreated", entity, class_name )
                 elseif entity:IsWeapon() then
-                    hook_Run( "WeaponEntityCreated", entity, class_name )
+                    hook_Run( "ash.entity.WeaponCreated", entity, class_name )
                 end
             end
         end
@@ -533,20 +533,20 @@ do
         local class_name = Entity_GetClass( entity )
 
         if class_name == "player" then
-            hook_Run( "PlayerEntityRemoved", entity, class_name, is_full_update )
+            hook_Run( "ash.entity.PlayerRemoved", entity, class_name, is_full_update )
         elseif utils_isPropClass( class_name ) then
-            hook_Run( "PropEntityRemoved", entity, class_name, is_full_update )
+            hook_Run( "ash.entity.PropRemoved", entity, class_name, is_full_update )
         elseif utils_isDoorClass( class_name ) then
-            hook_Run( "DoorEntityRemoved", entity, class_name, is_full_update )
+            hook_Run( "ash.entity.DoorRemoved", entity, class_name, is_full_update )
         elseif utils_isButtonClass( class_name ) then
-            hook_Run( "ButtonEntityRemoved", entity, class_name, is_full_update )
+            hook_Run( "ash.entity.ButtonRemoved", entity, class_name, is_full_update )
         elseif utils_isRagdollClass( class_name ) then
-            hook_Run( "RagdollEntityRemoved", entity, class_name, is_full_update )
+            hook_Run( "ash.entity.RagdollRemoved", entity, class_name, is_full_update )
         elseif entity:IsWeapon() then
-            hook_Run( "WeaponEntityRemoved", entity, class_name, is_full_update )
-        else
-            hook_Run( "EntityClassRemoved", entity, class_name, is_full_update )
+            hook_Run( "ash.entity.WeaponRemoved", entity, class_name, is_full_update )
         end
+
+        hook_Run( "ash.entity.Removed", entity, class_name, is_full_update )
     end, PRE_HOOK )
 
 end
@@ -558,7 +558,7 @@ do
 	local game_GetTimeScale = game.GetTimeScale
 	local math_clamp = math.clamp
 
-    hook.Add( "EntityEmitSound", "Handler", function( arguments, data )
+    hook.Add( "EntityEmitSound", "SoundHandler", function( arguments, data )
         local result = arguments[ 2 ]
         if result ~= nil then
             return result
@@ -581,14 +581,14 @@ do
 		local entity = data.Entity
 		if entity ~= nil and entity:IsValid() then
 			if entity:IsPlayer() then
-                result = hook_Run( "PlayerEmitsSound", entity, data )
+                result = hook_Run( "ash.player.EmitsSound", entity, data )
 				if result ~= nil then return result end
 			else
-				result = hook_Run( "EntityEmitsSound", entity, data )
+				result = hook_Run( "ash.entity.EmitsSound", entity, data )
 				if result ~= nil then return result end
 			end
 		elseif entity:IsWorld() then
-			result = hook_Run( "WorldEmitsSound", entity, data )
+			result = hook_Run( "ash.level.EmitsSound", entity, data )
 			if result ~= nil then return result end
 		end
 
@@ -599,6 +599,15 @@ do
 
 end
 
+local type_to_flag = {
+    pistol = 4,
+    revolver = 6,
+    smg = 2,
+    ar2 = 0,
+    shotgun	= 1,
+    rpg = 7
+}
+
 ---@param arguments table
 ---@param entity Entity
 ---@param bullet Bullet
@@ -607,8 +616,36 @@ hook.Add( "EntityFireBullets", "BulletCallback", function( arguments, entity, bu
 
     local callback = bullet.Callback
 
+    if bullet.TracerName == nil then
+        bullet.TracerName = "none"
+    end
+
+    local inflictor = bullet.Inflictor
+
+    if inflictor ~= nil and inflictor:IsValid() and inflictor:IsWeapon() then
+        ---@cast inflictor Weapon
+
+        local flag = type_to_flag[ inflictor:GetHoldType() ]
+        bullet.Tracer = 0
+
+        local ef = EffectData()
+
+        if entity:IsPlayer() then
+            ---@cast entity Player
+            ef:SetEntity( entity:GetViewModel( 0 ) )
+            flag = bit.bor( 256, flag )
+        else
+            ef:SetEntity( inflictor )
+        end
+
+        ef:SetFlags( flag )
+        ef:SetAttachment( inflictor:LookupAttachment( "muzzle" ) or 1 )
+
+        util.Effect( "MuzzleFlash", ef )
+    end
+
     bullet.Callback = function( attacker, trace_result, damage_info )
-        local do_effects, do_damage = hook.Run( "EntityFireBulletsImpact", bullet, attacker, trace_result, damage_info )
+        local do_effects, do_damage = hook_Run( "ash.entity.BulletImpact", bullet, attacker, trace_result, damage_info )
         local result = { do_effects == true, do_damage == true }
 
         if callback ~= nil then
@@ -725,13 +762,13 @@ do
     if SERVER then
         hook.Add( "OnEntityWaterLevelChanged", "WaterLevel", function( entity, old, new )
             water_levels[ entity ] = new
-            hook_Run( "EntityWaterLevelChanged", entity, old, new )
+            hook_Run( "ash.entity.WaterLevel", entity, old, new )
         end, PRE_HOOK )
     else
-        hook.Add( "EntityThink", "WaterLevel", function( entity )
+        hook.Add( "ash.entity.Think", "WaterLevel", function( entity )
             local water_level = Entity_WaterLevel( entity ) or 0
             if water_levels[ entity ] ~= water_level then
-                hook_Run( "EntityWaterLevelChanged", entity, water_levels[ entity ], water_level )
+                hook_Run( "ash.entity.WaterLevel", entity, water_levels[ entity ], water_level )
                 water_levels[ entity ] = water_level
             end
         end, PRE_HOOK )
@@ -745,7 +782,7 @@ do
 
     hook.Add( "Tick", "Think", function()
         for _, entity in ents_Iterator() do
-            hook_Run( "EntityThink", entity )
+            hook_Run( "ash.entity.Think", entity )
         end
     end, PRE_HOOK )
 
@@ -761,13 +798,18 @@ end
 ---@param use_type? USE
 ---@param value? any
 function ash_entity.use( entity, activator, controller, use_type, value )
-    if hook_Run( "ShouldUseEntity", entity, activator, controller, use_type, value ) ~= false then
+    if hook_Run( "ash.entity.UsageAllowed", entity, activator, controller, use_type, value ) ~= false then
         local fn = entity.Use
         if fn ~= nil then
             fn( entity, activator, controller, use_type, value )
         end
     end
 end
+
+hook.Add( "EntityNetworkedVarChanged", "NW2Handler", function( entity, key, old_value, value )
+    if old_value == value then return end
+    hook_Run( "ash.entity.NW2Changed", entity, key, old_value, value )
+end, PRE_HOOK )
 
 do
 

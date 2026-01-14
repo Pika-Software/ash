@@ -350,3 +350,7 @@ gc = std.gc
 
 ---@diagnostic disable-next-line: lowercase-global
 console = std.console
+
+---@class flame : ash.Gamemode
+---@diagnostic disable-next-line: lowercase-global
+flame = flame or {}

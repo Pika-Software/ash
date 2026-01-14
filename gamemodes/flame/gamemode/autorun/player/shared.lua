@@ -6,19 +6,15 @@ local flame_player = {}
 ---@type ash.entity
 local ash_entity = require( "ash.entity" )
 
+---@type ash.player
+local ash_player = require( "ash.player" )
+
 ---@type ash.trace
 local ash_trace = require( "ash.trace" )
 local trace_cast = ash_trace.cast
 
-hook.Add( "PlayerNoClip", "Defaults", function( arguments, pl, requested )
-    local overridden = arguments[ 2 ]
-
-    if overridden == nil then
-        return not requested or pl:IsSuperAdmin()
-    end
-
-    return overridden
-end, POST_HOOK_RETURN )
+---@type ash.view
+local ash_view = require( "ash.view" )
 
 hook.Add( "PhysgunPickup", "Defaults", function( arguments, pl, entity )
     return arguments[ 2 ] ~= false
@@ -89,9 +85,9 @@ do
         end
     end
 
-    hook.Add( "PlayerLadderSpeed", "SpeedModifier", move_speed_multiplier, POST_HOOK_RETURN )
-    hook.Add( "PlayerWalkSpeed", "SpeedModifier", move_speed_multiplier, POST_HOOK_RETURN )
-    hook.Add( "PlayerSwimSpeed", "SpeedModifier", move_speed_multiplier, POST_HOOK_RETURN )
+    hook.Add( "ash.player.LadderSpeed", "SpeedModifier", move_speed_multiplier, POST_HOOK_RETURN )
+    hook.Add( "ash.player.WalkSpeed", "SpeedModifier", move_speed_multiplier, POST_HOOK_RETURN )
+    hook.Add( "ash.player.SwimSpeed", "SpeedModifier", move_speed_multiplier, POST_HOOK_RETURN )
 
 end
 
@@ -106,12 +102,17 @@ do
         output = trace_result
     }
 
+    local player_getUseDistance = ash_player.getUseDistance
+
+    local view_getAimVector = ash_view.getAimVector
+    local view_getEyeOrigin = ash_view.getEyeOrigin
+
     ---@param pl Player
-    hook.Add( "PlayerSelectsUseEntity", "Defaults", function( pl )
-        local start = pl:GetShootPos()
+    hook.Add( "ash.player.SelectsUseEntity", "Defaults", function( pl )
+        local start = view_getEyeOrigin( pl )
 
         trace.start = start
-        trace.endpos = start + pl:GetAimVector() * hook_Run( "PlayerSelectsUseDistance", pl )
+        trace.endpos = start + view_getAimVector( pl ) * player_getUseDistance( pl )
         trace.filter = pl
 
         trace_cast( trace )
@@ -123,10 +124,6 @@ do
 
 end
 
-hook.Add( "PlayerSelectsUseDistance", "Defaults", function( arguments, pl )
-    return ( arguments[ 2 ] or 72 ) * pl:GetNW2Float( "m_fModelScale", 1 )
-end, POST_HOOK_RETURN )
-
 if DEBUG then
 
     ---@type ash.debug
@@ -134,8 +131,8 @@ if DEBUG then
 
     ---@param pl Player
     ---@param entity Entity
-    hook.Add( "PlayerUsedEntity", "Defaults", function( pl, entity, usage_state )
-        if usage_state then
+    hook.Add( "ash.player.UsedEntity", "Defaults", function( pl, entity, in_use )
+        if in_use then
             local mins, maxs = entity:GetCollisionBounds()
             -- local color = entity:GetColor()
 
@@ -173,5 +170,10 @@ function flame_player.StoRGB( str )
 end
 
 require( "ash.player.footsteps.dynamic" )
+
+---@param pl Player
+hook.Add( "ash.player.CanNoclip", "Defaults", function( pl )
+    if pl:IsSuperAdmin() then return true end
+end )
 
 return flame_player

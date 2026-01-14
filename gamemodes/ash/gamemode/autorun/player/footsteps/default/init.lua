@@ -44,7 +44,7 @@ hook.Add( "PlayerFootstep", "ServerSounds", function( pl, origin, _, sound_name,
             material_name = "water"
         end
 
-        hook_Run( "PlayerFootDown", pl, trace_result.HitPos, footsteps_getShoesType( pl ), material_name, move_state, -1, sound_name )
+        hook_Run( "ash.player.footsteps.FootDown", pl, trace_result.HitPos, footsteps_getShoesType( pl ), material_name, move_state, -1, sound_name )
     end
 
     return true

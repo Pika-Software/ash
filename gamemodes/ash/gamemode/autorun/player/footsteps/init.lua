@@ -5,6 +5,7 @@ local sound_merge = ash_sound.merge
 
 local string_match = string.match
 local file_Find = file.Find
+local hook_Run = hook.Run
 
 ---@class ash.player.footsteps
 local footsteps = {}
@@ -351,30 +352,21 @@ do
     ---@param move_state string
     ---@param bone_id integer
     ---@param fallback_sound string
-    hook.Add( "PlayerFootDown", "Sounds", function( pl, sound_position, player_shoes, material_name, move_state, bone_id, fallback_sound )
+    hook.Add( "ash.player.footsteps.FootDown", "Sounds", function( pl, sound_position, player_shoes, material_name, move_state, bone_id, fallback_sound )
         local selected_state = move_states[ move_state ]
-        local sound_level, volume
 
-        if selected_state == "wandering" then
-            sound_level, volume =  40, 0.75
-        elseif selected_state == "running" then
-            sound_level, volume =  90, 1.25
-        elseif selected_state == "falling" then
-            sound_level, volume = 100, 1.50
-        else
-            sound_level, volume =  75, 1.00
-        end
+        local sound_level, pitch, volume = hook_Run( "ash.player.footsteps.Sound", pl, sound_position, player_shoes, material_name, selected_state, bone_id )
 
         if material_name ~= nil then
             local sound_name = player_shoes .. "." .. material_name
             if sound_registry[ sound_name ] then
-                sound_play( sound_name .. "." .. selected_state, sound_position, sound_level, nil, volume, 1 )
+                sound_play( sound_name .. "." .. selected_state, sound_position, sound_level, pitch, volume, 1 )
                 return
             end
         end
 
         if fallback_sound ~= nil then
-            sound_play( fallback_sound, sound_position, sound_level, math_random( 118, 138 ), volume, 1 )
+            sound_play( fallback_sound, sound_position, sound_level, pitch, volume, 1 )
         end
     end )
 

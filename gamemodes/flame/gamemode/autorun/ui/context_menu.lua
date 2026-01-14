@@ -7,8 +7,8 @@ local ash_ui = require( "ash.ui" )
 ---@type ash.player
 local ash_player = require( "ash.player" )
 
----@type ash.engine
-local ash_engine = require( "ash.engine" )
+---@type ash.view
+local ash_view = require( "ash.view" )
 
 local colors = ash_ui.Colors
 
@@ -565,8 +565,7 @@ local entity
 
 do
 
-	local engine_getViewNormal = ash_engine.getViewNormal
-	local engine_View = ash_engine.View
+	local view_Data = ash_view.Data
 
 	local Entity_GetNoDraw = Entity.GetNoDraw
 	local Entity_GetSolid = Entity.GetSolid
@@ -584,10 +583,10 @@ do
 
 	hook.Add( "ContextMenuThink", "Properties", function( self )
 		local view_entity = ash_player.ViewEntity
-		local start = engine_View.origin
+		local start = view_Data.origin
 
 		trace.start = start
-		trace.endpos = start + engine_getViewNormal() * ( hook_Run( "ContextMenuTraceLength", view_entity ) or 1024 )
+		trace.endpos = start + ash_view.AimVector * ( hook_Run( "ContextMenuTraceLength", view_entity ) or 1024 )
 		trace.filter = view_entity
 
 		util_TraceLine( trace )

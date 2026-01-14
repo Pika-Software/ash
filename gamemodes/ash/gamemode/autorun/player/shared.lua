@@ -23,6 +23,8 @@ local Player = Player
 ---@class ash.Vector
 local Vector = Vector
 
+local rawget = rawget
+
 local hook_Run = hook.Run
 local bit_band = bit.band
 local bit_bor = bit.bor
@@ -128,6 +130,15 @@ do
 
 end
 
+---@param entity Entity
+---@param key string
+---@param old_value any
+---@param value any
+hook.Add( "ash.entity.NW2Changed", "NW2Handler", function( entity, key, old_value, value )
+    if not entity:IsPlayer() then return end
+    hook_Run( "PlayerNW2Changed", entity, key, old_value, value )
+end, PRE_HOOK )
+
 ---@type table<Player, integer>
 local players_keys = {}
 
@@ -145,7 +156,7 @@ do
             if keys_cache[ pl ] == keys then return end
             Entity_SetNW2Var( pl, "m_iPlayerKeys", keys )
             keys_cache[ pl ] = keys
-         end
+        end
     } )
 
 end
@@ -160,15 +171,37 @@ function ash_player.getKeys( pl )
     return players_keys[ pl ]
 end
 
+---@type table<Player, table<integer, boolean>>
+local players_key_states = {}
+
+do
+
+    local keys_metatable = {
+        __index = function()
+            return false
+        end
+    }
+
+    setmetatable( players_key_states, {
+        __index = function( self, pl )
+            local keys = {}
+            setmetatable( keys, keys_metatable )
+            self[ pl ] = keys
+            return keys
+        end,
+        __mode = "k"
+    } )
+
+end
+
 --- [SHARED]
 ---
 --- Checks if the player is pressing a key.
 ---
 ---@param pl Player
----@param key integer
----@return boolean
-function ash_player.isKeyPressed( pl, key )
-    return bit_band( players_keys[ pl ], key ) ~= 0
+---@param in_key integer
+function ash_player.getKeyState( pl, in_key )
+    return players_key_states[ pl ][ in_key ]
 end
 
 ---@type table<Player, boolean>
@@ -223,10 +256,10 @@ do
     ---@param key integer
     ---@return number seconds_in_use
     function ash_player.getKeyDownTime( pl, key )
-        if bit_band( players_keys[ pl ], key ) == 0 then
-            return 0
-        else
+        if players_key_states[ pl ][ key ] then
             return CurTime() - press_times[ pl ][ key ]
+        else
+            return 0
         end
     end
 
@@ -252,10 +285,10 @@ do
     ---@param key integer
     ---@return number seconds_in_use
     function ash_player.getKeyUpTime( pl, key )
-        if bit_band( players_keys[ pl ], key ) == 0 then
-            return 0
-        else
+        if players_key_states[ pl ][ key ] then
             return CurTime() - release_times[ pl ][ key ]
+        else
+            return 0
         end
     end
 
@@ -282,12 +315,12 @@ do
 
     end
 
-    hook.Add( "KeyPress", "InputTimeCapture", function( _, pl, key )
-        press_times[ pl ][ key ] = CurTime()
-    end, POST_HOOK )
-
-    hook.Add( "KeyRelease", "InputTimeCapture", function( _, pl, key )
-        release_times[ pl ][ key ] = CurTime()
+    hook.Add( "ash.player.Key", "InputTimeCapture", function( _, pl, in_key, is_pressed )
+        if is_pressed then
+            press_times[ pl ][ in_key ] = CurTime()
+        else
+            release_times[ pl ][ in_key ] = CurTime()
+        end
     end, POST_HOOK )
 
 end
@@ -332,7 +365,7 @@ function ash_player.isCrouching( pl )
 end
 
 ---@type table<Player, boolean>
-local players_in_crouching = {}
+local players_crouching_anim = {}
 
 --- [SHARED]
 ---
@@ -341,7 +374,7 @@ local players_in_crouching = {}
 ---@param pl Player
 ---@return boolean is_in_crouching
 function ash_player.isInCrouchingAnim( pl )
-    return players_in_crouching[ pl ]
+    return players_crouching_anim[ pl ]
 end
 
 ---@type table<Player, boolean>
@@ -393,6 +426,29 @@ do
 
     local Player_GetVehicle = Player.GetVehicle
     local Player_InVehicle = Player.InVehicle
+    local Player_IsTyping = Player.IsTyping
+
+    ---@type table<Player, boolean>
+    local players_typing = {}
+
+    --- [SHARED]
+    ---
+    --- Checks if the player is typing a chat message.
+    ---
+    ---@param pl Player
+    ---@return boolean is_typing
+    function ash_player.isTyping( pl )
+        return players_typing[ pl ]
+    end
+
+    setmetatable( players_typing, {
+        __index = function( self, pl )
+            local is_typing = Player_IsTyping( pl )
+            self[ pl ] = is_typing
+            return is_typing
+        end,
+        __mode = "k"
+    } )
 
     ---@type table<Player, Entity>
     local players_vehicle = {}
@@ -461,7 +517,7 @@ do
         __mode = "k"
     } )
 
-    setmetatable( players_in_crouching, {
+    setmetatable( players_crouching_anim, {
         __index = function( self, pl )
             local is_in_crouching = bit_band( players_flags[ pl ], 4 ) ~= 0
             self[ pl ] = is_in_crouching
@@ -524,8 +580,8 @@ do
         function ash_player.setModel( pl, model_path )
             model_path = model_precache( model_path )
 
-            if model_path ~= players_model[ pl ] then
-                local new_model = hook_Run( "PlayerModelChanged", pl, model_path, players_model[ pl ] ) or model_path
+            if rawget( players_model, pl ) ~= model_path  then
+                local new_model = hook_Run( "ash.player.Model", pl, model_path, players_model[ pl ] ) or model_path
 
                 if new_model ~= model_path then
                     new_model = model_precache( new_model )
@@ -636,16 +692,16 @@ do
     } )
 
     ---@param pl Player
-    hook.Add( "PlayerThink", "PerformStates", function( pl )
+    hook.Add( "ash.player.Think", "StateController", function( pl )
         local in_vehicle = Player_InVehicle( pl )
-        if in_vehicle ~= players_in_vehicle[ pl ] then
+        if rawget( players_in_vehicle, pl ) ~= in_vehicle then
             players_in_vehicle[ pl ] = in_vehicle
             players_vehicle[ pl ] = Player_GetVehicle( pl )
         end
 
         local move_type = Entity_GetMoveType( pl )
-        if move_type ~= players_move_type[ pl ] then
-            local new_type = hook_Run( "PlayerMoveTypeChanged", pl, players_move_type[ pl ], move_type ) or move_type
+        if rawget( players_move_type, pl ) ~= move_type then
+            local new_type = hook_Run( "ash.player.MoveType", pl, players_move_type[ pl ], move_type ) or move_type
 
             if new_type ~= move_type then
                 pl:SetMoveType( new_type )
@@ -655,13 +711,13 @@ do
         end
 
         local model_path = Entity_GetModel( pl ) or "models/player/infoplayerstart.mdl"
-        if model_path ~= players_model[ pl ] then
+        if rawget( players_model, pl ) ~= model_path then
             ash_player.setModel( pl, model_path )
         end
 
         local skin = Entity_GetSkin( pl )
-        if skin ~= players_skin[ pl ] then
-            local new_skin = hook_Run( "PlayerSkinChanged", pl, skin, players_skin[ pl ] ) or skin
+        if rawget( players_skin, pl ) ~= skin then
+            local new_skin = hook_Run( "ash.player.Skin", pl, skin, players_skin[ pl ] ) or skin
 
             if new_skin ~= skin then
                 pl:SetSkin( new_skin )
@@ -671,8 +727,8 @@ do
         end
 
         local sequence = Entity_GetSequence( pl )
-        if sequence ~= players_sequence[ pl ] then
-            local new_sequence = hook_Run( "PlayerSequenceChanged", pl, sequence, players_sequence[ pl ] ) or sequence
+        if rawget( players_sequence, pl ) ~= sequence then
+            local new_sequence = hook_Run( "ash.player.Sequence", pl, sequence, players_sequence[ pl ] ) or sequence
 
             if new_sequence ~= sequence then
                 pl:ResetSequence( new_sequence )
@@ -681,11 +737,16 @@ do
             players_sequence[ pl ] = new_sequence
         end
 
+        local is_typing = Player_IsTyping( pl )
+        if rawget( players_typing, pl ) ~= is_typing then
+            players_typing[ pl ] = ( hook_Run( "ash.player.Typing", pl, is_typing ) or is_typing ) == true
+        end
+
         local flags = Entity_GetFlags( pl )
-        if flags ~= players_flags[ pl ] then
+        if rawget( players_flags, pl ) ~= flags then
             local is_on_ground = bit_band( flags, 1 ) ~= 0
-            if is_on_ground ~= players_on_ground[ pl ] then
-                local new_state = hook_Run( "PlayerGroundStateChanged", pl, is_on_ground ) or is_on_ground
+            if rawget( players_on_ground, pl ) ~= is_on_ground then
+                local new_state = hook_Run( "ash.player.OnGround", pl, is_on_ground ) or is_on_ground
 
                 if new_state ~= is_on_ground then
                     if new_state then
@@ -701,8 +762,8 @@ do
             end
 
             local is_crouching = bit_band( flags, 2 ) ~= 0
-            if is_crouching ~= players_crouching[ pl ] then
-                local new_state = hook_Run( "PlayerCrouchingStateChanged", pl, is_crouching ) or is_crouching
+            if rawget( players_crouching, pl ) ~= is_crouching then
+                local new_state = hook_Run( "ash.player.Crouching", pl, is_crouching ) or is_crouching
 
                 if new_state ~= is_crouching then
                     if new_state then
@@ -718,8 +779,8 @@ do
             end
 
             local in_crouching = bit_band( flags, 4 ) ~= 0
-            if in_crouching ~= players_in_crouching[ pl ] then
-                local new_state = hook_Run( "PlayerInCrouchingStateChanged", pl, in_crouching ) or in_crouching
+            if rawget( players_crouching_anim, pl ) ~= in_crouching then
+                local new_state = hook_Run( "ash.player.CrouchingAnimation", pl, in_crouching ) or in_crouching
 
                 if new_state ~= in_crouching then
                     if new_state then
@@ -731,15 +792,15 @@ do
                     end
                 end
 
-                players_in_crouching[ pl ] = in_crouching
+                players_crouching_anim[ pl ] = in_crouching
             end
 
             players_water_jumping[ pl ] = bit_band( flags, 8 ) ~= 0
             players_in_train[ pl ] = bit_band( flags, 16 ) ~= 0
 
             local is_under_rain = bit_band( flags, 32 ) ~= 0
-            if is_under_rain ~= players_under_rain[ pl ] then
-                local new_state = hook_Run( "PlayerUnderRainStateChanged", pl, is_under_rain ) or is_under_rain
+            if rawget( players_under_rain, pl ) ~= is_under_rain then
+                local new_state = hook_Run( "ash.player.UnderRain", pl, is_under_rain ) or is_under_rain
 
                 if new_state ~= is_under_rain then
                     if new_state then
@@ -755,8 +816,8 @@ do
             end
 
             local is_frozen = bit_band( flags, 64 ) ~= 0
-            if is_frozen ~= players_frozen[ pl ] then
-                local new_state = hook_Run( "PlayerFrozenStateChanged", pl, is_frozen ) or is_frozen
+            if rawget( players_frozen, pl ) ~= is_frozen then
+                local new_state = hook_Run( "ash.player.Frozen", pl, is_frozen ) or is_frozen
 
                 if new_state ~= is_frozen then
                     if new_state then
@@ -772,8 +833,8 @@ do
             end
 
             local in_water = bit_band( flags, 1024 ) ~= 0
-            if in_water ~= players_in_water[ pl ] then
-                local new_state = hook_Run( "PlayerInWaterStateChanged", pl, in_water ) or in_water
+            if rawget( players_in_water, pl ) ~= in_water then
+                local new_state = hook_Run( "ash.player.InWater", pl, in_water ) or in_water
 
                 if new_state ~= in_water then
                     if new_state then
@@ -797,29 +858,95 @@ end
 do
 
     local UserCommand_GetMouseWheel = UserCommand.GetMouseWheel
+    local UserCommand_GetViewAngles = UserCommand.GetViewAngles
     local UserCommand_GetButtons = UserCommand.GetButtons
     local UserCommand_GetImpulse = UserCommand.GetImpulse
     local UserCommand_GetMouseX = UserCommand.GetMouseX
     local UserCommand_GetMouseY = UserCommand.GetMouseY
 
+    ---@type table<Player, Angle>
+    local player_view_angles = {}
+
+    setmetatable( player_view_angles, {
+        ---@param pl Player
+        __index = function( self, pl )
+            return pl:EyeAngles()
+        end,
+        __mode = "k"
+    } )
+
+    --- [SHARED]
+    ---
+    --- Returns the player's view angles (eye angles) that client requires.
+    ---
+    ---@param pl Player
+    ---@return Angle view_angles
+    function ash_player.getViewAngles( pl )
+        return player_view_angles[ pl ]
+    end
+
+    ---@type integer[]
+    local in_keys = {}
+
+    for i = 1, 32, 1 do
+        in_keys[ i ] = 2 ^ i
+    end
+
+    if CLIENT then
+
+        hook.Add( "PlayerNW2Changed", "NW2Sync", function( pl, key, _, keys )
+            if key == "m_iPlayerKeys" then
+                if players_keys[ pl ] == keys then return end
+                local pressed_keys = players_key_states[ pl ]
+
+                for i = 1, 32, 1 do
+                    local key_state = bit_band( keys, in_keys[ i ] ) ~= 0
+                    if rawget( pressed_keys, i ) ~= key_state then
+                        pressed_keys[ i ] = key_state
+                        hook_Run( "ash.player.Key", pl, in_keys[ i ], key_state )
+                    end
+                end
+            end
+        end, PRE_HOOK )
+
+    end
+
     ---@param pl Player
     ---@param cmd CUserCmd
     hook.Add( "StartCommand", "InputCapture", function( pl, cmd )
-        players_keys[ pl ] = UserCommand_GetButtons( cmd )
+        local keys = UserCommand_GetButtons( cmd )
+        if rawget( players_keys, pl ) ~= keys then
+            local pressed_keys = players_key_states[ pl ]
+            players_keys[ pl ] = keys
+
+            for i = 1, 32, 1 do
+                local key_state = bit_band( keys, in_keys[ i ] ) ~= 0
+                if rawget( pressed_keys, i ) ~= key_state then
+                    pressed_keys[ i ] = key_state
+                    hook_Run( "ash.player.Key", pl, in_keys[ i ], key_state )
+                end
+            end
+        end
 
         local mouse_wheel = UserCommand_GetMouseWheel( cmd )
         if mouse_wheel ~= 0 then
-            hook_Run( "PlayerMouseWheel", pl, mouse_wheel )
+            hook_Run( "ash.player.MouseWheel", pl, mouse_wheel )
         end
 
         local impulse = UserCommand_GetImpulse( cmd )
         if impulse ~= 0 then
-            hook_Run( "PlayerImpulse", pl, impulse )
+            hook_Run( "ash.player.Impulse", pl, impulse )
+        end
+
+        local view_angles = UserCommand_GetViewAngles( cmd )
+        if rawget( player_view_angles, pl ) ~= view_angles then
+            player_view_angles[ pl ] = view_angles
+            hook_Run( "ash.player.ViewAngles", pl, cmd, view_angles )
         end
 
         local x, y = UserCommand_GetMouseX( cmd ), UserCommand_GetMouseY( cmd )
         if x ~= 0 or y ~= 0 then
-            hook_Run( "PlayerMouse", pl, x, y )
+            hook_Run( "ash.player.Mouse", pl, cmd, x, y, view_angles )
         end
     end, PRE_HOOK )
 
@@ -835,7 +962,7 @@ do
     ---@param cmd CUserCmd
     ---@diagnostic disable-next-line: redundant-parameter
     hook.Add( "StartCommand", "MovementControl", function( _, pl, cmd )
-        if hook_Run( "ShouldPlayerMove", pl, cmd ) == false then
+        if hook_Run( "ash.player.CanMove", pl, cmd ) == false then
             UserCommand_SetImpulse( cmd, 0 )
             UserCommand_ClearMovement( cmd )
             UserCommand_ClearButtons( cmd )
@@ -856,7 +983,6 @@ do
 
     local MoveData_GetOrigin = MoveData.GetOrigin
     local MoveData_SetOrigin = MoveData.SetOrigin
-
 
     local Angle_Forward = Angle.Forward
     local Angle_Right = Angle.Right
@@ -954,7 +1080,7 @@ do
         directions[ pl ] = direction
 
         if Player_Alive( pl ) then
-            move_states[ pl ] = hook_Run( "PlayerSelectsMoveState", pl, mv, keys )
+            move_states[ pl ] = hook_Run( "ash.player.MoveState", pl, mv, keys )
         else
             move_states[ pl ] = "standing"
         end
@@ -967,7 +1093,7 @@ do
     ---@param mv CMoveData
     ---@param buttons integer
     ---@return string
-    hook.Add( "PlayerSelectsMoveState", "DefaultStates", function( arguments, pl, mv, buttons )
+    hook.Add( "ash.player.MoveState", "DefaultStates", function( arguments, pl, mv, buttons )
         ---@type ash.player.MoveState | nil
         local move_state = arguments[ 2 ]
 
@@ -1013,14 +1139,14 @@ do
         if move_type == 2 then -- walking
             local water_level = entity_getWaterLevel( pl )
             if players_on_ground[ pl ] then
-                player_speed = hook_Run( "PlayerWalkSpeed", pl, players_keys[ pl ], players_crouching[ pl ], water_level ) or 200
+                player_speed = hook_Run( "ash.player.WalkSpeed", pl, players_keys[ pl ], players_crouching[ pl ], water_level ) or 200
             elseif water_level == 0 then
-                player_speed = hook_Run( "PlayerFallSpeed", pl, players_keys[ pl ], players_crouching[ pl ] ) or 10
+                player_speed = hook_Run( "ash.player.FallSpeed", pl, players_keys[ pl ], players_crouching[ pl ] ) or 10
             else
-                player_speed = hook_Run( "PlayerSwimSpeed", pl, players_keys[ pl ], water_level ) or 150
+                player_speed = hook_Run( "ash.player.SwimSpeed", pl, players_keys[ pl ], water_level ) or 150
             end
         elseif move_type == 8 then -- noclip movement
-            player_speed = hook_Run( "PlayerNoclipSpeed", pl, players_keys[ pl ] ) or 1000
+            player_speed = hook_Run( "ash.player.NoclipSpeed", pl, players_keys[ pl ] ) or 1000
 
             local origin = MoveData_GetOrigin( mv )
             local velocity = ( ( directions[ pl ] * player_speed ) - MoveData_GetVelocity( mv ) ) * tick_interval
@@ -1031,7 +1157,7 @@ do
 
             return true
         elseif move_type == 9 then -- ladder movement
-            player_speed = hook_Run( "PlayerLadderSpeed", pl, players_keys[ pl ] ) or 150
+            player_speed = hook_Run( "ash.player.LadderSpeed", pl, players_keys[ pl ] ) or 150
         end
 
         MoveData_SetMaxClientSpeed( mv, player_speed )
@@ -1048,7 +1174,7 @@ do
 
         ---@param pl Player
         ---@param wheel number
-        hook.Add( "PlayerMouseWheel", "NoclipSpeed", function( pl, wheel )
+        hook.Add( "ash.player.MouseWheel", "NoclipSpeed", function( pl, wheel )
             if players_move_type[ pl ] == 8 then
                 local noclip_speed = Entity_GetNW2Var( pl, "m_fNoclipSpeed", 500 )
                 local in_keys = players_keys[ pl ]
@@ -1080,7 +1206,7 @@ do
             end
         end, PRE_HOOK )
 
-        hook.Add( "PrePlayerSpawn", "NoclipSpeed", function( pl )
+        hook.Add( "ash.player.PreSpawn", "NoclipSpeed", function( pl )
             Entity_SetNW2Var( pl, "m_fNoclipSpeed", 500 )
         end, PRE_HOOK )
 
@@ -1099,68 +1225,67 @@ do
 
     end
 
-    hook.Add( "PlayerNoclipSpeed", "Defaults", function( pl )
+    hook.Add( "ash.player.NoclipSpeed", "Defaults", function( pl )
         return Entity_GetNW2Var( pl, "m_fNoclipSpeed", 500 )
     end )
 
     local side_keys = bit_bor( IN_MOVELEFT, IN_MOVERIGHT )
 
-    hook.Add( "PlayerWalkSpeed", "Defaults", function( pl, in_keys, is_crouching )
+    hook.Add( "ash.player.WalkSpeed", "Defaults", function( pl, in_keys, is_crouching )
         if bit_band( in_keys, 262144 ) ~= 0 then -- in walk
             if is_crouching then
                 -- slowly crawling
                 return 60
             end
 
-            local player_speed = 0
-
-            if bit_band( in_keys, 16 ) ~= 0 then -- walking backwards
-                player_speed = 80
-            elseif bit_band( in_keys, 8 ) ~= 0 then -- walking forwards
-                player_speed = 100
-            end
-
-            if bit_band( in_keys, side_keys ) ~= 0 then -- walking sideways
-                if player_speed == 0 then
-                    player_speed = 65
-                else
-                    player_speed = player_speed * 0.9
+            if bit_band( in_keys, 8 ) == 0 then
+                if bit_band( in_keys, 16 ) ~= 0 then
+                    -- backward walking
+                    return 80
+                elseif bit_band( in_keys, side_keys ) ~= 0 then
+                    -- side walking
+                    return 60
                 end
             end
 
-            return player_speed
+            -- walking
+            return 100
         elseif bit_band( in_keys, 131072 ) ~= 0 then -- in run
-            if is_crouching then -- fast crawling
-                return 150
+            if is_crouching then
+                -- fast crawling
+                return 120
             end
 
-            if bit_band( in_keys, 8 ) ~= 0 then
-                -- running
-                return 300
+            if bit_band( in_keys, 8 ) == 0 then
+                if bit_band( in_keys, 16 ) ~= 0 then
+                    return 160
+                elseif bit_band( in_keys, side_keys ) ~= 0 then
+                    return 170
+                end
             end
 
-            if bit_band( in_keys, 16 ) ~= 0 then -- player cannot run backwards
-                return 220
+            -- running
+            return 300
+        else
+            if is_crouching then
+                -- crawling
+                return 80
             end
 
-            if bit_band( in_keys, side_keys ) ~= 0 then -- player cannot run sideways
-                return 180
+            if bit_band( in_keys, 8 ) == 0 then
+                if bit_band( in_keys, 16 ) ~= 0 then
+                    return 140
+                elseif bit_band( in_keys, side_keys ) ~= 0 then
+                    return 160
+                end
             end
+
+            -- walking
+            return 180
         end
-
-        if is_crouching then -- crawling
-            return 80
-        end
-
-        if bit_band( in_keys, 16 ) ~= 0 then -- player cannot run backwards
-            return 200
-        end
-
-        -- walking
-        return 180
     end )
 
-    hook.Add( "PlayerWalkSpeed", "DefaultModifiers", function( arguments, pl, in_keys, is_crouching, water_level )
+    hook.Add( "ash.player.WalkSpeed", "DefaultModifiers", function( arguments, pl, in_keys, is_crouching, water_level )
         local speed = arguments[ 2 ] or 200
 
         if water_level == 3 then -- walking underwater
@@ -1174,7 +1299,7 @@ do
         return speed
     end, POST_HOOK_RETURN )
 
-    hook.Add( "PlayerSwimSpeed", "Defaults", function( pl, in_keys )
+    hook.Add( "ash.player.SwimSpeed", "Defaults", function( pl, in_keys )
          if bit_band( in_keys, 262144 ) ~= 0 then -- slowly swimming
             return 80
         elseif bit_band( in_keys, 131072 ) ~= 0 then -- fast swimming
@@ -1184,7 +1309,7 @@ do
         end
     end )
 
-    hook.Add( "PlayerSwimSpeed", "DefaultModifiers", function( arguments, pl, in_keys, water_level )
+    hook.Add( "ash.player.SwimSpeed", "DefaultModifiers", function( arguments, pl, in_keys, water_level )
         local speed = arguments[ 2 ] or 150
 
         if water_level == 3 then -- swimming underwater
@@ -1196,7 +1321,7 @@ do
         return speed
     end, POST_HOOK_RETURN )
 
-    hook.Add( "PlayerLadderSpeed", "Defaults", function( pl )
+    hook.Add( "ash.player.LadderSpeed", "Defaults", function( pl )
         return pl:GetLadderClimbSpeed()
     end )
 
@@ -1207,12 +1332,31 @@ do
     ---@param pl Player
     ---@param sound_data EmitSoundInfo
     ---@return boolean | nil
-    hook.Add( "PlayerEmitsSound", "StopDrowning", function( pl, sound_data )
+    hook.Add( "ash.player.EmitsSound", "StopDrowning", function( pl, sound_data )
         if entity_getWaterLevel( pl ) < 2 and sound_data.OriginalSoundName == "Player.DrownStart" then
             return false
         end
     end, PRE_HOOK_RETURN )
 
+end
+
+--- [SHARED]
+---
+--- Returns the distance the player can use an entity.
+---
+---@return number distance
+function ash_player.getUseDistance( pl )
+    return Entity_GetNW2Var( pl, "m_fUseDistance", 72 )
+end
+
+--- [SHARED]
+---
+--- Sets the distance the player can use an entity.
+---
+---@param pl Player
+---@param distance number
+function ash_player.setUseDistance( pl, distance )
+    Entity_SetNW2Var( pl, "m_fUseDistance", distance )
 end
 
 do
@@ -1240,57 +1384,61 @@ do
         end
     end
 
-    hook.Add( "KeyPress", "UsageHandler", function( pl, in_key )
+    hook.Add( "ash.player.Key", "UsageHandler", function( pl, in_key, is_pressed )
         if in_key == 32 then
-            local seleted_entity = hook_Run( "PlayerSelectsUseEntity", pl )
-            if seleted_entity == nil or not Entity_IsValid( seleted_entity ) then return end
+            if is_pressed then
+                local seleted_entity = hook_Run( "ash.player.SelectsUseEntity", pl )
+                if seleted_entity ~= nil and Entity_IsValid( seleted_entity ) and hook_Run( "ash.player.ShouldUse", pl, seleted_entity ) ~= false then
+                    entity_use( seleted_entity, pl, pl, hook_Run( "ash.player.SelectsUseType", pl, seleted_entity ) )
+                    Entity_SetNW2Var( pl, "m_eUseEntity", seleted_entity )
+                    Entity_SetNW2Var( pl, "m_fUseStartTime", CurTime() )
 
-            entity_use( seleted_entity, pl, pl, hook_Run( "PlayerSelectsUseType", pl, seleted_entity ) )
-            Entity_SetNW2Var( pl, "m_eUseEntity", seleted_entity )
-            Entity_SetNW2Var( pl, "m_fUseStartTime", CurTime() )
+                    hook_Run( "ash.player.UsedEntity", pl, seleted_entity, true )
+                end
 
-            hook_Run( "PlayerUsedEntity", pl, seleted_entity, true )
-        end
-    end, PRE_HOOK )
+                return
+            end
 
-    hook.Add( "KeyRelease", "UsageHandler", function( pl, in_key )
-        if in_key == 32 then
             local seleted_entity = Entity_GetNW2Var( pl, "m_eUseEntity" )
 
             Entity_SetNW2Var( pl, "m_fUseStartTime", 0 )
             Entity_SetNW2Var( pl, "m_eUseEntity", nil )
 
             if seleted_entity ~= nil and Entity_IsValid( seleted_entity ) then
-                hook_Run( "PlayerUsedEntity", pl, seleted_entity, false )
+                hook_Run( "ash.player.UsedEntity", pl, seleted_entity, false )
             end
         end
     end, PRE_HOOK )
 
 end
 
-hook.Add( "EntityWaterLevelChanged", "WaterLevel", function( entity, old, new )
+hook.Add( "ash.entity.WaterLevel", "WaterLevel", function( entity, old, new )
     if entity:IsPlayer() then
-        hook_Run( "PlayerWaterLevelChanged", entity, old, new )
+        hook_Run( "ash.player.WaterLevel", entity, old, new )
     end
 end, PRE_HOOK )
 
-hook.Add( "FindUseEntity", "UsageControl", debug.fempty, PRE_HOOK_RETURN )
+hook.Add( "FindUseEntity", "DisableDefaultUse", debug.fempty, PRE_HOOK_RETURN )
 
-hook.Add( "PlayerUse", "UsageControl", function( pl, entity )
+hook.Add( "PlayerUse", "DisableDefaultUse", function( pl, entity )
     return false
 end, PRE_HOOK_RETURN )
 
-hook.Add( "PlayerShouldTakeDamage", "Defaults", function( arguments )
+hook.Add( "PlayerShouldTaunt", "DisableDefaultTaunts", function()
+    return false
+end, POST_HOOK_RETURN )
+
+hook.Add( "PlayerShouldTakeDamage", "DamageHandler", function( arguments )
     return arguments[ 2 ] ~= false
 end, POST_HOOK_RETURN )
 
-hook.Add( "PlayerNoClip", "Defaults", function( pl, requested )
-    if Player_Alive( pl ) then return end
-    return not requested
-end, PRE_HOOK_RETURN )
-
-hook.Add( "PlayerShouldTaunt", "NoMoreTaunts", function()
-    return false
+hook.Add( "PlayerNoClip", "NoclipController", function( arguments, pl, requested )
+    local overridden = arguments[ 2 ]
+    if overridden == nil then
+        return not requested or Player_Alive( pl ) and hook_Run( "ash.player.CanNoclip", pl )
+    else
+        return overridden == true
+    end
 end, POST_HOOK_RETURN )
 
 ---@type ash.player.animator
@@ -1328,7 +1476,7 @@ do
     hook.Add( "OnPlayerHitGround", "LandingHandler", function( pl, _, __, fall_speed )
         fall_speed = -fall_speed
         perform_trace( pl, fall_speed )
-        hook_Run( "PlayerLanded", pl, fall_speed, false, trace_result )
+        hook_Run( "ash.player.Landed", pl, fall_speed, false, trace_result )
     end, PRE_HOOK )
 
     hook.Add( "PlayerWaterLevelChanged", "LandingHandler", function( pl, old, new )
@@ -1337,9 +1485,45 @@ do
         local fall_speed = math_min( 0, animator.getVelocity( pl )[ 3 ] )
         perform_trace( pl, fall_speed )
 
-        hook_Run( "PlayerLanded", pl, fall_speed, true, trace_result )
+        hook_Run( "ash.player.Landed", pl, fall_speed, true, trace_result )
     end, PRE_HOOK )
 
 end
+
+do
+
+    local Player_Nick = Player.Nick
+
+    --- [SHARED]
+    ---
+    --- Gets the player's name.
+    ---
+    ---@param pl Player
+    ---@return string
+    function ash_player.getName( pl )
+        return Entity_GetNW2Var( pl, "m_sNickname", Player_Nick( pl ) )
+    end
+
+end
+
+--- [SHARED]
+---
+--- Sets the player's name.
+---
+---@param pl Player
+---@param name string
+function ash_player.setName( pl, name )
+    if ash_player.getName( pl ) == name then return end
+    Entity_SetNW2Var( pl, "m_sNickname", name )
+    hook_Run( "ash.player.Name", pl, name )
+end
+
+---@param pl Player
+---@param damage_info CTakeDamageInfo
+hook.Add( "ScalePlayerDamage", "DamageControl", function( pl, _, damage_info )
+    if hook_Run( "ash.player.ShouldTakeDamage", pl, damage_info ) == false then
+        return true
+    end
+end, PRE_HOOK_RETURN )
 
 return ash_player

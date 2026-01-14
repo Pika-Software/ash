@@ -25,7 +25,7 @@ local function stop( pl )
 
     if channel ~= nil and channel:isValid() then
         channel:stop()
-        hook_Run( "PlayerEndVoice", pl )
+        hook_Run( "ash.player.Speaking", pl, true )
     end
 end
 
@@ -59,7 +59,7 @@ net.Receive( "sync", function()
                 return
             end
 
-            hook_Run( "PlayerStartVoice", pl )
+            hook_Run( "ash.player.Speaking", pl, false )
 
             channels[ pl ] = channel
             channel:setTime( CurTime() - start_time )
@@ -74,14 +74,14 @@ net.Receive( "sync", function()
     } )
 end )
 
-hook.Add( "PlayerStartVoice", "Cleanup", function( pl )
+hook.Add( "ash.player.Speaking", "Cleanup", function( pl, is_speaking )
     local channel = channels[ pl ]
     if channel ~= nil and channel:isValid() then
         channel:stop()
     end
 end, PRE_HOOK )
 
-hook.Add( "PlayerVoiceVolume", "Volume", function( pl, volume )
+hook.Add( "ash.player.voice.Volume", "Volume", function( pl, volume )
     local channel = channels[ pl ]
     if channel ~= nil and channel:isValid() then
         return channel:getVolumeLevel()
@@ -89,7 +89,7 @@ hook.Add( "PlayerVoiceVolume", "Volume", function( pl, volume )
 end )
 
 -- hook.Add( "PlayerThink", "Perform", function( pl, me )
---     if hook_Run( "PlayerCanHearPlayersVoice", me, pl ) == false then
+--     if hook_Run( "ash.player.voice.CanHear", me, pl ) == false then
 --         return
 --     end
 

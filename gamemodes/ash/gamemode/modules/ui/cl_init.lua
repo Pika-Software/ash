@@ -4,6 +4,8 @@
 ---@field ScreenAspect number
 ---@field ScreenCenterX integer
 ---@field ScreenCenterY integer
+---@field CursorX integer
+---@field CursorY integer
 local ash_ui = {}
 
 ash_ui.Colors = ash.Colors
@@ -22,7 +24,10 @@ local ScrW, ScrH = ScrW, ScrH
 
 local logger = ash.Logger
 
-local screen_width, screen_height, screen_aspect = 0, 0, 0
+local screen_aspect = 0
+local screen_width, screen_height = 0, 0
+local screen_center_x, screen_center_y = 0, 0
+
 local viewport_width, viewport_height = 0, 0
 local viewport_min, viewport_max = 0, 0
 
@@ -201,7 +206,7 @@ do
             end
         end
 
-        font_names[ name ] = font_data
+        font_names[ font_data ] = name
 
         font_count = font_count + 1
         font_list[ font_count ] = font_data
@@ -214,10 +219,13 @@ do
     ---@param height integer
     local function perform_layout( width, height )
         screen_width, screen_height = width, height
-        screen_aspect = screen_width / screen_height
+        ash_ui.ScreenWidth, ash_ui.ScreenHeight = screen_width, screen_height
 
-        ash_ui.ScreenWidth, ash_ui.ScreenHeight, ash_ui.ScreenAspect = screen_width, screen_height, screen_aspect
-        ash_ui.ScreenCenterX, ash_ui.ScreenCenterY = math_floor( screen_width * 0.5 ), math_floor( screen_height * 0.5 )
+        screen_aspect = screen_width / screen_height
+        ash_ui.ScreenAspect = screen_aspect
+
+        screen_center_x, screen_center_y = math_floor( screen_width * 0.5 ), math_floor( screen_height * 0.5 )
+        ash_ui.ScreenCenterX, ash_ui.ScreenCenterY = screen_center_x, screen_center_y
 
         viewport_width, viewport_height = screen_width * 0.01, screen_height * 0.01
         viewport_min, viewport_max = math_min( viewport_width, viewport_height ), math_max( viewport_width, viewport_height )
@@ -233,7 +241,7 @@ do
             logger:debug( "Font '%s' was re-scaled, %s -> %spx", font_names[ font_data ], font_sizes[ font_data ], font_data.size )
         end
 
-        hook_Run( "ScreenResolutionChanged", width, height, screen_aspect )
+        hook_Run( "ash.ui.ScreenResolution", width, height, screen_aspect )
     end
 
     hook.Add( "OnScreenSizeChanged", "RescalingEvent", function( _, __, width, height )
@@ -288,6 +296,73 @@ do
             end
 
             panels[ name ] = nil
+        end
+    end, PRE_HOOK )
+
+end
+
+do
+
+    local input_GetCursorPos = input.GetCursorPos
+    local vgui_CursorVisible = vgui.CursorVisible
+
+    local cursor_x, cursor_y = screen_center_x, screen_center_y
+    local cursor_visible = false
+
+    local function cursor_update()
+        local x, y = screen_center_x, screen_center_y
+
+        cursor_visible = vgui_CursorVisible()
+        ash_ui.CursorVisible = cursor_visible
+
+        if cursor_visible then
+            x, y = input_GetCursorPos()
+        end
+
+        if x ~= cursor_x or y ~= cursor_y then
+            cursor_x, cursor_y = x or screen_center_x, y or screen_center_y
+            ash_ui.CursorX, ash_ui.CursorY = x, y
+
+            hook_Run( "ash.ui.CursorMoved", x, y, cursor_visible )
+        end
+    end
+
+    hook.Add( "Tick", "CursorCapture", cursor_update, PRE_HOOK )
+    cursor_update()
+
+    local vgui_GetHoveredPanel = vgui.GetHoveredPanel
+    local Panel_IsValid = Panel.IsValid
+
+    local Panel_SetCursor = Panel.__SetCursor or Panel.SetCursor
+    Panel.__SetCursor = Panel_SetCursor
+
+    ---@type table<Panel, string>
+    local cursors = {}
+
+    setmetatable( cursors, {
+        __index = function()
+            return "arrow"
+        end,
+        __mode = "k"
+    } )
+
+    function Panel:SetCursor( name )
+        Panel_SetCursor( self, name )
+        cursors[ self ] = name
+    end
+
+    hook.Add( "PostRenderVGUI", "MouseCursor", function()
+        if cursor_visible then
+            local pnl = vgui_GetHoveredPanel()
+            if pnl ~= nil and Panel_IsValid( pnl ) then
+                if hook_Run( "ash.ui.DrawCursor", cursor_x, cursor_y, cursors[ pnl ] ) then
+                    Panel_SetCursor( pnl, "blank" )
+                end
+
+                return
+            end
+
+            hook_Run( "ash.ui.DrawCursor", cursor_x, cursor_y, "arrow" )
         end
     end, PRE_HOOK )
 

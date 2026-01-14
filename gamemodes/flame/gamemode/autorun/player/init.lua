@@ -1,4 +1,3 @@
-
 MODULE.ClientFiles = {
     "cl_init.lua",
     "shared.lua"
@@ -6,15 +5,6 @@ MODULE.ClientFiles = {
 
 ---@class flame.player
 local flame_player = include( "shared.lua" )
-local hook_Run = hook.Run
-
-hook.Add( "CanPlayerSuicide", "Defaults", function( pl )
-    return true
-end )
-
-hook.Add( "PlayerCanPickupWeapon", "Defaults", function( pl, wep )
-    return true
-end )
 
 ---@type ash.model
 local ash_model = require( "ash.model" )
@@ -28,11 +18,17 @@ local ash_phrases = require( "ash.player.voice.phrases" )
 ---@type ash.entity
 local ash_entity = require( "ash.entity" )
 
+local hook_Run = hook.Run
+
+hook.Add( "PlayerCanPickupWeapon", "Defaults", function( pl, wep )
+    return true
+end )
+
 do
 
     ---@param pl Player
     ---@param trans boolean
-    hook.Add( "PrePlayerSpawn", "Default", function( pl, trans )
+    hook.Add( "ash.player.PreSpawn", "Default", function( pl, trans )
         pl:UnSpectate()
 
         pl:StripWeapons()
@@ -50,7 +46,7 @@ do
         local math_abs = math.abs
 
         ---@param pl Player
-        hook.Add( "PlayerSetupModel", "Default", function( pl )
+        hook.Add( "ash.player.SetupModel", "Default", function( pl )
             ash_entity.setPlayerColor( pl, Color( flame_player.StoRGB( pl:GetInfo( "flame_player_color" ) ) ) )
 
             local model_info = ash_model.get( pl:GetInfo( "flame_player_model" ) )
@@ -96,6 +92,8 @@ do
                     break
                 end
             end
+
+            ash_player.setUseDistance( pl, 72 * scale )
 
             pl:SetStepSize( root_height )
             pl:SetJumpPower( 250 * scale )
@@ -205,7 +203,7 @@ do
 
     local temp_vector = Vector( 0, 0, 0 )
 
-    hook.Add( "PlayerLanded", "Defaults", function( pl, fall_speed, in_water, trace_result )
+    hook.Add( "ash.player.Landed", "Defaults", function( pl, fall_speed, in_water, trace_result )
         if player_isDead( pl ) then return end
         fall_speed = -fall_speed
 
@@ -250,7 +248,7 @@ end
 
 ---@param pl Player
 ---@param ragdoll_entity Entity
-hook.Add( "PlayerSetupRagdoll", "Defaults", function( pl, ragdoll_entity )
+hook.Add( "ash.player.SetupRagdoll", "Defaults", function( pl, ragdoll_entity )
     pl:SpectateEntity( ragdoll_entity )
     pl:Spectate( OBS_MODE_CHASE )
 end )
@@ -261,15 +259,29 @@ do
     local death_times = {}
     gc.setTableRules( death_times, true )
 
-    hook.Add( "ShouldPlayerSpawn", "Defaults", function( pl )
+    hook.Add( "ash.player.CanSpawn", "Defaults", function( pl )
         if ( CurTime() - ( death_times[ pl ] or 0 ) ) > 3 then return end
         return false
     end )
 
-    hook.Add( "PostPlayerDeath", "Defaults", function( pl )
+    hook.Add( "ash.player.Death", "Defaults", function( pl )
         death_times[ pl ] = CurTime()
     end, PRE_HOOK )
 
 end
+
+hook.Add( "ash.player.footsteps.Sound", "Defaults", function( pl, sound_position, player_shoes, material_name, selected_state, bone_id )
+    local sound_level, volume = 75, 1.00
+
+    if selected_state == "wandering" then
+        sound_level, volume = 40, 0.75
+    elseif selected_state == "running" then
+        sound_level, volume = 90, 1.25
+    elseif selected_state == "falling" then
+        sound_level, volume = 100, 1.50
+    end
+
+    return sound_level, 100, volume
+end )
 
 return flame_player

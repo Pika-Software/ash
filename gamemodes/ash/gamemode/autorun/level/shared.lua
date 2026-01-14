@@ -15,7 +15,7 @@ do
 
     ---@param entity Entity
     ---@param name string
-    hook.Add( "WorldEntityCreated", "Initialize", function( entity, name )
+    hook.Add( "ash.level.Created", "Initialize", function( entity, name )
         if entity == nil or entity == NULL or not entity:IsWorld() or name == nil or string.byte( name, 1, 1 ) == nil then
             return
         end
@@ -44,7 +44,7 @@ do
 
         ash_level.Entity = world_entity
 
-        hook.Run( "WorldEntityCreated", world_entity, game.GetMap() )
+        hook.Run( "ash.level.Created", world_entity, game.GetMap() )
         coroutine_yield( true )
     end )
 

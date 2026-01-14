@@ -50,7 +50,7 @@ local NULL = NULL
 ash_player.isSpeaking = Player.IsSpeaking
 
 ---@param pl Player
-hook.Add( "PlayerInitialized", "HullSync", function( pl )
+hook.Add( "ash.player.Initialized", "HullSync", function( pl )
     if not Player_IsBot( pl ) then
         ash_player.setHull( pl, true, pl:GetHullDuck() )
         ash_player.setHull( pl, false, pl:GetHull() )
@@ -94,18 +94,13 @@ do
     ---@param pl Player
     function ash_player.ragdollRemove( pl )
         local ragdoll = player_getRagdoll( pl )
-        if ragdoll ~= nil and Entity_IsValid( ragdoll ) and hook_Run( "ShouldRemoveRagdoll", pl, ragdoll ) ~= false then
-            hook_Run( "RagdollRemove", pl, ragdoll )
+        if ragdoll ~= nil and Entity_IsValid( ragdoll ) and hook_Run( "ash.player.ShouldRemoveRagdoll", pl, ragdoll ) ~= false then
+            hook_Run( "ash.player.RagdollRemove", pl, ragdoll )
+            ragdoll:Remove()
         end
-
-        hook_Run( "RagdollRemoved", pl )
     end
 
-    hook.Add( "RagdollRemove", "DefaultRagdoll", function( pl, ragdoll )
-        ragdoll:Remove()
-    end )
-
-    hook.Add( "PrePlayerRagdoll", "DefaultRagdoll", ash_player.ragdollRemove )
+    hook.Add( "ash.player.PreDeath", "DefaultRagdoll", ash_player.ragdollRemove )
 
 end
 
@@ -135,9 +130,7 @@ do
     ---@param pl Player
     ---@return Entity ragdoll
     function ash_player.ragdollCreate( pl )
-        hook_Run( "PrePlayerRagdoll", pl )
-
-        local ragdoll_entity = hook_Run( "PlayerRagdoll", pl ) or NULL
+        local ragdoll_entity = hook_Run( "ash.player.RagdollCreate", pl ) or NULL
 
         if ragdoll_entity ~= nil and Entity_IsValid( ragdoll_entity ) then
             local player_velocity = animator_getVelocity( pl )
@@ -180,10 +173,10 @@ do
                 end
             end
 
-            hook_Run( "PlayerSetupRagdoll", pl, ragdoll_entity )
+            hook_Run( "ash.player.RagdollSetup", pl, ragdoll_entity )
         end
 
-        hook_Run( "PostPlayerRagdoll", pl, ragdoll_entity )
+        hook_Run( "ash.player.RagdollCreated", pl, ragdoll_entity )
 
         return ragdoll_entity
     end
@@ -201,7 +194,7 @@ do
         hook.Add( "PlayerInitialSpawn", "Initialization", function( pl )
             if player_isNextBot( pl ) then
                 Entity_SetNWBool( pl, "m_bInitialized", true )
-                hook_Run( "PlayerInitialized", pl )
+                hook_Run( "ash.player.Initialized", pl )
             end
         end, PRE_HOOK )
 
@@ -219,7 +212,7 @@ do
                 net.WriteUInt( pl:EntIndex(), player_BitCount )
                 net.SendOmit( pl )
 
-                hook_Run( "PlayerInitialized", pl )
+                hook_Run( "ash.player.Initialized", pl )
             end
         end
     }
@@ -432,7 +425,7 @@ do
     ---@param pl Player
     ---@param attacker Entity
     ---@param dmg_info CTakeDamageInfo
-    hook.Add( "PlayerRagdoll", "DefaultRagdoll", function( pl, attacker, dmg_info )
+    hook.Add( "ash.player.RagdollCreate", "DefaultRagdoll", function( pl, attacker, dmg_info )
         local ragdoll_entity = ents.Create( "prop_ragdoll" )
 
         for key, value in pairs( pl:GetSaveTable( true ) ) do
@@ -459,9 +452,9 @@ do
     do
 
         hook.Add( "DoPlayerDeath", "Ragdoll", function( pl, attacker, dmg_info )
-            hook_Run( "PrePlayerDeath", pl, attacker, dmg_info )
+            hook_Run( "ash.player.PreDeath", pl, attacker, dmg_info )
 
-            if hook_Run( "CanPlayerRagdoll", pl ) ~= false then
+            if hook_Run( "ash.player.CanRagdoll", pl ) ~= false then
                 ash_player.ragdollCreate( pl )
             end
         end, PRE_HOOK )
@@ -470,6 +463,8 @@ do
 
     hook.Add( "PostPlayerDeath", "Spawn", function( pl )
         awaiting_respawn[ pl ] = true
+        hook_Run( "ash.player.Death", pl )
+        hook_Run( "ash.player.PostDeath", pl )
     end, PRE_HOOK )
 
     do
@@ -477,8 +472,8 @@ do
         local Entity_SetPos = Entity.SetPos
         local Entity_Spawn = Entity.Spawn
 
-        hook.Add( "KeyRelease", "Spawn", function( pl, key )
-            if awaiting_respawn[ pl ] and bit_band( key, respawn_keys[ pl ] ) ~= 0 and hook_Run( "ShouldPlayerSpawn", pl ) ~= false then
+        hook.Add( "ash.player.Key", "Spawn", function( pl, in_key )
+            if awaiting_respawn[ pl ] and bit_band( in_key, respawn_keys[ pl ] ) ~= 0 and hook_Run( "ash.player.CanSpawn", pl ) ~= false then
                 Entity_Spawn( pl )
             end
         end, PRE_HOOK )
@@ -486,7 +481,7 @@ do
         hook.Add( "PlayerSpawn", "PreSpawn", function( pl, transition )
             awaiting_respawn[ pl ] = false
 
-            hook_Run( "PrePlayerSpawn", pl, transition )
+            hook_Run( "ash.player.PreSpawn", pl, transition )
 
             local max_speed = physenv.GetPerformanceSettings().MaxVelocity
 
@@ -497,8 +492,10 @@ do
 
             pl:SetCrouchedWalkSpeed( 1 )
 
-            hook_Run( "PlayerSetupModel", pl, transition )
-            hook_Run( "PlayerSetupLoadout", pl, transition )
+            hook_Run( "ash.player.SetupModel", pl, transition )
+            hook_Run( "ash.player.SetupLoadout", pl, transition )
+
+            hook_Run( "ash.player.Spawn", pl, transition )
         end, PRE_HOOK )
 
         ---@param pl Player
@@ -506,10 +503,10 @@ do
         ---@diagnostic disable-next-line: undefined-doc-param
         hook.Add( "PlayerSpawn", "PostSpawn", function( _, pl, is_transition )
             if not is_transition then
-                Entity_SetPos( pl, hook_Run( "PlayerSetupPosition", pl ) or vector_origin )
+                Entity_SetPos( pl, hook_Run( "ash.player.SetupPosition", pl ) or vector_origin )
             end
 
-            hook_Run( "PostPlayerSpawn", pl, is_transition )
+            hook_Run( "ash.player.PostSpawn", pl, is_transition )
         end, POST_HOOK )
 
     end
@@ -522,11 +519,15 @@ do
 
     hook.Add( "Tick", "Ticking", function()
         for _, pl in player_Iterator() do
-            hook_Run( "PlayerThink", pl )
+            hook_Run( "ash.player.Think", pl )
         end
     end )
 
 end
+
+hook.Add( "PlayerSwitchWeapon", "WeaponLookup", function( arguments, pl, old, new )
+    return hook_Run( "ash.player.SwitchedWeapon", pl, old, new ) == false or arguments[ 2 ] == true
+end, POST_HOOK_RETURN )
 
 do
 
@@ -557,7 +558,8 @@ do
     function ash_player.getSpawnPoint( pl )
         for i = 1, spawnpoint_count, 1 do
             local spawnpoint = spawnpoints[ i ]
-            if hook_Run( "PlayerSelectsSpawnPoint", pl, spawnpoint ) ~= false then
+            if hook_Run( "ash.player.SpawnPoint", pl, spawnpoint ) ~= false then
+                table.shuffle( spawnpoints, spawnpoint_count )
                 return spawnpoint
             end
         end
@@ -647,7 +649,7 @@ do
         spawnpoint_count = 0
     end
 
-    hook.Add( "PlayerSetupPosition", "SpawnControl", function( pl )
+    hook.Add( "ash.player.SetupPosition", "SpawnControl", function( pl )
         local spawnpoint = ash_player.getSpawnPoint( pl )
         if spawnpoint ~= nil then
             local entity = spawnpoint.entity
@@ -662,7 +664,7 @@ do
     local utils_isSpawnpointClass = ash_utils.isSpawnpointClass
     local Vector_DistToSqr = Vector.DistToSqr
 
-    hook.Add( "EntityCreated", "SpawnControl", function( entity, class_name )
+    local function entity_created( entity, class_name )
         if utils_isSpawnpointClass( class_name ) then
             local position = entity:GetPos()
 
@@ -684,14 +686,58 @@ do
 
             spawn_entities[ entity ] = ash_player.addSpawnPoint( entity ).id
         end
-    end )
+    end
+
+    hook.Add( "ash.entity.Created", "SpawnControl", entity_created, PRE_HOOK )
+
+    for _, entity in ents.Iterator() do
+        entity_created( entity, entity:GetClass() )
+    end
+
+end
+
+do
+
+    local Player_IsSpeaking = Player.IsSpeaking
+
+    ---@type table<Player, boolean>
+    local players_speaking = {}
+
+    --- [SERVER]
+    ---
+    --- Checks if the player is speaking (using voice chat).
+    ---
+    ---@param pl Player
+    ---@return boolean is_speaking
+    ---@diagnostic disable-next-line: duplicate-set-field
+    function ash_player.isSpeaking( pl )
+        return players_speaking[ pl ]
+    end
+
+    setmetatable( players_speaking, {
+        __index = function( self, pl )
+            local is_speaking = Player_IsSpeaking( pl )
+            self[ pl ] = is_speaking
+            return is_speaking
+        end,
+        __mode = "k"
+    } )
+
+    ---@param pl Player
+    hook.Add( "ash.player.Think", "VoiceChatStateController", function( pl )
+        local is_speaking = Player_IsSpeaking( pl )
+        if players_speaking[ pl ] ~= is_speaking then
+            players_speaking[ pl ] = is_speaking
+            hook_Run( "ash.player.Speaking", pl, is_speaking )
+        end
+    end, PRE_HOOK )
 
 end
 
 hook.Add( "PlayerSay", "ChatHandler", function( arguments, sender, message, is_team_chat )
     message = arguments[ 2 ] or message
 
-    if hook_Run( "ShouldPlayerChat", sender, message, is_team_chat ) ~= false then
+    if hook_Run( "ash.player.ChatMessage", sender, message, is_team_chat ) ~= false then
         return message
     end
 
@@ -700,6 +746,14 @@ end, POST_HOOK_RETURN )
 
 hook.Add( "GetFallDamage", "LandingHandler", function( arguments, pl, fall_speed )
     return arguments[ 2 ] or 0
+end, POST_HOOK_RETURN )
+
+hook.Add( "CanPlayerSuicide", "SuicideHandler", function( arguments, pl )
+    if arguments[ 2 ] == false or hook_Run( "ash.player.CanSuicide", pl ) == false then
+        return false
+    end
+
+    return hook_Run( "ash.player.Suicide", pl ) ~= false
 end, POST_HOOK_RETURN )
 
 return ash_player
