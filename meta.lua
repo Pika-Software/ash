@@ -337,6 +337,9 @@ math = std.math
 string = std.string
 
 ---@diagnostic disable-next-line: lowercase-global
+table = std.table
+
+---@diagnostic disable-next-line: lowercase-global
 path = std.path
 
 ---@diagnostic disable-next-line: lowercase-global

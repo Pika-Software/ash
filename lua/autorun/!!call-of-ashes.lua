@@ -226,6 +226,7 @@ if LUA_SERVER then
     ---@param file_path string
     ---@param stack_level? integer
     ---@return boolean has_changes
+    ---@return string lua_code
     ---@return string file_sha256
     function clientFileSend( file_path, stack_level )
         if stack_level == nil then
@@ -289,13 +290,13 @@ if LUA_SERVER then
                     end
                 end
 
-                return true, file_sha256
+                return true, lua_code, file_sha256
             end
 
             std.errorf( stack_level, false, "Failed to add file 'lua/%s' to the client.", file_path )
         end
 
-        return false, file_sha256
+        return false, lua_code, file_sha256
     end
 
 end
@@ -870,6 +871,7 @@ environment.console = std.console
 environment.futures = std.futures
 environment.string = string
 environment.math = std.math
+environment.table = table
 environment.class = class
 environment.debug = debug
 environment.path = path
@@ -1008,6 +1010,9 @@ if LUA_SERVER then
 
 end
 
+---@type table<string, string>
+local client_contents = {}
+
 local file_compile
 do
 
@@ -1098,33 +1103,36 @@ do
         function compiler_fn( file_path, stack_level )
             stack_level = stack_level + 1
 
-            local success, result = pcall( CompileFile, file_path, true )
+            ---@type string | nil
+            local lua_code = client_contents[ file_path ]
+            if lua_code == nil then
+                local success, result = pcall( CompileFile, file_path, true )
+                if success and result ~= nil then
+                    ---@cast result function
+                    return result
+                end
 
-            if success and result ~= nil then
-                ---@cast result function
-                return result
+                ---@type File | nil
+                ---@diagnostic disable-next-line: assign-type-mismatch
+                local file_handler = file_Open( "cache/lua/" .. string_sub( client_checksums[ file_path ], 1, 40 ) .. ".lua", "rb", "MOD" )
+
+                if file_handler == nil then
+                    std.errorf( stack_level, false, "File '%s' does not exist.", file_path )
+                end
+
+                ---@cast file_handler File
+
+                local compressed_data = file_handler:Read( file_handler:Size() )
+                file_handler:Close()
+
+                if compressed_data == nil or string_byte( compressed_data, 1, 1 ) == nil then
+                    std.errorf( stack_level, false, "File '%s' is empty.", file_path )
+                end
+
+                ---@cast compressed_data string
+
+                lua_code = util_Decompress( string_sub( compressed_data, 33 ) )
             end
-
-            ---@type File | nil
-            ---@diagnostic disable-next-line: assign-type-mismatch
-            local file_handler = file_Open( "cache/lua/" .. string_sub( client_checksums[ file_path ], 1, 40 ) .. ".lua", "rb", "MOD" )
-
-            if file_handler == nil then
-                std.errorf( stack_level, false, "File '%s' does not exist.", file_path )
-            end
-
-            ---@cast file_handler File
-
-            local compressed_data = file_handler:Read( file_handler:Size() )
-            file_handler:Close()
-
-            if compressed_data == nil or string_byte( compressed_data, 1, 1 ) == nil then
-                std.errorf( stack_level, false, "File '%s' is empty.", file_path )
-            end
-
-            ---@cast compressed_data string
-
-            local lua_code = util_Decompress( string_sub( compressed_data, 33 ) )
 
             if lua_code == nil or string_byte( lua_code, 1, 1 ) == nil then
                 std.errorf( stack_level, false, "File '%s' is empty.", file_path )
@@ -1136,7 +1144,7 @@ do
                 std.errorf( stack_level, false, "File '%s' has been modified.", file_path )
             end
 
-            success, result = pcall( CompileString, lua_code, file_path, false )
+            local success, result = pcall( CompileString, lua_code, file_path, false )
 
             if isString( result ) then
                 success = false
@@ -1187,22 +1195,20 @@ end
 ---
 ---@param stack_level integer
 function Module:load( stack_level )
-    local module_enviroment = self.Environment
-    if module_enviroment ~= nil then return end
+    if self.Environment ~= nil then return end
 
-    module_enviroment = {
+    local module_enviroment = {
         MODULE = self
     }
 
     setmetatable( module_enviroment, enviroment_metatable )
     self.Environment = module_enviroment
 
-    local success, result = xpcall( file_compile( self.EntryPoint, module_enviroment, stack_level ), error_handler )
+    local success, result = pcall( file_compile( self.EntryPoint, module_enviroment, stack_level ) )
 
     if success then
         self.Result = result
     else
-        -- self.Error = self.EntryPoint .. ":0: " .. ( string_match( result, "^[^:]+:%d+: (.*)$" ) or result )
         self.Error = result
     end
 
@@ -1221,6 +1227,7 @@ function Module:unload()
     self.Error = nil
 
     hook_Run( "ash.ModuleUnloaded", self )
+    logger:debug( "'%s' unloaded.", self )
 end
 
 do
@@ -1852,7 +1859,7 @@ do
 
         end
 
-        logger:debug( "Module '%s' successfully loaded!", module_name )
+        logger:debug( "'%s' loaded.", module_object )
 
         return module_object
     end
@@ -1908,14 +1915,16 @@ do
             local lua_path = table_concat( { gamemode_name, "gamemode", module_type, directory_path, file_name }, "/", 1, 5 )
 
             if client_checksums[ lua_path ] ~= nil then
-                local has_changes, file_sha256 = clientFileSend( lua_path, 2 )
+                local has_changes, lua_code, file_sha256 = clientFileSend( lua_path, 2 )
                 if has_changes then
                     std.setTimeout( function()
                         glua_net.Start( "ash.network" )
                         glua_net.WriteUInt( 2, 2 )
                         glua_net.WriteString( lua_path )
-                        glua_net.WriteString( file_sha256 )
+                        glua_net.WriteData( util_Compress( lua_code ) )
                         glua_net.Broadcast()
+
+                        logger:debug( "File '%s' with SHA-256 '%s' successfully sent to the clients over net.", lua_path, file_sha256 )
                     end )
                 end
             end
@@ -2045,9 +2054,22 @@ do
                     end
                 end )
             elseif uint1_1 == 2 then
-                local file_path, file_sha256 = glua_net.ReadString(), glua_net.ReadString()
-                logger:debug( "Received file '%s' checksum SHA-256 '%s'.", file_path, file_sha256 )
+                local file_path = glua_net.ReadString()
+
+                local compressed_lua = glua_net.ReadData( glua_net.BytesLeft() * 8 )
+                local lua_code = util_Decompress( compressed_lua )
+
+                if lua_code == nil then
+                    logger:error( "Failed to decompress file '%s'.", file_path )
+                    return
+                end
+
+                client_contents[ file_path ] = lua_code
+
+                local file_sha256 = util_SHA256( lua_code )
                 client_checksums[ file_path ] = file_sha256
+
+                logger:debug( "Received file '%s' checksum SHA-256 '%s'.", file_path, file_sha256 )
 
                 local gamemode_name, module_type, directory_path = string_match( file_path, "^([^/]+)/gamemode/(%w+)/(.+)/.+%.lua$" )
                 if gamemode_name == nil or not ( module_type == "modules" or module_type == "autorun" ) or directory_path == nil then return end
