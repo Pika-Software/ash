@@ -5,7 +5,8 @@ MODULE.Networks = {
 MODULE.ClientFiles = {
     "animator.lua",
     "cl_init.lua",
-    "shared.lua"
+    "shared.lua",
+    "voice.lua"
 }
 
 do

@@ -556,12 +556,12 @@ do
             ::activity_selected::
 
             if activity ~= activities[ pl ] then
-                hook_Run( "ash.player.animator.Activity", pl, activity, activities[ pl ] )
+                hook_Run( "ash.player.animator.Activity", pl, activities[ pl ], activity )
                 activities[ pl ] = activity
             end
 
             if sequence_id ~= sequences[ pl ] then
-                hook_Run( "ash.player.animator.Sequence", pl, sequence_id, sequences[ pl ] )
+                hook_Run( "ash.player.animator.Sequence", pl, sequences[ pl ], sequence_id )
                 sequences[ pl ] = sequence_id
             end
 

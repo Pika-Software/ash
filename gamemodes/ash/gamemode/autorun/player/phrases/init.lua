@@ -23,7 +23,7 @@ local sound_get = ash_sound.get
 local ash_player = require( "ash.player" )
 local player_isSpeaking = ash_player.isSpeaking
 
----@class ash.player.voice.phrases
+---@class ash.player.phrases
 local ash_phrases = {}
 
 ---@type table<Player, string>

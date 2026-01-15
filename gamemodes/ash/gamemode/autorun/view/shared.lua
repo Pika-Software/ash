@@ -67,6 +67,7 @@ end
 ash_view.isInFOV = isInFOV
 
 ---@type ash.trace.Output
+---@diagnostic disable-next-line: missing-fields
 local trace_result = {}
 
 ---@type ash.trace.Params

@@ -4,17 +4,25 @@ local flame_ui = ...
 ---@type ash.ui
 local ash_ui = require( "ash.ui" )
 
+---@type ash.view
+local ash_view = require( "ash.view" )
+local view_Data = ash_view.Data
+
+---@type ash.entity
+local ash_entity = require( "ash.entity" )
+
 ---@type ash.player
 local ash_player = require( "ash.player" )
 
----@type ash.view
-local ash_view = require( "ash.view" )
+---@type ash.entity.door
+local ash_door = require( "ash.entity.door" )
 
 local colors = ash_ui.Colors
-
+local light_grey = colors[ 180 ]
 local dark_white = colors[ 200 ]
 local dark_grey = colors[ 33 ]
 local white = colors.white
+local black = colors.black
 
 local Panel = Panel
 local Panel_IsValid = Panel.IsValid
@@ -28,6 +36,12 @@ local surface_PlaySound = surface.PlaySound
 local surface_SetDrawColor = surface.SetDrawColor
 
 local hook_Run = hook.Run
+
+local sizes = ash_ui.scaleMap( {
+	v10 = "10vmin",
+	v05 = "0.5vmin",
+	v2 = "2vmin"
+} )
 
 do
 
@@ -157,7 +171,7 @@ do
 			end
 		end
 
-		scroll_panel:SetWide( math.max( width, ash_ui.scale( "10vmin" ) ) )
+		scroll_panel:SetWide( math.max( width, sizes.v10 ) )
 	end
 
 	function ContextMenu:AddItem( data )
@@ -283,7 +297,7 @@ do
 	end
 
  	function ContextMenu:Paint( width, height )
-		hook_Run( "ContextMenuRender", self, width, height )
+		hook_Run( "flame.ui.DrawContextMenu", self, width, height )
 	end
 
 	function ContextMenu:Think()
@@ -398,7 +412,7 @@ do
 		end
 
 		function ContextMenuButton:PerformLayout()
-			local margin = ash_ui.scale( "0.5vmin" )
+			local margin = sizes.v05
 			local margin2 = margin * 2
 
 			self.Image:DockMargin( margin2, margin2, margin2, 0 )
@@ -561,11 +575,19 @@ do
 
 end
 
+---@type TraceResult
+local trace_result = {}
+
+---@type Trace
+local trace = {
+	output = trace_result,
+	mask = MASK_SHOT
+}
+
+---@type Entity | nil
 local entity
 
 do
-
-	local view_Data = ash_view.Data
 
 	local Entity_GetNoDraw = Entity.GetNoDraw
 	local Entity_GetSolid = Entity.GetSolid
@@ -573,16 +595,8 @@ do
 
 	local util_TraceLine = util.TraceLine
 
-	---@type TraceResult
-	local trace_result = {}
-
-	---@type Trace
-	local trace = {
-		output = trace_result
-	}
-
 	hook.Add( "ContextMenuThink", "Properties", function( self )
-		local view_entity = ash_player.ViewEntity
+		local view_entity = ash_view.Entity
 		local start = view_Data.origin
 
 		trace.start = start
@@ -598,7 +612,7 @@ do
 
 		entity = trace_result.Entity
 
-		if not Entity_IsValid( entity ) or Entity_GetNoDraw( entity ) or Entity_GetSolid( entity ) == 0 or entity:IsPlayer()	 then
+		if not Entity_IsValid( entity ) or Entity_GetNoDraw( entity ) or Entity_GetSolid( entity ) == 0 then
 			entity = nil
 		end
 	end )
@@ -627,7 +641,7 @@ do
 
 	local Entity_DrawModel = Entity.DrawModel
 
-	hook.Add( "ContextMenuRender", "Jailbreak::Properties", function( self, width, height )
+	hook.Add( "flame.ui.DrawContextMenu", "Jailbreak::Properties", function( self, width, height )
 		if entity ~= nil then
 			cam_Start3D()
 
@@ -662,6 +676,225 @@ do
 			render_SetStencilReferenceValue( 0 )
 
 			cam_End3D()
+		end
+	end )
+
+end
+
+do
+
+	local surface_SetTextColor = surface.SetTextColor
+	local surface_GetTextSize = surface.GetTextSize
+	local surface_SetTextPos = surface.SetTextPos
+	local surface_DrawText = surface.DrawText
+	local surface_SetFont = surface.SetFont
+
+	local Vector_Distance = Vector.Distance
+
+	local string_upper = string.upper
+
+	local math_round = math.round
+	local math_lerp = math.lerp
+	local math_max = math.max
+
+	ash_ui.font( "flame.ui.ContextMenu.Target - Name", {
+		font = "Roboto Mono Bold",
+		size = "2.5vmin"
+	} )
+
+	ash_ui.font( "flame.ui.ContextMenu.Target - Health", {
+		font = "Roboto Mono",
+		size = "1.8vmin"
+	} )
+
+	ash_ui.font( "flame.ui.ContextMenu.Target - Use", {
+		font = "Roboto Mono Bold",
+		size = "2vmin"
+	} )
+
+	local target_names = {
+		func_door_rotating = "Door",
+		prop_door_rotating = "Door",
+		prop_ragdoll = "Body",
+		func_button = "Button"
+	}
+
+	local asparagus = Color( 128, 154, 86 )
+	local red = Color( 255, 50, 50 )
+
+	local entity_type = 0
+
+	hook.Add( "flame.ui.DrawContextMenu", "TargetInfo", function( self, width, height )
+		if entity == nil then return end
+
+		local mouseX, mouseY = ash_ui.CursorX, ash_ui.CursorY
+		local class_name = entity:GetClass()
+		local r, g, b = 255, 255, 255
+		local text = nil
+		entity_type = 0
+
+		if class_name == "player" then
+			---@cast entity Player
+
+			if ash_player.isDead( entity ) then return end
+			text = entity:Nick()
+			entity_type = 1
+		elseif ash_entity.isButton( entity ) then
+			text = "Button"
+			entity_type = 2
+		else
+			text = target_names[ class_name ]
+			if text == nil then return end
+			entity_type = 7
+		end
+
+		if entity_type == 0 then
+			return
+		end
+
+		local x, y = 0, mouseY + sizes.v2
+
+		if text ~= nil then
+			surface_SetFont( "flame.ui.ContextMenu.Target - Name" )
+
+			local text_width, text_height = surface_GetTextSize( text )
+			x = mouseX - text_width * 0.5
+
+			surface_SetTextPos( x - 1, y - 1 )
+			surface_SetTextColor( black.r, black.g, black.b, 50 )
+			surface_DrawText( text )
+
+			surface_SetTextPos( x + 3, y + 3 )
+			surface_SetTextColor( black.r, black.g, black.b, 120 )
+			surface_DrawText( text )
+
+			surface_SetTextColor( r, g, b )
+			surface_SetTextPos( x, y )
+			surface_DrawText( text )
+
+			y = y + text_height
+		end
+
+		text = nil
+
+		if entity_type == 1 then
+			if entity:HasGodMode() then
+				text = "Invincible"
+				r, g, b = 254, 242, 0
+			else
+				local frac = entity:Health() / entity:GetMaxHealth()
+				if frac <= 0 then
+					text = "Dead"
+				elseif frac < 0.25 then
+					text = "Half Dead"
+				elseif frac < 0.5 then
+					text = "Badly Wounded"
+				elseif frac < 0.75 then
+					text = "Wounded"
+				elseif frac < 0.90 then
+					text = "Hurt"
+				else
+					text = "Healthy"
+				end
+
+				r, g, b = math_lerp( frac, red.r, asparagus.r ), math_lerp( frac, red.g, asparagus.g ), math_lerp( frac, red.b, asparagus.b )
+			end
+		else
+			local health = entity:Health()
+			if health >= 1 then
+				local frac = math_max( 0, math_round( 1 - ( health / entity:GetMaxHealth() ), 2 ) )
+				if frac ~= 0 then
+					text = "Damaged by " .. ( frac * 100 ) .. "%"
+					r, g, b = dark_white.r, dark_white.g, dark_white.b
+				end
+			end
+		end
+
+		if text ~= nil then
+			surface_SetFont( "flame.ui.ContextMenu.Target - Health" )
+
+			local text_width, text_height = surface_GetTextSize( text )
+			x = mouseX - text_width * 0.5
+
+			surface_SetTextColor( dark_grey.r, dark_grey.g, dark_grey.b, 100 )
+
+			for sx = -2, 2 do
+				for sy = -2, 2 do
+					surface_SetTextPos( x + sx, y + sy )
+					surface_DrawText( text )
+				end
+			end
+
+			surface_SetTextColor( r, g, b )
+			surface_SetTextPos( x, y )
+			surface_DrawText( text )
+			y = y + text_height
+		end
+
+		local view_entity = ash_view.Entity
+		if Vector_Distance( trace.start, trace_result.HitPos ) > ash_player.getUseDistance( view_entity ) then
+			return
+		end
+
+		local key_name = input.LookupBinding( "use" )
+		if key_name == nil then return end
+
+		if view_entity:IsPlayer() and view_entity:Alive() then
+			---@cast view_entity Player
+			text = nil
+
+			if entity_type == 2 then
+				text = "Press"
+			elseif class_name == "prop_door_rotating" or class_name == "func_door_rotating" then
+				if ash_door.isLocked( entity ) then
+					text = "Locked"
+				else
+
+					local state = ash_door.getState( entity )
+					if state == 0 or state == 3 then
+						text = "Open"
+					else
+						text = "Close"
+					end
+
+				end
+			end
+
+			if text ~= nil then
+				key_name = string_upper( key_name )
+
+				surface_SetFont( "flame.ui.ContextMenu.Target - Use" )
+
+				local text_width, text_height = surface_GetTextSize( text )
+				local margin = sizes.v05
+
+				width, height = text_width * 1.2, text_height * 1.25
+
+				x = mouseX - ( width + margin + height ) * 0.5
+				y = y + ( ( height - text_height ) * 0.5 + margin )
+
+				if ash_player.getKeyState( view_entity, 32 ) then
+					surface_SetDrawColor( light_grey.r, light_grey.g, light_grey.b, 240 )
+					surface_SetTextColor( dark_grey.r, dark_grey.g, dark_grey.b )
+				else
+					surface_SetDrawColor( dark_grey.r, dark_grey.g, dark_grey.b, 240 )
+					surface_SetTextColor( dark_white.r, dark_white.g, dark_white.b )
+				end
+
+				surface_DrawRect( x, y - ( height - text_height ) * 0.5, height, height )
+
+				surface_SetTextPos( x + ( height - surface_GetTextSize( key_name ) ) * 0.5, y )
+				surface_DrawText( key_name )
+				x = x + ( height + margin )
+
+				surface_SetDrawColor( dark_grey.r, dark_grey.g, dark_grey.b, 240 )
+				surface_DrawRect( x, y - ( height - text_height ) * 0.5, width, height )
+				x = x + ( ( width - text_width ) * 0.5 )
+
+				surface_SetTextColor( dark_white.r, dark_white.g, dark_white.b )
+				surface_SetTextPos( x, y )
+				surface_DrawText( text )
+			end
 		end
 	end )
 

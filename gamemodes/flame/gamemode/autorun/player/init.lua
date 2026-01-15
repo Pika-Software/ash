@@ -12,8 +12,8 @@ local ash_model = require( "ash.model" )
 ---@type ash.player
 local ash_player = require( "ash.player" )
 
----@type ash.player.voice.phrases
-local ash_phrases = require( "ash.player.voice.phrases" )
+---@type ash.player.phrases
+local ash_phrases = require( "ash.player.phrases" )
 
 ---@type ash.entity
 local ash_entity = require( "ash.entity" )
@@ -283,5 +283,44 @@ hook.Add( "ash.player.footsteps.Sound", "Defaults", function( pl, sound_position
 
     return sound_level, 100, volume
 end )
+
+do
+
+    local Entity_IsPlayerHolding = Entity.IsPlayerHolding
+    local Entity_GetMoveType = Entity.GetMoveType
+    local Entity_IsValid = Entity.IsValid
+
+    local Player_PickupObject = Player.PickupObject
+
+    local queue, queue_size = {}, 0
+
+    hook.Add( "ash.player.ShouldUse", "Defaults", function( pl, entity )
+        if Entity_GetMoveType( entity ) ~= 6 then return end
+        if Entity_IsPlayerHolding( entity ) then return false end
+
+        ---@type PhysObj
+        local phys = entity:GetPhysicsObject()
+        if phys ~= nil and phys:IsValid() and phys:IsMotionEnabled() then
+            queue_size = queue_size + 1
+            queue[ queue_size ] = { pl, entity }
+            return false
+        end
+    end )
+
+    hook.Add( "Tick", "PickupController", function()
+        if queue_size == 0 then return end
+
+        local data = queue[ queue_size ]
+
+        queue[ queue_size ] = nil
+        queue_size = queue_size - 1
+
+        local pl, entity = data[ 1 ], data[ 2 ]
+        if Entity_IsValid( pl ) and Entity_IsValid( entity ) and not Entity_IsPlayerHolding( entity ) then
+            Player_PickupObject( pl, entity )
+        end
+    end, POST_HOOK )
+
+end
 
 return flame_player

@@ -8,13 +8,13 @@ local coroutine_resume = coroutine.resume
 
 local hook_Run = hook.Run
 local Vector = Vector
+local rawget = rawget
 local net = net
 
 local NULL = NULL
 
 ---@class ash.player
 ---@field Entity Player The local player entity.
----@field ViewEntity Entity The view entity.
 local ash_player = include( "shared.lua" )
 
 do
@@ -199,22 +199,6 @@ end
 
 do
 
-    local GetViewEntity = GetViewEntity
-
-    ash_player.ViewEntity = GetViewEntity() or NULL
-
-    timer.Create( "ViewEntity", 0.5, 0, function()
-        local entity = GetViewEntity() or NULL
-        if entity ~= ash_player.ViewEntity then
-            hook_Run( "ash.player.ViewEntity", entity, ash_player.ViewEntity )
-            ash_player.ViewEntity = entity
-        end
-    end )
-
-end
-
-do
-
     gameevent.Listen( "player_activate" )
     gameevent.Listen( "player_spawn" )
 
@@ -316,10 +300,8 @@ do
     } )
 
     hook.Add( "ash.player.Think", "WeaponLookup", function( pl, is_local )
-        if is_local then return end
-
         local active_weapon = Player_GetActiveWeapon( pl ) or NULL
-        if active_weapons[ pl ] ~= active_weapon then
+        if rawget( active_weapons, pl ) ~= active_weapon then
             if hook_Run( "ash.player.SwitchedWeapon", pl, active_weapons[ pl ], active_weapon ) == false then
                 input.SelectWeapon( active_weapons[ pl ] )
             else
@@ -401,29 +383,12 @@ do
 
         hook.Add( "ash.player.ShouldDraw", "Defaults", function( pl )
             if player_isLocal( pl ) and not Player_ShouldDrawLocalPlayer( pl ) then return false end
-            if Entity_GetNoDraw( pl ) or Entity_IsDormant( pl ) then return false end
-            if player_isDead( pl ) then return false end
+            if Entity_GetNoDraw( pl ) or player_isDead( pl ) then return false end
+            if Entity_IsDormant( pl ) then return false end
         end )
 
     end
 
 end
-
--- do
-
--- 	local GetPlayerColor = ENTITY.GetPlayerColor
--- 	local SetVector = IMATERIAL.SetVector
-
--- 	matproxy.Add( {
--- 		name = "PlayerColor",
--- 		init = function( self, _, values )
--- 			self.ResultTo = values.resultvar
--- 		end,
--- 		bind = function( self, material, entity )
--- 			return SetVector( material, self.ResultTo, GetPlayerColor( entity ) )
--- 		end
--- 	} )
-
--- end
 
 return ash_player

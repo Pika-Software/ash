@@ -4,8 +4,9 @@ local hook_Run = hook.Run
 local ash_ui = require( "ash.ui" )
 
 ---@class ash.view
----@field AimVector Vector
----@field Data ash.view.Data
+---@field AimVector Vector The aim vector.
+---@field Data ash.view.Data The view data.
+---@field ViewEntity Entity The view entity.
 local ash_view = include( "shared.lua" )
 
 ---@class ash.view.Data : ViewData
@@ -115,5 +116,22 @@ do
     end )
 
 end
+
+do
+
+    local GetViewEntity = GetViewEntity
+
+    ash_view.Entity = GetViewEntity() or NULL
+
+    timer.Create( "ViewEntity", 0.5, 0, function()
+        local entity = GetViewEntity() or NULL
+        if entity ~= ash_view.Entity then
+            hook_Run( "ash.view.Entity", ash_view.Entity, entity )
+            ash_view.Entity = entity
+        end
+    end )
+
+end
+
 
 return ash_view

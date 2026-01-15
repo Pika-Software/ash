@@ -334,9 +334,8 @@ end
 
 do
 
-    local math_floor = math.floor
-
-    local default_color = Vector( 0.33, 0.33, 0.33 )
+    local default_player_color = Vector( 62 / 255, 88 / 255, 106 / 255 )
+    local default_weapon_color = Vector( 0.4, 1, 1 )
 
     --- [SHARED]
     ---
@@ -345,20 +344,75 @@ do
     ---@param entity Entity
     ---@return Vector color_vec3
     function Entity.GetPlayerColor( entity )
-        return Entity_GetNW2Var( entity, "m_vPlayerColor", default_color )
+        return Entity_GetNW2Var( entity, "m_vPlayerColor", default_player_color )
     end
 
     Player.GetPlayerColor = Entity.GetPlayerColor
 
     --- [SHARED]
     ---
-    --- Get player color.
+    --- Get weapon color.
     ---
     ---@param entity Entity
-    ---@return Color color
-    function ash_entity.getPlayerColor( entity )
-        local vector = Entity_GetNW2Var( entity, "m_vPlayerColor", default_color )
-        return Color( math_floor( vector[ 1 ] * 255 ), math_floor( vector[ 2 ] * 255 ), math_floor( vector[ 3 ] * 255 ), 255 )
+    ---@return Vector color_vec3
+    function Entity.GetWeaponColor( entity )
+        return Entity_GetNW2Var( entity, "m_vWeaponColor", default_weapon_color )
+    end
+
+    Player.GetWeaponColor = Entity.GetWeaponColor
+
+    if CLIENT then
+
+        local Material_SetVector = Material.SetVector
+
+        matproxy.Add( {
+            name = "PlayerColor",
+            init = function( self, _, values )
+                self.ResultTo = values.resultvar
+            end,
+            bind = function( self, material, entity )
+                return Material_SetVector( material, self.ResultTo, Entity_GetNW2Var( entity, "m_vPlayerColor", default_player_color ) )
+            end
+        } )
+
+        matproxy.Add( {
+            name = "PlayerWeaponColor",
+            init = function( self, _, values )
+                self.ResultTo = values.resultvar
+            end,
+            bind = function( self, material, entity )
+                return Material_SetVector( material, self.ResultTo, Entity_GetNW2Var( entity, "m_vWeaponColor", default_weapon_color ) )
+            end
+        } )
+
+    end
+
+    do
+
+        local math_floor = math.floor
+
+        --- [SHARED]
+        ---
+        --- Get player color.
+        ---
+        ---@param entity Entity
+        ---@return Color color
+        function ash_entity.getPlayerColor( entity )
+            local vector = Entity_GetNW2Var( entity, "m_vPlayerColor", default_player_color )
+            return Color( math_floor( vector[ 1 ] * 255 ), math_floor( vector[ 2 ] * 255 ), math_floor( vector[ 3 ] * 255 ), 255 )
+        end
+
+        --- [SHARED]
+        ---
+        --- Get weapon color.
+        ---
+        ---@param entity Entity
+        ---@return Color color
+        function ash_entity.getWeaponColor( entity )
+            local vector = Entity_GetNW2Var( entity, "m_vWeaponColor", default_weapon_color )
+            return Color( math_floor( vector[ 1 ] * 255 ), math_floor( vector[ 2 ] * 255 ), math_floor( vector[ 3 ] * 255 ), 255 )
+        end
+
     end
 
 end

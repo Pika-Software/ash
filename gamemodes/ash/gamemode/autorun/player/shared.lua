@@ -146,12 +146,16 @@ do
 
     ---@type table<Player, integer>
     local keys_cache = {}
-    gc.setTableRules( keys_cache, true )
+
+    setmetatable( keys_cache, {
+        __index = function( self, pl )
+            return Entity_GetNW2Var( pl, "m_iPlayerKeys", 0 )
+        end,
+        __mode = "k"
+    } )
 
     setmetatable( players_keys, {
-        __index = function( _, pl )
-            return Entity_GetNW2Var( pl, "m_iPlayerKeys", keys_cache[ pl ] or 0 )
-        end,
+        __index = keys_cache,
         __newindex = function( self, pl, keys )
             if keys_cache[ pl ] == keys then return end
             Entity_SetNW2Var( pl, "m_iPlayerKeys", keys )
@@ -174,25 +178,14 @@ end
 ---@type table<Player, table<integer, boolean>>
 local players_key_states = {}
 
-do
-
-    local keys_metatable = {
-        __index = function()
-            return false
-        end
-    }
-
-    setmetatable( players_key_states, {
-        __index = function( self, pl )
-            local keys = {}
-            setmetatable( keys, keys_metatable )
-            self[ pl ] = keys
-            return keys
-        end,
-        __mode = "k"
-    } )
-
-end
+setmetatable( players_key_states, {
+    __index = function( self, pl )
+        local keys = {}
+        self[ pl ] = keys
+        return keys
+    end,
+    __mode = "k"
+} )
 
 --- [SHARED]
 ---
@@ -201,7 +194,7 @@ end
 ---@param pl Player
 ---@param in_key integer
 function ash_player.getKeyState( pl, in_key )
-    return players_key_states[ pl ][ in_key ]
+    return players_key_states[ pl ][ in_key ] == true
 end
 
 ---@type table<Player, boolean>
@@ -702,12 +695,11 @@ do
         local move_type = Entity_GetMoveType( pl )
         if rawget( players_move_type, pl ) ~= move_type then
             local new_type = hook_Run( "ash.player.MoveType", pl, players_move_type[ pl ], move_type ) or move_type
+            players_move_type[ pl ] = move_type
 
             if new_type ~= move_type then
                 pl:SetMoveType( new_type )
             end
-
-            players_move_type[ pl ] = move_type
         end
 
         local model_path = Entity_GetModel( pl ) or "models/player/infoplayerstart.mdl"
@@ -718,23 +710,21 @@ do
         local skin = Entity_GetSkin( pl )
         if rawget( players_skin, pl ) ~= skin then
             local new_skin = hook_Run( "ash.player.Skin", pl, skin, players_skin[ pl ] ) or skin
+            players_skin[ pl ] = new_skin
 
             if new_skin ~= skin then
                 pl:SetSkin( new_skin )
             end
-
-            players_skin[ pl ] = new_skin
         end
 
         local sequence = Entity_GetSequence( pl )
         if rawget( players_sequence, pl ) ~= sequence then
             local new_sequence = hook_Run( "ash.player.Sequence", pl, sequence, players_sequence[ pl ] ) or sequence
+            players_sequence[ pl ] = new_sequence
 
             if new_sequence ~= sequence then
                 pl:ResetSequence( new_sequence )
             end
-
-            players_sequence[ pl ] = new_sequence
         end
 
         local is_typing = Player_IsTyping( pl )
@@ -744,9 +734,12 @@ do
 
         local flags = Entity_GetFlags( pl )
         if rawget( players_flags, pl ) ~= flags then
+            players_flags[ pl ] = flags
+
             local is_on_ground = bit_band( flags, 1 ) ~= 0
             if rawget( players_on_ground, pl ) ~= is_on_ground then
                 local new_state = hook_Run( "ash.player.OnGround", pl, is_on_ground ) or is_on_ground
+                players_on_ground[ pl ] = is_on_ground
 
                 if new_state ~= is_on_ground then
                     if new_state then
@@ -757,13 +750,12 @@ do
                         pl:RemoveFlags( 1 )
                     end
                 end
-
-                players_on_ground[ pl ] = is_on_ground
             end
 
             local is_crouching = bit_band( flags, 2 ) ~= 0
             if rawget( players_crouching, pl ) ~= is_crouching then
                 local new_state = hook_Run( "ash.player.Crouching", pl, is_crouching ) or is_crouching
+                players_crouching[ pl ] = is_crouching
 
                 if new_state ~= is_crouching then
                     if new_state then
@@ -774,13 +766,12 @@ do
                         pl:RemoveFlags( 2 )
                     end
                 end
-
-                players_crouching[ pl ] = is_crouching
             end
 
             local in_crouching = bit_band( flags, 4 ) ~= 0
             if rawget( players_crouching_anim, pl ) ~= in_crouching then
                 local new_state = hook_Run( "ash.player.CrouchingAnimation", pl, in_crouching ) or in_crouching
+                players_crouching_anim[ pl ] = in_crouching
 
                 if new_state ~= in_crouching then
                     if new_state then
@@ -791,8 +782,6 @@ do
                         pl:RemoveFlags( 4 )
                     end
                 end
-
-                players_crouching_anim[ pl ] = in_crouching
             end
 
             players_water_jumping[ pl ] = bit_band( flags, 8 ) ~= 0
@@ -801,6 +790,7 @@ do
             local is_under_rain = bit_band( flags, 32 ) ~= 0
             if rawget( players_under_rain, pl ) ~= is_under_rain then
                 local new_state = hook_Run( "ash.player.UnderRain", pl, is_under_rain ) or is_under_rain
+                players_under_rain[ pl ] = is_under_rain
 
                 if new_state ~= is_under_rain then
                     if new_state then
@@ -811,13 +801,12 @@ do
                         pl:RemoveFlags( 32 )
                     end
                 end
-
-                players_under_rain[ pl ] = is_under_rain
             end
 
             local is_frozen = bit_band( flags, 64 ) ~= 0
             if rawget( players_frozen, pl ) ~= is_frozen then
                 local new_state = hook_Run( "ash.player.Frozen", pl, is_frozen ) or is_frozen
+                players_frozen[ pl ] = is_frozen
 
                 if new_state ~= is_frozen then
                     if new_state then
@@ -828,13 +817,12 @@ do
                         pl:RemoveFlags( 64 )
                     end
                 end
-
-                players_frozen[ pl ] = is_frozen
             end
 
             local in_water = bit_band( flags, 1024 ) ~= 0
             if rawget( players_in_water, pl ) ~= in_water then
                 local new_state = hook_Run( "ash.player.InWater", pl, in_water ) or in_water
+                players_in_water[ pl ] = in_water
 
                 if new_state ~= in_water then
                     if new_state then
@@ -845,11 +833,7 @@ do
                         pl:RemoveFlags( 1024 )
                     end
                 end
-
-                players_in_water[ pl ] = in_water
             end
-
-            players_flags[ pl ] = flags
         end
     end, PRE_HOOK )
 
@@ -900,10 +884,12 @@ do
                 local pressed_keys = players_key_states[ pl ]
 
                 for i = 1, 32, 1 do
-                    local key_state = bit_band( keys, in_keys[ i ] ) ~= 0
-                    if rawget( pressed_keys, i ) ~= key_state then
-                        pressed_keys[ i ] = key_state
-                        hook_Run( "ash.player.Key", pl, in_keys[ i ], key_state )
+                    local in_key = in_keys[ i ]
+
+                    local key_state = bit_band( keys, in_key ) ~= 0
+                    if pressed_keys[ in_key ] ~= key_state then
+                        pressed_keys[ in_key ] = key_state
+                        hook_Run( "ash.player.Key", pl, in_key, key_state )
                     end
                 end
             end
@@ -920,10 +906,12 @@ do
             players_keys[ pl ] = keys
 
             for i = 1, 32, 1 do
-                local key_state = bit_band( keys, in_keys[ i ] ) ~= 0
-                if rawget( pressed_keys, i ) ~= key_state then
-                    pressed_keys[ i ] = key_state
-                    hook_Run( "ash.player.Key", pl, in_keys[ i ], key_state )
+                local in_key = in_keys[ i ]
+
+                local key_state = bit_band( keys, in_key ) ~= 0
+                if pressed_keys[ in_key ] ~= key_state then
+                    pressed_keys[ in_key ] = key_state
+                    hook_Run( "ash.player.Key", pl, in_key, key_state )
                 end
             end
         end
@@ -1425,7 +1413,7 @@ hook.Add( "PlayerUse", "DisableDefaultUse", function( pl, entity )
 end, PRE_HOOK_RETURN )
 
 hook.Add( "PlayerShouldTaunt", "DisableDefaultTaunts", function()
-    return false
+    return true
 end, POST_HOOK_RETURN )
 
 hook.Add( "PlayerShouldTakeDamage", "DamageHandler", function( arguments )
@@ -1525,5 +1513,7 @@ hook.Add( "ScalePlayerDamage", "DamageControl", function( pl, _, damage_info )
         return true
     end
 end, PRE_HOOK_RETURN )
+
+include( "voice.lua", ash_player )
 
 return ash_player

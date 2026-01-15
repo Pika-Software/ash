@@ -275,7 +275,7 @@ if LUA_SERVER then
         local file_sha256 = util_SHA256( lua_code .. "\0" )
 
         if file_sha256 ~= client_checksums[ file_path ] then
-            if xpcall( AddCSLuaFile, error_handler, file_path ) then
+            if pcall( AddCSLuaFile, file_path ) then
                 logger:debug( "File '%s' with SHA-256 '%s' successfully sent to the client.", file_path, file_sha256 )
                 client_checksums[ file_path ] = file_sha256
 
