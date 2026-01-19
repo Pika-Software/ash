@@ -123,7 +123,18 @@ local math_clamp = math.clamp
 local math_sqrt = math.sqrt
 local math_abs = math.abs
 
+local ash_intro = console.Variable( {
+    name = "ash_intro",
+    type = "string",
+    archive = true
+} )
+
+
 hook.Add( "ash.Loaded", "Welcome", function()
+    local hash = util.SHA1( game.GetIPAddress() )
+    if ash_intro.value == hash then return end
+    ash_intro.value = hash
+
     WriteTextToRT( "</Powered by Ash>", "ash.intro.Text" )
     BuildDotMatrixFromRT()
 

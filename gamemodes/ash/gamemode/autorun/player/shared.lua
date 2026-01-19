@@ -1034,7 +1034,7 @@ do
 
     ---@param pl Player
     ---@param mv CMoveData
-    hook.Add( "FinishMove", "MovementCapture", function( arguments, pl, mv )
+    hook.Add( "FinishMove", "MovementCapture", function( pl, mv )
         local move_angles = MoveData_GetMoveAngles( mv )
         move_angles[ 1 ], move_angles[ 3 ] = 0, 0
 
@@ -1072,19 +1072,7 @@ do
         else
             move_states[ pl ] = "standing"
         end
-
-        local suppress_engine = arguments[ 2 ]
-        if suppress_engine ~= nil then
-            return suppress_engine
-        end
-
-        local move_type = players_move_type[ pl ]
-        if move_type == 8 then
-            return true
-        end
-
-        return false
-    end, POST_HOOK_RETURN )
+    end, PRE_HOOK )
 
     local IN_MOVE = bit_bor( IN_FORWARD, IN_MOVELEFT, IN_MOVERIGHT, IN_BACK )
 
@@ -1479,7 +1467,7 @@ do
         hook_Run( "ash.player.Landed", pl, fall_speed, false, trace_result )
     end, PRE_HOOK )
 
-    hook.Add( "PlayerWaterLevelChanged", "LandingHandler", function( pl, old, new )
+    hook.Add( "ash.player.WaterLevel", "LandingHandler", function( pl, old, new )
         if players_on_ground[ pl ] or players_in_water[ pl ] or old > new then return end
 
         local fall_speed = math_min( 0, animator.getVelocity( pl )[ 3 ] )

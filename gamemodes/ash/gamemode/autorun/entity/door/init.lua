@@ -261,6 +261,7 @@ do
 
     local Entity_GetNW2Bool, Entity_SetNW2Bool = Entity.GetNW2Bool, Entity.SetNW2Bool
     local Entity_GetNW2Int, Entity_SetNW2Int = Entity.GetNW2Int, Entity.SetNW2Int
+    local Entity_IsValid = Entity.IsValid
     local table_remove = table.remove
 
     ---@type Entity[]
@@ -272,6 +273,10 @@ do
     timer.Create( "StateHandler", 0.25, 0, function()
 		for i = 1, door_count, 1 do
             local entity = doors[ i ]
+            if entity == nil or not Entity_IsValid( entity ) then
+                table_remove( doors, i )
+                break
+            end
 
             local state = entity_getEngineValue( entity, "m_eDoorState" )
 
