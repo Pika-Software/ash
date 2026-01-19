@@ -713,10 +713,13 @@ do
 	} )
 
 	local target_names = {
+		momentary_rot_button = "Button",
 		func_door_rotating = "Door",
 		prop_door_rotating = "Door",
+		func_rot_button = "Button",
+		func_button = "Button",
 		prop_ragdoll = "Body",
-		func_button = "Button"
+		func_door = "Door"
 	}
 
 	local asparagus = Color( 128, 154, 86 )
@@ -858,6 +861,8 @@ do
 					end
 
 				end
+			elseif class_name == "func_door" then
+				text = "Open/Close"
 			end
 
 			if text ~= nil then

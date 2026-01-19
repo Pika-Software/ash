@@ -82,6 +82,7 @@ local function BuildDotMatrixFromRT()
             local r, g, b, a = render.ReadPixel( x, y )
             if ( a == nil or a > 10 ) and ( r > 10 or g > 10 or b > 10 ) then
                 dot_count = dot_count + 1
+
                 local dot = dots[ dot_count ]
                 if dot == nil then
                     dots[ dot_count ] = {
@@ -99,8 +100,13 @@ local function BuildDotMatrixFromRT()
                         p3 = { x = x, y = y },
                     }
                 else
+                    dot.t = 0
                     dot.tx = x
                     dot.ty = y
+                    dot.p0 = { x = x, y = y }
+                    dot.p1 = { x = x, y = y }
+                    dot.p2 = { x = x, y = y }
+                    dot.p3 = { x = x, y = y }
                 end
             end
         end
@@ -148,7 +154,7 @@ hook.Add( "ash.Loaded", "Welcome", function()
 
     hook.Add( "PostRender", "Welcome", function()
         if alpha == 0 then
-            hook.Remove( "PreRender", "Welcome" )
+            hook.Remove( "PostRender", "Welcome" )
             return
         end
 

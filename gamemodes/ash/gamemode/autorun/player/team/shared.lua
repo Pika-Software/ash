@@ -166,7 +166,7 @@ hook.Add( "EntityNetworkedVarChanged", "Default", function( entity, name, previo
 	end
 
 	hook.Run( "ash.TeamScoreChanged", team_name, tonumber( previous_value or 0, 10 ), tonumber( new_value or 0, 10 ) )
-end, 1 )
+end, PRE_HOOK )
 
 hook.Add( "EntityRemoved", "Default", function( entity, full_update )
 	if full_update or entity == nil or not entity:IsValid() then return end
@@ -188,7 +188,7 @@ hook.Add( "EntityRemoved", "Default", function( entity, full_update )
 
 		player_counts[ team_name ] = team_size
 	end
-end, 1 )
+end, PRE_HOOK )
 
 local GetGlobal2Int = GetGlobal2Int
 local SetGlobal2Int = SetGlobal2Int

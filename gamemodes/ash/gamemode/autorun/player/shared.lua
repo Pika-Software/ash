@@ -1034,7 +1034,7 @@ do
 
     ---@param pl Player
     ---@param mv CMoveData
-    hook.Add( "FinishMove", "MovementCapture", function( _, pl, mv )
+    hook.Add( "FinishMove", "MovementCapture", function( arguments, pl, mv )
         local move_angles = MoveData_GetMoveAngles( mv )
         move_angles[ 1 ], move_angles[ 3 ] = 0, 0
 
@@ -1072,7 +1072,19 @@ do
         else
             move_states[ pl ] = "standing"
         end
-    end, POST_HOOK )
+
+        local suppress_engine = arguments[ 2 ]
+        if suppress_engine ~= nil then
+            return suppress_engine
+        end
+
+        local move_type = players_move_type[ pl ]
+        if move_type == 8 then
+            return true
+        end
+
+        return false
+    end, POST_HOOK_RETURN )
 
     local IN_MOVE = bit_bor( IN_FORWARD, IN_MOVELEFT, IN_MOVERIGHT, IN_BACK )
 
@@ -1136,12 +1148,16 @@ do
         elseif move_type == 8 then -- noclip movement
             player_speed = hook_Run( "ash.player.NoclipSpeed", pl, players_keys[ pl ] ) or 1000
 
+            MoveData_SetMaxClientSpeed( mv, player_speed )
+            MoveData_SetMaxSpeed( mv, player_speed )
+
             local origin = MoveData_GetOrigin( mv )
             local velocity = ( ( directions[ pl ] * player_speed ) - MoveData_GetVelocity( mv ) ) * tick_interval
 
+            MoveData_SetVelocity( mv, velocity )
+
             Vector_Add( origin, velocity )
             MoveData_SetOrigin( mv, origin )
-            MoveData_SetVelocity( mv, velocity )
 
             return true
         elseif move_type == 9 then -- ladder movement
@@ -1412,10 +1428,6 @@ hook.Add( "PlayerUse", "DisableDefaultUse", function( pl, entity )
     return false
 end, PRE_HOOK_RETURN )
 
-hook.Add( "PlayerShouldTaunt", "DisableDefaultTaunts", function()
-    return true
-end, POST_HOOK_RETURN )
-
 hook.Add( "PlayerShouldTakeDamage", "DamageHandler", function( arguments )
     return arguments[ 2 ] ~= false
 end, POST_HOOK_RETURN )
@@ -1423,7 +1435,7 @@ end, POST_HOOK_RETURN )
 hook.Add( "PlayerNoClip", "NoclipController", function( arguments, pl, requested )
     local overridden = arguments[ 2 ]
     if overridden == nil then
-        return not requested or Player_Alive( pl ) and hook_Run( "ash.player.CanNoclip", pl )
+        return not requested or ( Player_Alive( pl ) and hook_Run( "ash.player.CanNoclip", pl ) )
     else
         return overridden == true
     end

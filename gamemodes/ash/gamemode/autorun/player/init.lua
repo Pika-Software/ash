@@ -444,7 +444,7 @@ do
 
         ---@param pl Player
         ---@param ragdoll_entity Entity
-        hook.Add( "PlayerSetupRagdoll", "DefaultSetup", function( pl, ragdoll_entity )
+        hook.Add( "ash.player.RagdollSetup", "DefaultSetup", function( pl, ragdoll_entity )
             entity_setPlayerColor( ragdoll_entity, entity_getPlayerColor( pl ) )
         end )
 

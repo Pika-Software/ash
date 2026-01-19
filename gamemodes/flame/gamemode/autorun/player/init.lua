@@ -96,7 +96,7 @@ do
             ash_player.setUseDistance( pl, 72 * scale )
 
             pl:SetStepSize( root_height )
-            pl:SetJumpPower( 250 * scale )
+            pl:SetJumpPower( 200 * scale )
 
             if model_info.type == "female" then
                 ash_phrases.setVoice( pl, "female01" )
@@ -248,7 +248,7 @@ end
 
 ---@param pl Player
 ---@param ragdoll_entity Entity
-hook.Add( "ash.player.SetupRagdoll", "Defaults", function( pl, ragdoll_entity )
+hook.Add( "ash.player.RagdollSetup", "Defaults", function( pl, ragdoll_entity )
     pl:SpectateEntity( ragdoll_entity )
     pl:Spectate( OBS_MODE_CHASE )
 end )
