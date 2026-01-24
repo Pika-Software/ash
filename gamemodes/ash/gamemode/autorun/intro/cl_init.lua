@@ -100,17 +100,13 @@ local function BuildDotMatrixFromRT()
                         p3 = { x = x, y = y },
                     }
                 else
-                    dot.t = 0
                     dot.tx = x
                     dot.ty = y
-                    dot.p0 = { x = x, y = y }
-                    dot.p1 = { x = x, y = y }
-                    dot.p2 = { x = x, y = y }
-                    dot.p3 = { x = x, y = y }
                 end
             end
         end
     end
+
 
     render.PopRenderTarget()
 end
@@ -124,14 +120,15 @@ local math_sqrt = math.sqrt
 local math_abs = math.abs
 
 local ash_intro = console.Variable( {
-    name = "ash_intro",
+    name = "ash.intro",
     type = "string",
     archive = true
 } )
 
-
 hook.Add( "ash.Loaded", "Welcome", function()
     local hash = util.SHA1( game.GetIPAddress() )
+    ash.Logger:debug( "Generated hash '%s' for IP '%s'.", hash, game.GetIPAddress() )
+
     if ash_intro.value == hash then return end
     ash_intro.value = hash
 
@@ -148,18 +145,33 @@ hook.Add( "ash.Loaded", "Welcome", function()
 
     futures.run( function()
         -- hue, saturation, lightness = ash_ui.Colors.ash_main:toHSV()
-        futures.sleep( 5 )
+        futures.sleep( 2 )
+        if fading then return end
 
         hue, saturation, lightness = ash_ui.Colors.dreamwork_main:toHSV()
 
         WriteTextToRT( "Developers:\n- Unknown Developer\n- AngoNex\n", "ash.intro.TextSmall" )
         BuildDotMatrixFromRT()
+
         futures.sleep( 2 )
+        if fading then return end
 
         WriteTextToRT( "'^'", "ash.intro.TextBig" )
         BuildDotMatrixFromRT()
 
         futures.sleep( 2 )
+        fading = true
+    end )
+
+    local skip_keys = {
+        [ KEY_ESCAPE ] = true,
+        [ KEY_SPACE ] = true,
+        [ KEY_ENTER ] = true
+    }
+
+    hook.Add( "ash.player.Input", "Welcome", function( pl, key_id, is_down, is_local )
+        if not ( is_down and is_local ) or skip_keys[ key_id ] == nil then return end
+        hook.Remove( "ash.player.Input", "Welcome" )
         fading = true
     end )
 
