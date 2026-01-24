@@ -611,6 +611,7 @@ do
 		end
 
 		entity = trace_result.Entity
+		---@cast entity Entity
 
 		if not Entity_IsValid( entity ) or Entity_GetNoDraw( entity ) or Entity_GetSolid( entity ) == 0 then
 			entity = nil

@@ -81,7 +81,7 @@ do
         data.origin, data.angles = origin, angles
         data.fov = fov
 
-        hook_Run( "ash.view.PerformView", data )
+        hook_Run( "ash.view.Perform", data )
 
         cam_Start2D()
         render_View( data )
