@@ -197,6 +197,8 @@ do
 
 end
 
+local player_isLocal = ash_player.isLocal
+
 do
 
     gameevent.Listen( "player_activate" )
@@ -236,11 +238,11 @@ do
                 player_spawns_count = player_spawns_count - 1
                 table.remove( player_spawns, i )
 
-                hook_Run( "ash.player.Spawn", pl, false )
+                hook_Run( "ash.player.Spawn", pl, false, player_isLocal( pl ) )
 
                 if player_initial_spawns[ user_id ] then
                     player_initial_spawns[ user_id ] = nil
-                    hook_Run( "ash.player.InitialSpawn", pl, false )
+                    hook_Run( "ash.player.InitialSpawn", pl, false, player_isLocal( pl ) )
                 end
             end
         end
@@ -275,12 +277,12 @@ do
 
     hook.Add( "PlayerStartVoice", "Voice", function( pl, index )
         voice_statuses[ pl ] = true
-        hook_Run( "ash.player.Speaking", pl, true )
+        hook_Run( "ash.player.Speaking", pl, true, player_isLocal( pl ) )
     end, PRE_HOOK )
 
     hook.Add( "PlayerEndVoice", "Voice", function( pl )
         voice_statuses[ pl ] = false
-        hook_Run( "ash.player.Speaking", pl, false )
+        hook_Run( "ash.player.Speaking", pl, false, player_isLocal( pl ) )
     end, PRE_HOOK )
 
 end
@@ -302,7 +304,7 @@ do
     hook.Add( "ash.player.Think", "WeaponLookup", function( pl, is_local )
         local active_weapon = Player_GetActiveWeapon( pl ) or NULL
         if rawget( active_weapons, pl ) ~= active_weapon then
-            if hook_Run( "ash.player.SwitchedWeapon", pl, active_weapons[ pl ], active_weapon ) == false then
+            if hook_Run( "ash.player.SwitchedWeapon", pl, active_weapons[ pl ], active_weapon, is_local ) == false then
                 input.SelectWeapon( active_weapons[ pl ] )
             else
                 active_weapons[ pl ] = active_weapon
@@ -321,10 +323,14 @@ do
     local render_restricted = {}
     gc.setTableRules( render_restricted, true )
 
+    local is_local = false
+
     hook.Add( "PreDrawTranslucentWorld", "Render", function( _, is_depth_pass )
         for _, pl in player_Iterator() do
-            if hook_Run( "ash.player.ShouldDraw", pl, false ) ~= false then
-                hook_Run( "ash.player.PreDraw", pl, false, is_depth_pass )
+            is_local = player_isLocal( pl )
+
+            if hook_Run( "ash.player.ShouldDraw", pl, false, is_local ) ~= false then
+                hook_Run( "ash.player.PreDraw", pl, false, is_local, is_depth_pass )
 
                 render_restricted[ pl ] = false
 
@@ -338,16 +344,18 @@ do
                 -- Entity_DrawModel( entity, 4 )
                 render_restricted[ pl ] = true
 
-                hook_Run( "ash.player.DrawAppearance", pl, false, is_depth_pass )
-                hook_Run( "ash.player.PostDraw", pl, false, is_depth_pass )
+                hook_Run( "ash.player.DrawAppearance", pl, false, is_local, is_depth_pass )
+                hook_Run( "ash.player.PostDraw", pl, false, is_local, is_depth_pass )
             end
         end
     end, POST_HOOK )
 
     hook.Add( "PreDrawTranslucentReflection", "Render", function( _, is_depth_pass )
         for _, pl in player_Iterator() do
-            if hook_Run( "ash.player.ShouldDraw", pl, true ) ~= false then
-                hook_Run( "ash.player.PreDraw", pl, true, is_depth_pass )
+            is_local = player_isLocal( pl )
+
+            if hook_Run( "ash.player.ShouldDraw", pl, true, is_local ) ~= false then
+                hook_Run( "ash.player.PreDraw", pl, true, is_local, is_depth_pass )
 
                 render_restricted[ pl ] = false
 
@@ -361,8 +369,8 @@ do
                 -- Entity_DrawModel( entity, 4 )
                 render_restricted[ pl ] = true
 
-                hook_Run( "ash.player.DrawAppearance", pl, true, is_depth_pass )
-                hook_Run( "ash.player.PostDraw", pl, true, is_depth_pass )
+                hook_Run( "ash.player.DrawAppearance", pl, true, is_local, is_depth_pass )
+                hook_Run( "ash.player.PostDraw", pl, true, is_local, is_depth_pass )
             end
         end
     end, POST_HOOK )
@@ -371,24 +379,31 @@ do
         return arguments[ 2 ] or render_restricted[ pl ]
     end, POST_HOOK_RETURN )
 
-    do
+end
 
-        local Player_ShouldDrawLocalPlayer = Player.ShouldDrawLocalPlayer
+do
 
-        local Entity_GetNoDraw = Entity.GetNoDraw
-        local Entity_IsDormant = Entity.IsDormant
+    local Player_ShouldDrawLocalPlayer = Player.ShouldDrawLocalPlayer
 
-        local player_isLocal = ash_player.isLocal
-        local player_isDead = ash_player.isDead
+    local Entity_GetNoDraw = Entity.GetNoDraw
+    local Entity_IsDormant = Entity.IsDormant
 
-        hook.Add( "ash.player.ShouldDraw", "Defaults", function( pl )
-            if player_isLocal( pl ) and not Player_ShouldDrawLocalPlayer( pl ) then return false end
-            if Entity_GetNoDraw( pl ) or player_isDead( pl ) then return false end
-            if Entity_IsDormant( pl ) then return false end
-        end )
+    local player_isDead = ash_player.isDead
 
-    end
+    hook.Add( "ash.player.ShouldDraw", "Defaults", function( pl, is_reflection, is_local )
+        if is_local and not Player_ShouldDrawLocalPlayer( pl ) then return false end
+        if Entity_GetNoDraw( pl ) or player_isDead( pl ) then return false end
+        if Entity_IsDormant( pl ) then return false end
+    end )
 
 end
+
+hook.Add( "PlayerButtonDown", "InputCapture", function( pl, key_id )
+    hook_Run( "ash.player.Input", pl, key_id, true, player_isLocal( pl ) )
+end, PRE_HOOK )
+
+hook.Add( "PlayerButtonUp", "InputCapture", function( pl, key_id )
+    hook_Run( "ash.player.Input", pl, key_id, false, player_isLocal( pl ) )
+end, PRE_HOOK )
 
 return ash_player
