@@ -91,6 +91,9 @@ do
 
 end
 
+---@type ash.debug
+local debug = require( "ash.debug" )
+
 do
 
     ---@type ash.trace.Output
@@ -103,6 +106,7 @@ do
     }
 
     local player_getUseDistance = ash_player.getUseDistance
+    local ents_FindInSphere = ents.FindInSphere
 
     local view_getAimVector = ash_view.getAimVector
     local view_getEyeOrigin = ash_view.getEyeOrigin
@@ -117,8 +121,22 @@ do
 
         trace_cast( trace )
 
-        if trace_result.Hit and not trace_result.HitWorld then
-            return trace_result.Entity
+        if trace_result.Hit then
+            if not trace_result.HitWorld then
+                local entity = trace_result.Entity
+                if hook_Run( "ash.player.ShouldUse", pl, entity ) ~= false then
+                    return entity
+                end
+            end
+
+            local entites = ents_FindInSphere( trace_result.HitPos, 1 )
+
+            for i = 1, #entites, 1 do
+                local entity = entites[ i ]
+                if entity ~= pl and hook_Run( "ash.player.ShouldUse", pl, entity ) ~= false then
+                    return entity
+                end
+            end
         end
     end )
 
@@ -126,16 +144,11 @@ end
 
 if DEBUG then
 
-    ---@type ash.debug
-    local debug = require( "ash.debug" )
-
     ---@param pl Player
     ---@param entity Entity
     hook.Add( "ash.player.UsedEntity", "Defaults", function( pl, entity, in_use )
         if in_use then
             local mins, maxs = entity:GetCollisionBounds()
-            -- local color = entity:GetColor()
-
             debug.overlay.box( false, entity:GetPos(), entity:GetAngles(), mins, maxs, 50, 240, 120, false, 10 )
         end
     end )
