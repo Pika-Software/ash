@@ -8,6 +8,8 @@ local ash_entity = require( "ash.entity" )
 
 ---@type ash.player
 local ash_player = require( "ash.player" )
+local player_startGestureBySequence = ash_player.startGestureBySequence
+local player_startGestureByActivity = ash_player.startGestureByActivity
 
 ---@type ash.trace
 local ash_trace = require( "ash.trace" )
@@ -20,10 +22,9 @@ hook.Add( "PhysgunPickup", "Defaults", function( arguments, pl, entity )
     return arguments[ 2 ] ~= false
 end, POST_HOOK_RETURN )
 
-do
+if SERVER then
 
     local entity_isActivityExists = ash_entity.isActivityExists
-    local Entity_LookupSequence = Entity.LookupSequence
 
     local hit_activities = {
         [ HITGROUP_HEAD ] = ACT_FLINCH_HEAD,
@@ -57,18 +58,14 @@ do
             end
 
             if sequence_name ~= nil then
-                local sequence_id = Entity_LookupSequence( pl, sequence_name )
-                if sequence_id ~= nil and sequence_id > 0 then
-                    pl:AddVCDSequenceToGestureSlot( GESTURE_SLOT_FLINCH, sequence_id, 0, true )
-                    return
-                end
+                player_startGestureBySequence( pl, 4, sequence_name, 0, true )
             end
 
             activity = ACT_FLINCH_STOMACH
         end
 
         if entity_isActivityExists( pl, activity ) then
-            pl:AnimRestartGesture( GESTURE_SLOT_FLINCH, activity, true )
+            player_startGestureByActivity( pl, 4, activity, 0, true )
         end
     end, PRE_HOOK )
 
