@@ -6,7 +6,9 @@ local Angle_Forward = Angle.Forward
 local math_acos = math.acos
 local math_deg = math.deg
 
+local Player_GetAimVector = Player.GetAimVector
 local Entity_GetNW2Var = Entity.GetNW2Var
+local Entity_EyePos = Entity.EyePos
 
 ---@type ash.trace
 local ash_trace = require( "ash.trace" )
@@ -22,7 +24,7 @@ local ash_view = {}
 ---@param pl Player
 ---@return Vector aim
 function ash_view.getAimVector( pl )
-    return Entity_GetNW2Var( pl, "m_vAim", pl:GetAimVector() )
+    return Entity_GetNW2Var( pl, "m_vAim", Player_GetAimVector( pl ) )
 end
 
 --- [SHARED]
@@ -32,7 +34,7 @@ end
 ---@param pl Player
 ---@return Vector origin
 function ash_view.getEyeOrigin( pl )
-    return Entity_GetNW2Var( pl, "m_vEyeOrigin", pl:EyePos() )
+    return Entity_GetNW2Var( pl, "m_vEyeOrigin", Entity_EyePos( pl ) )
 end
 
 --- [SHARED]
