@@ -43,13 +43,25 @@ end
 
 do
 
+    local player_BitCount = ash_player.BitCount
+
     ---@type table<integer, function>
     local net_commands = {}
 
-    -- player hull setup
     net_commands[ 0 ] = function()
-        local index = net.ReadUInt( ash_player.BitCount )
+        local index = net.ReadUInt( player_BitCount )
 
+        timer_Simple( 0, function()
+            local pl = Entity( index )
+            if pl ~= nil and Entity_IsValid( pl ) then
+                hook.Run( "ash.player.Initialized", pl, false )
+            end
+        end )
+    end
+
+    -- player hull setup
+    net_commands[ 1 ] = function()
+        local index = net.ReadUInt( player_BitCount )
         local is_crouch = net.ReadBool()
 
         local mins = Vector( net.ReadDouble(), net.ReadDouble(), net.ReadDouble() )
@@ -69,12 +81,13 @@ do
 
         local Player_AddVCDSequenceToGestureSlot = Player.AddVCDSequenceToGestureSlot
         local Player_AnimResetGestureSlot = Player.AnimResetGestureSlot
+        local Player_AnimSetGestureWeight = Player.AnimSetGestureWeight
         local Player_AnimRestartGesture = Player.AnimRestartGesture
 
         local Entity_SelectWeightedSequence = Entity.SelectWeightedSequence
         local Entity_LookupSequence = Entity.LookupSequence
 
-        net_commands[ 1 ] = function()
+        net_commands[ 3 ] = function()
             local pl = net.ReadPlayer()
             if pl ~= nil and Entity_IsValid( pl ) then
                 local slot = net.ReadUInt( 3 )
@@ -90,7 +103,7 @@ do
             end
         end
 
-        net_commands[ 2 ] = function()
+        net_commands[ 4 ] = function()
             local pl = net.ReadPlayer()
             if pl ~= nil and Entity_IsValid( pl ) then
                 local slot = net.ReadUInt( 3 )
@@ -106,19 +119,14 @@ do
             end
         end
 
-    end
-
-    net_commands[ 3 ] = function()
-        local index = net.ReadUInt( ash_player.BitCount )
-
-        timer_Simple( 0, function()
-            local pl = Entity( index )
+        net_commands[ 5 ] = function()
+            local pl = net.ReadPlayer()
             if pl ~= nil and Entity_IsValid( pl ) then
-                hook.Run( "ash.player.Initialized", pl, false )
+                Player_AnimSetGestureWeight( pl, net.ReadUInt( 3 ), net.ReadFloat() )
             end
-        end )
-    end
+        end
 
+    end
 
     net.Receive( "network", function( length )
         local cmd_fn = net_commands[ net.ReadUInt( 8 ) ]
@@ -405,5 +413,30 @@ end, PRE_HOOK )
 hook.Add( "PlayerButtonUp", "InputCapture", function( pl, key_id )
     hook_Run( "ash.player.Input", pl, key_id, false, player_isLocal( pl ) )
 end, PRE_HOOK )
+
+hook.Add( "AdjustMouseSensitivity", "InputCapture", function( arguments, default_sensitivity, fov, default_fov )
+    local fraction = arguments[ 2 ]
+    if fraction ~= nil then
+        return fraction
+    end
+
+    local pl = ash_player.Entity
+    if pl ~= nil and Entity_IsValid( pl ) then
+        local sensitivity = hook_Run( "ash.player.MouseSensitivity", pl, default_sensitivity, fov, default_fov )
+        if sensitivity ~= nil then
+            return sensitivity
+        end
+
+        ---@type Weapon
+        local weapon = pl:GetActiveWeapon()
+        ---@diagnostic disable-next-line: undefined-field
+        if weapon ~= nil and weapon.AdjustMouseSensitivity ~= nil then
+            ---@diagnostic disable-next-line: undefined-field
+            return weapon:AdjustMouseSensitivity( pl, default_sensitivity, fov, default_fov )
+        end
+    end
+
+    return -1
+end, POST_HOOK_RETURN )
 
 return ash_player

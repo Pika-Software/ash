@@ -209,7 +209,7 @@ do
                 Entity_SetNWBool( pl, "m_bInitialized", true )
 
                 net.Start( "network" )
-                net.WriteUInt( 3, 8 )
+                net.WriteUInt( 0, 8 )
                 net.WriteUInt( pl:EntIndex(), player_BitCount )
                 net.SendOmit( pl )
 
@@ -250,7 +250,7 @@ do
         end
 
         net.Start( "network" )
-        net.WriteUInt( 0, 8 )
+        net.WriteUInt( 1, 8 )
 
         net.WriteUInt( pl:EntIndex(), player_BitCount )
         net.WriteBool( on_crouch )
@@ -278,90 +278,6 @@ do
     function ash_player.setHullSize( pl, on_crouch, width, depth, height )
         local width_half, depth_half = math_floor( width * 0.5 ), math_floor( depth * 0.5 )
         ash_player.setHull( pl, on_crouch, Vector( -width_half, -depth_half, 0 ), Vector( width_half, depth_half, height ) )
-    end
-
-end
-
----@alias ash.player.GESTURE_SLOT integer
----| `0` Slot for weapon gestures
----| `1` Slot for grenade gestures
----| `2` Slot for jump gestures
----| `3` Slot for swimming gestures
----| `4` Slot for flinching gestures
----| `5` Slot for VCD gestures
----| `6` Slot for custom gestures
-
-do
-
-    local Player_AddVCDSequenceToGestureSlot = Player.AddVCDSequenceToGestureSlot
-    local Player_AnimResetGestureSlot = Player.AnimResetGestureSlot
-    local Player_AnimRestartGesture = Player.AnimRestartGesture
-
-    local Entity_SelectWeightedSequence = Entity.SelectWeightedSequence
-    local Entity_LookupSequence = Entity.LookupSequence
-
-    --- [SERVER]
-    ---
-    --- Starts a player's gesture.
-    ---
-    ---@param pl Player
-    ---@param slot ash.player.GESTURE_SLOT
-    ---@param activity integer
-    ---@param cycle number
-    ---@param auto_kill boolean
-    function ash_player.startGestureByActivity( pl, slot, activity, cycle, auto_kill )
-        net.Start( "network" )
-        net.WriteUInt( 1, 8 )
-        net.WritePlayer( pl )
-        net.WriteUInt( slot, 3 )
-        net.WriteUInt( activity, 32 )
-        net.WriteBool( auto_kill )
-        net.WriteFloat( cycle )
-        net.Broadcast()
-
-        local sequence_id = Entity_SelectWeightedSequence( pl, activity )
-        if sequence_id ~= nil and sequence_id > 0 then
-            return Player_AddVCDSequenceToGestureSlot( pl, slot, sequence_id, cycle, auto_kill )
-        end
-
-        return Player_AnimRestartGesture( pl, slot, activity, auto_kill )
-    end
-
-    --- [SERVER]
-    ---
-    --- Starts a player's gesture.
-    ---
-    ---@param pl Player
-    ---@param slot ash.player.GESTURE_SLOT
-    ---@param sequence_name string
-    ---@param cycle number
-    ---@param auto_kill boolean
-    function ash_player.startGestureBySequence( pl, slot, sequence_name, cycle, auto_kill )
-        net.Start( "network" )
-        net.WriteUInt( 2, 8 )
-        net.WritePlayer( pl )
-        net.WriteUInt( slot, 3 )
-        net.WriteString( sequence_name )
-        net.WriteBool( auto_kill )
-        net.WriteFloat( cycle )
-        net.Broadcast()
-
-        local sequence_id = Entity_LookupSequence( pl, sequence_name )
-        if sequence_id ~= nil and sequence_id > 0 then
-            return Player_AddVCDSequenceToGestureSlot( pl, slot, sequence_id, cycle, auto_kill )
-        end
-
-        return Player_AnimResetGestureSlot( pl, slot )
-    end
-
-    --- [SERVER]
-    ---
-    --- Stops a player's gesture.
-    ---
-    ---@param pl Player
-    ---@param slot ash.player.GESTURE_SLOT
-    function ash_player.stopGesture( pl, slot )
-        return Player_AnimResetGestureSlot( pl, slot )
     end
 
 end
