@@ -265,15 +265,15 @@ do
     local table_remove = table.remove
 
     ---@type Entity[]
-    local doors = {}
-
-    ---@type integer
-    local door_count = 0
+    local doors = {
+        [ 0 ] = 0
+    }
 
     timer.Create( "StateHandler", 0.25, 0, function()
-		for i = 1, door_count, 1 do
+		for i = 1, doors[ 0 ], 1 do
             local entity = doors[ i ]
             if entity == nil or not Entity_IsValid( entity ) then
+                doors[ 0 ] = doors[ 0 ] - 1
                 table_remove( doors, i )
                 break
             end
@@ -295,15 +295,17 @@ do
 
     hook.Add( "ash.entity.DoorCreated", "CreationHandler", function( door_entity, class_name )
         if class_name == "prop_door_rotating" then
-            door_count = door_count + 1
-            doors[ door_count ] = door_entity
+            local count = doors[ 0 ] + 1
+            doors[ count ] = door_entity
+            doors[ 0 ] = count
         end
     end, PRE_HOOK )
 
     hook.Add( "ash.entity.DoorRemoved", "RemovalHandler", function( entity, class_name, is_full_update )
         if not is_full_update and class_name == "prop_door_rotating" then
-            for i = door_count, 1, -1 do
+            for i = doors[ 0 ], 1, -1 do
                 if doors[ i ] == entity then
+                    doors[ 0 ] = doors[ 0 ] - 1
                     table_remove( doors, i )
                     break
                 end

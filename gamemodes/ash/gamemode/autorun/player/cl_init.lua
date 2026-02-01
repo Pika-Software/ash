@@ -96,7 +96,7 @@ do
 
                 local sequence_id = Entity_SelectWeightedSequence( pl, activity )
                 if sequence_id ~= nil and sequence_id > 0 then
-                    Player_AddVCDSequenceToGestureSlot( pl, slot, sequence_id, net.ReadFloat(), auto_kill )
+                    Player_AddVCDSequenceToGestureSlot( pl, slot, sequence_id, ( CurTime() - net.ReadDouble() ) + net.ReadFloat(), auto_kill )
                 else
                     Player_AnimRestartGesture( pl, slot, activity, auto_kill )
                 end
@@ -112,7 +112,7 @@ do
 
                 local sequence_id = Entity_LookupSequence( pl, sequence_name )
                 if sequence_id ~= nil and sequence_id > 0 then
-                    Player_AddVCDSequenceToGestureSlot( pl, slot, sequence_id, net.ReadFloat(), auto_kill )
+                    Player_AddVCDSequenceToGestureSlot( pl, slot, sequence_id, ( CurTime() - net.ReadDouble() ) + net.ReadFloat(), auto_kill )
                 else
                     Player_AnimResetGestureSlot( pl, slot )
                 end

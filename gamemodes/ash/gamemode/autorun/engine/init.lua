@@ -6,20 +6,24 @@ MODULE.ClientFiles = {
 ---@class ash.engine
 local ash_engine = include( "shared.lua" )
 
-local RunConsoleCommand = _G.RunConsoleCommand
+do
 
-local convars = {
-    { "sv_defaultdeployspeed", "1" },
-    { "mp_show_voice_icons", "0" },
-    { "sv_gravity", "800" }
-}
+    local RunConsoleCommand = _G.RunConsoleCommand
 
-hook.Add( "InitPostEntity", "Defaults", function()
-    for i = 1, #convars, 1 do
-        local convar_data = convars[ i ]
-        RunConsoleCommand( convar_data[ 1 ], convar_data[ 2 ] )
-    end
-end, PRE_HOOK )
+    local convars = {
+        { "sv_defaultdeployspeed", "1" },
+        { "mp_show_voice_icons", "0" },
+        { "sv_gravity", "800" }
+    }
+
+    hook.Add( "InitPostEntity", "Defaults", function()
+        for i = 1, #convars, 1 do
+            local convar_data = convars[ i ]
+            RunConsoleCommand( convar_data[ 1 ], convar_data[ 2 ] )
+        end
+    end, PRE_HOOK )
+
+end
 
 resource.AddWorkshop( "129739986" )
 
@@ -44,6 +48,20 @@ do
 
     -- garrysmod/lua/includes/extensions/util/worldpicker.lua
     hook_Remove( "VGUIMousePressAllowed", "WorldPickerMouseDisable" )
+
+end
+
+do
+
+    local string_format = string.format
+    local ash_Chain = ash.Chain
+
+    hook.Add( "GetGameDescription", "GamemodeInfo", function( arguments )
+        if arguments[ 2 ] == nil then
+            local gamemode_info = ash_Chain[ 1 ]
+            return string_format( "%s@%s", gamemode_info.title, gamemode_info.version )
+        end
+    end, POST_HOOK_RETURN )
 
 end
 

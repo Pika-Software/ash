@@ -14,6 +14,8 @@ local ash_player = require( "ash.player" )
 local ash_trace = require( "ash.trace" )
 local trace_cast = ash_trace.cast
 
+local Entity_IsValid = Entity.IsValid
+
 hook.Add( "ash.entity.door.State", "DoorUnlocker", function( entity, state )
     if state ~= 0 and ash_door.isLocked( entity ) then
         ash_door.unlock( entity )
@@ -45,7 +47,7 @@ do
 
     local blacklist = {
         predicted_viewmodel = true,
-        prop_dynamic = true,
+        -- prop_dynamic = true,
         fog_volume = true,
 
         -- AI Entities
@@ -85,7 +87,21 @@ do
         infodecal = true
     }
 
-    hook.Add( "ash.player.ShouldUse", "Blacklist", function( arguments, pl, entity )
+    ---@param pl Player
+    ---@param entity Entity
+    hook.Add( "ash.player.ShouldUse", "BasicalFilter - Pre", function( pl, entity )
+        if entity:IsWeapon() then
+            local owner = entity:GetOwner()
+            if owner ~= nil and Entity_IsValid( owner ) then
+                return false
+            end
+        end
+    end, PRE_HOOK_RETURN )
+
+    ---@param arguments table
+    ---@param pl Player
+    ---@param entity Entity
+    hook.Add( "ash.player.ShouldUse", "BasicalFilter - Post", function( arguments, pl, entity )
         local usage_allowed = arguments[ 2 ]
 
         if usage_allowed == nil then
@@ -140,7 +156,6 @@ do
         end
     end )
 
-    local Entity_IsValid = Entity.IsValid
     local entity_use = ash_entity.use
 
     ---@type ash.trace.Output
@@ -155,7 +170,6 @@ do
     local player_getUseDistance = ash_player.getUseDistance
 
     local view_getAimVector = ash_view.getAimVector
-    local view_getEyeOrigin = ash_view.getEyeOrigin
 
     hook.Add( "Tick", "momentary_rot_button", function()
         for i = button_count, 1, -1 do
@@ -163,7 +177,7 @@ do
             local pl, entity = data[ 1 ], data[ 2 ]
 
             if Entity_IsValid( pl ) and Entity_IsValid( entity ) then
-                local start = view_getEyeOrigin( pl )
+                local start = pl:EyePos()
 
                 trace.start = start
                 trace.endpos = start + view_getAimVector( pl ) * player_getUseDistance( pl )

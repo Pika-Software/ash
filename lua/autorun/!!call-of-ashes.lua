@@ -24,6 +24,7 @@ local xpcall = std.xpcall
 local pcall = std.pcall
 
 local isString = std.isString
+local type = std.type
 
 local debug = std.debug
 local string = std.string
@@ -50,12 +51,12 @@ local string_match = string.match
 local string_byte = string.byte
 local string_sub = string.sub
 
-local raw_ipairs = raw.ipairs
 local raw_pairs = raw.pairs
 
 local file_Exists = glua_file.Exists
 local file_IsDir = glua_file.IsDir
 local file_Open = glua_file.Open
+local file_Find = glua_file.Find
 
 local util_Base64Encode = glua_util.Base64Encode
 local util_TableToJSON = glua_util.TableToJSON
@@ -73,14 +74,19 @@ local hook_Run = glua_hook.Run
 --- The ash global namespace.
 ---
 ---@class ash : ash.Gamemode
-ash = ash or {}
+---@field Name string
+---@field Version string
+---@field Author string
+---@field Loaded boolean
+ash = ash or {
+    Name = "Ash",
+    Loaded = false,
+    Version = "0.4.0",
+    Author = "Unknown Developer",
+    DedicatedServer = game.IsDedicated()
+}
 
-ash.Name = "Ash"
-ash.Version = "0.3.0"
-ash.Author = "Unknown Developer"
 ash.Tag = string_lower( string_match( ash.Name, "[^%s%p]+" ) ) .. "@" .. ash.Version
-
-ash.DedicatedServer = game.IsDedicated()
 
 ash.errorf = std.errorf
 
@@ -406,8 +412,11 @@ if LUA_SERVER then
 
     fs.makeDirectory( "/garrysmod/data/ash/injections", true )
 
-    for _, file_name in raw_ipairs( glua_file.Find( "ash/injections/*.dat", "DATA" ) ) do
-        glua_file.Delete( "ash/injections/" .. file_name )
+    do
+        local files = file_Find( "ash/injections/*.dat", "DATA" )
+        for i = 1, #files, 1 do
+            glua_file.Delete( "ash/injections/" .. files[ i ] )
+        end
     end
 
     ---@class ash.gamemode.Settings
@@ -571,8 +580,9 @@ if LUA_SERVER then
 
         ---@param folder_path string
         local function folder_send( folder_path )
-            for _, directory_name in raw_ipairs( select( 2, glua_file.Find( folder_path .. "*", "LUA" ) ) ) do
-                local directory_path = folder_path .. directory_name
+            local _, directory = file_Find( folder_path .. "*", "LUA" )
+            for i = 1, #directory, 1 do
+                local directory_path = folder_path .. directory[ i ]
 
                 local cl_init_path = directory_path .. "/cl_init.lua"
                 if file_Exists( cl_init_path, "LUA" ) then
@@ -636,9 +646,10 @@ if LUA_SERVER then
             ---@param path_to string
             local function bake_content( name, path_to )
                 local parent_path = "gamemodes/" .. name .. "/content/" .. path_to
-                local parent_files, parent_directories = glua_file.Find( parent_path .. "*", "GAME" )
+                local files, directories = file_Find( parent_path .. "*", "GAME" )
 
-                for _, file_name in raw_ipairs( parent_files ) do
+                for i = 1, #files, 1 do
+                    local file_name = files[ i ]
                     if not file_Exists( path_to .. file_name, "GAME" ) then
                         ---@type File | nil
                         ---@diagnostic disable-next-line: assign-type-mismatch
@@ -650,8 +661,8 @@ if LUA_SERVER then
                     end
                 end
 
-                for _, directory_name in raw_ipairs( parent_directories ) do
-                    bake_content( name, path_to .. directory_name .. "/" )
+                for i = 1, #directories, 1 do
+                    bake_content( name, path_to .. directories[ i ] .. "/" )
                 end
             end
 
@@ -867,8 +878,10 @@ setmetatable( environment, {
     end
 } )
 
+environment.setTimeout = std.setTimeout
 environment.console = std.console
 environment.futures = std.futures
+environment.http = std.http
 environment.string = string
 environment.math = std.math
 environment.table = table
@@ -891,7 +904,6 @@ environment.isstring = isString
 do
 
     local debug_getmetavalue = debug.getmetavalue
-    local type = std.type
 
     function environment.type( value )
         return debug_getmetavalue( value, "MetaName" ) or type( value )
@@ -920,7 +932,7 @@ do
 end
 
 ---@class ash.Module : dreamwork.Object
----@field __class ash.Module
+---@field __class ash.ModuleClass
 ---@field Name string The name of the module.
 ---@field Prefix string The prefix of the module.
 ---@field Location string The location of the module.
@@ -930,7 +942,7 @@ end
 ---@field Environment table The environment of the module.
 ---@field Result? any[] The result of the module execution.
 ---@field Error? string The error of the module execution.
-local Module = class.base( "ash.module", false )
+local Module = class.base( "ash.Module", false )
 
 ---@class ash.ModuleClass : ash.Module
 ---@field __base ash.Module
@@ -938,8 +950,9 @@ local Module = class.base( "ash.module", false )
 local ModuleClass = class.create( Module )
 ash.Module = ModuleClass
 
+---@protected
 function Module:__tostring()
-    return string_format( "ash.Module: %p [%s]", self, self.Name )
+    return string_format( "%s: %p [%s]", type( self ), self, self.Name )
 end
 
 ---@param name string
@@ -1191,20 +1204,17 @@ end
 
 --- [SHARED]
 ---
---- Loads the module.
+--- Loads the module and compiles it with the given environment.
 ---
 ---@param stack_level integer
-function Module:load( stack_level )
+---@param enviroment table
+function Module:load( stack_level, enviroment )
     if self.Environment ~= nil then return end
 
-    local module_enviroment = {
-        MODULE = self
-    }
+    setmetatable( enviroment, enviroment_metatable )
+    self.Environment = enviroment
 
-    setmetatable( module_enviroment, enviroment_metatable )
-    self.Environment = module_enviroment
-
-    local success, result = pcall( file_compile( self.EntryPoint, module_enviroment, stack_level ) )
+    local success, result = pcall( file_compile( self.EntryPoint, enviroment, stack_level ) )
 
     if success then
         self.Result = result
@@ -1229,6 +1239,26 @@ function Module:unload()
     hook_Run( "ash.ModuleUnloaded", self )
     logger:debug( "'%s' unloaded.", self )
 end
+
+---@class ash.EntityModule : ash.Module
+---@field __class ash.EntityModuleClass
+local EntityModule = class.base( "ash.EntityModule", false, ModuleClass )
+EntityModule.__init = Module.__init
+
+---@class ash.EntityModuleClass : ash.EntityModule
+---@field __base ash.EntityModule
+---@overload fun( name: string, location: string ): ash.EntityModule
+local EntityModuleClass = class.create( EntityModule )
+
+---@class ash.WeaponModule : ash.Module
+---@field __class ash.WeaponModuleClass
+local WeaponModule = class.base( "ash.WeaponModule", false, ModuleClass )
+WeaponModule.__init = Module.__init
+
+---@class ash.WeaponModuleClass : ash.WeaponModule
+---@field __base ash.WeaponModule
+---@overload fun( name: string, location: string ): ash.WeaponModule
+local WeaponModuleClass = class.create( WeaponModule )
 
 do
 
@@ -1832,7 +1862,9 @@ do
         end
 
         module_object.EntryPoint = entrypoint_path
-        module_object:load( stack_level )
+        module_object:load( stack_level, {
+            MODULE = module_object
+        } )
 
         if LUA_SERVER then
 
@@ -1864,6 +1896,232 @@ do
         return module_object
     end
 
+    ---@class ash.Entity.Structure : ENT
+    ---@field ClassName string The class name of the entity to register.
+    ---@field Type "anim" | "brush" | "point" | "ai" | "nextbot" | "filter" | nil The type of the entity. Defaults to `"anim"`.
+    ---@field PrintName string | nil The name of the entity. Defaults use the class name.
+    ---@field Spawnable boolean | nil Whether the entity can be spawned by players. Defaults to `false`.
+    ---@field Editable boolean | nil Whether the entity can be edited by players. Defaults to `false`.
+    ---@field Category string | nil The name of the entity category. Defaults to `nil`.
+    ---@field RenderGroup RENDERGROUP | integer | nil The render group of the entity. Defaults to `RENDERGROUP_TRANSLUCENT`.
+    ---@field WantsTranslucency boolean | nil Whether the entity wants translucency. Defaults to `true`.
+    ---@field DisableDuplicator boolean | nil Whether the entity should be disabled in the duplicator. Defaults to `false`.
+    ---@field IconOverride string | nil The icon of the entity. Defaults to `nil`.
+    ---@field PhysicsSolidMask CONTENTS | integer | nil The physics solid mask of the entity. Defaults to `nil`.
+
+    ---@class ash.Weapon.Structure : SWEP
+    ---@field ClassName string The class name of the entity to register.
+    ---@field PrintName string | nil The name of the entity. Defaults use the class name.
+    ---@field Spawnable boolean | nil Whether the entity can be spawned by players. Defaults to `false`.
+    ---@field Category string | nil The name of the entity category. Defaults to `nil`.
+    ---@field DisableDuplicator boolean | nil Whether the entity should be disabled in the duplicator. Defaults to `false`.
+    ---@field IconOverride string | nil The icon of the entity. Defaults to `nil`.
+
+    local entity_require, weapon_require
+    do
+
+        ---@class ENTITY
+        local ENTITY = debug.findmetatable( "Entity" )
+        local ENTITY_DrawModel = ENTITY.DrawModel
+
+        local entity_Register = scripted_ents.Register
+        local weapon_Register = weapons.Register
+
+        ---@param class_name string
+        ---@param gamemode_name string
+        ---@param folder_path string
+        function entity_require( class_name, gamemode_name, folder_path )
+            if LUA_SERVER then
+                local cl_init_path = folder_path .. "/cl_init.lua"
+                if file_Exists( cl_init_path, "LUA" ) then
+                    clientFileSend( cl_init_path, 2 )
+                end
+
+                local shared_path = folder_path .. "/shared.lua"
+                if file_Exists( shared_path, "LUA" ) then
+                    clientFileSend( shared_path, 2 )
+                end
+            end
+
+            local entrypoint_path = folder_path .. init_file
+            if not file_Exists( entrypoint_path, "LUA" ) then
+                entrypoint_path = folder_path .. "/shared.lua"
+                if not file_Exists( entrypoint_path, "LUA" ) then
+                    return nil
+                end
+            end
+
+            local module_name = "ash.entities." .. gamemode_name .. "." .. class_name
+
+            ---@type ash.EntityModule | nil
+            ---@diagnostic disable-next-line: assign-type-mismatch
+            local module_object = modules[ module_name ]
+
+            if module_object == nil then
+                module_object = EntityModuleClass( module_name, folder_path )
+                modules[ module_name ] = module_object
+                table_insert( modules, module_name )
+            else
+                module_object:unload()
+            end
+
+            module_object.EntryPoint = entrypoint_path
+
+            ---@type ash.Entity.Structure
+            local entity_structure = {
+                Type = "anim",
+                RenderGroup = 8,
+                Folder = folder_path,
+                ClassName = class_name,
+                Draw = ENTITY_DrawModel,
+                PrintName = "#" .. class_name,
+                DrawTranslucent = ENTITY_DrawModel
+            }
+
+            module_object:load( 2, {
+                MODULE = module_object,
+                ENT = entity_structure
+            } )
+
+            local err_msg = module_object.Error
+            if err_msg ~= nil then
+                error_display( err_msg )
+                return
+            end
+
+            entity_structure.Spawnable = entity_structure.Spawnable == true
+            entity_structure.Editable = entity_structure.Editable == true
+
+            entity_structure.WantsTranslucency = entity_structure.WantsTranslucency ~= false
+            entity_structure.DisableDuplicator = entity_structure.DisableDuplicator == true
+
+            if LUA_SERVER then
+
+                local networks = module_object.Networks
+                if networks ~= nil then
+                    for i = 1, #networks, 1 do
+                        glua_util.AddNetworkString( module_object.Prefix .. networks[ i ] )
+                    end
+                end
+
+                local client_files = module_object.ClientFiles
+                if client_files ~= nil then
+                    for i = 1, #client_files, 1 do
+                        local file_path = folder_path .. "/" .. client_files[ i ]
+                        if file_Exists( file_path, "lsv" ) and not file_IsDir( file_path, "lsv" ) then
+                            clientFileSend( file_path, 2 )
+                        else
+                            logger:error( "Failed to send file '%s' to the client from '%s'.", file_path, module_object )
+                        end
+                    end
+                end
+
+            end
+
+            class_name = entity_structure.ClassName or class_name
+            entity_Register( entity_structure, class_name )
+
+            logger:debug( "The entity class '%s' has been registered as %s.", class_name, module_object )
+        end
+
+        ---@param class_name string
+        ---@param gamemode_name string
+        ---@param folder_path string
+        function weapon_require( class_name, gamemode_name, folder_path )
+            if LUA_SERVER then
+                local cl_init_path = folder_path .. "/cl_init.lua"
+                if file_Exists( cl_init_path, "LUA" ) then
+                    clientFileSend( cl_init_path, 2 )
+                end
+
+                local shared_path = folder_path .. "/shared.lua"
+                if file_Exists( shared_path, "LUA" ) then
+                    clientFileSend( shared_path, 2 )
+                end
+            end
+
+            local entrypoint_path = folder_path .. init_file
+            if not file_Exists( entrypoint_path, "LUA" ) then
+                entrypoint_path = folder_path .. "/shared.lua"
+                if not file_Exists( entrypoint_path, "LUA" ) then
+                    return nil
+                end
+            end
+
+            local module_name = "ash.entities." .. gamemode_name .. "." .. class_name
+
+            ---@type ash.WeaponModule | nil
+            ---@diagnostic disable-next-line: assign-type-mismatch
+            local module_object = modules[ module_name ]
+
+            if module_object == nil then
+                module_object = WeaponModuleClass( module_name, folder_path )
+                modules[ module_name ] = module_object
+                table_insert( modules, module_name )
+            else
+                module_object:unload()
+            end
+
+            module_object.EntryPoint = entrypoint_path
+
+            ---@type ash.Weapon.Structure
+            local weapon_structure = {
+                Base = "weapon_base",
+                ClassName = class_name,
+                Folder = folder_path,
+                UseHands = true,
+                PrintName = "#" .. class_name,
+                DrawAmmo = false,
+                DrawWeaponInfoBox = false,
+                Primary = {},
+                Secondary = {}
+            }
+
+            module_object:load( 2, {
+                MODULE = module_object,
+                SWEP = weapon_structure
+            } )
+
+            local err_msg = module_object.Error
+            if err_msg ~= nil then
+                error_display( err_msg )
+                return
+            end
+
+            weapon_structure.Spawnable = weapon_structure.Spawnable == true
+            weapon_structure.DisableDuplicator = weapon_structure.DisableDuplicator == true
+
+            if LUA_SERVER then
+
+                local networks = module_object.Networks
+                if networks ~= nil then
+                    for i = 1, #networks, 1 do
+                        glua_util.AddNetworkString( module_object.Prefix .. networks[ i ] )
+                    end
+                end
+
+                local client_files = module_object.ClientFiles
+                if client_files ~= nil then
+                    for i = 1, #client_files, 1 do
+                        local file_path = folder_path .. "/" .. client_files[ i ]
+                        if file_Exists( file_path, "lsv" ) and not file_IsDir( file_path, "lsv" ) then
+                            clientFileSend( file_path, 2 )
+                        else
+                            logger:error( "Failed to send file '%s' to the client from '%s'.", file_path, module_object )
+                        end
+                    end
+                end
+
+            end
+
+            class_name = weapon_structure.ClassName or class_name
+            weapon_Register( weapon_structure, class_name )
+
+            logger:debug( "The weapon class '%s' has been registered as %s.", class_name, module_object )
+        end
+
+    end
+
     --- [SHARED]
     ---
     --- Reloads the module.
@@ -1883,21 +2141,38 @@ do
         if error_msg ~= nil then
             error_display( error_msg )
         end
-
-        -- if LUA_SERVER then
-        --     local timer_name = "ash.reload::" .. module_name
-        --     module_require( module_name, true, 2 )
-
-        --     glua_timer.Create( timer_name, 1, 1, function()
-        --         glua_timer.Remove( timer_name )
-
-        --         glua_net.Start( "ash.network" )
-        --         glua_net.WriteUInt( 1, 2 )
-        --         glua_net.WriteString( module_name )
-        --         glua_net.Broadcast()
-        --     end )
-        -- end
     end
+
+    ---@type table<string, fun( gamemode_name: string, directory_path: string, lua_path: string )>
+    local handlers = {
+        entities = function( gamemode_name, directory_path )
+            local class_name = string_match( directory_path, "^([^/]+)" )
+            if class_name ~= nil then
+                entity_require( class_name, gamemode_name, gamemode_name .. "/gamemode/entities/" .. class_name )
+            end
+        end,
+        weapons = function( gamemode_name, directory_path )
+            local class_name = string_match( directory_path, "^([^/]+)" )
+            if class_name ~= nil then
+                weapon_require( class_name, gamemode_name, gamemode_name .. "/gamemode/weapons/" .. class_name )
+            end
+        end,
+        modules = function( gamemode_name, directory_path )
+            local segments, segment_count = string.byteSplit( directory_path, 0x2F --[[ / ]] )
+            if segment_count == 0 then return end
+
+            for i = segment_count, 1, -1 do
+                local module_object = modules[ gamemode_name .. "." .. table_concat( segments, ".", 1, i ) ]
+                if module_object ~= nil then
+                    ---@cast module_object ash.Module
+                    module_object:reload()
+                    break
+                end
+            end
+        end
+    }
+
+    handlers.autorun = handlers.modules
 
     if LUA_SERVER and DEBUG then
 
@@ -1907,12 +2182,12 @@ do
             if is_directory then return end
 
             local gamemode_name, module_type, directory_path, file_name = string_match( fs_object.path, "^/garrysmod/addons/[^/]+/gamemodes/([^/]+)/gamemode/(%w+)/(.+)/(.+%.lua)$" )
-            if gamemode_name == nil or not ( module_type == "modules" or module_type == "autorun" ) or directory_path == nil then return end
+            if gamemode_name == nil or module_type == nil or directory_path == nil then return end
 
-            local segments, segment_count = string.byteSplit( directory_path, 0x2F --[[ / ]] )
-            if segment_count == 0 then return end
+            local handler = handlers[ module_type ]
+            if handler == nil then return end
 
-            local lua_path = table_concat( { gamemode_name, "gamemode", module_type, directory_path, file_name }, "/", 1, 5 )
+            local lua_path = string_format( "%s/gamemode/%s/%s/%s", gamemode_name, module_type, directory_path, file_name )
 
             if client_checksums[ lua_path ] ~= nil then
                 local has_changes, lua_code, file_sha256 = clientFileSend( lua_path, 2 )
@@ -1929,14 +2204,7 @@ do
                 end
             end
 
-            for i = segment_count, 1, -1 do
-                local module_object = modules[ gamemode_name .. "." .. table_concat( segments, ".", 1, i ) ]
-                if module_object ~= nil then
-                    ---@cast module_object ash.Module
-                    module_object:reload()
-                    break
-                end
-            end
+            handler( gamemode_name, directory_path, lua_path )
         end )
 
     end
@@ -1974,23 +2242,39 @@ do
         local function reload( chain )
             for i = #chain, 1, -1 do
                 local gamemode_info = chain[ i ]
-                local root_name = gamemode_info.name
+                local gamemode_name = gamemode_info.name
 
                 local workshopid = gamemode_info.workshopid
                 if workshopid ~= nil and ( raw_tonumber( workshopid, 10 ) or 0 ) > 0 then
                     ash.setWorkshopDL( workshopid, true )
                 end
 
-                local modules_path = root_name .. "/gamemode/autorun/"
-
-                for _, directory_name in raw_ipairs( select( 2, glua_file.Find( modules_path .. "*", "LUA" ) ) ) do
-                    local module_object = module_require( root_name .. "." .. directory_name, true, 2 )
+                -- Autorun
+                local _, autorun_directories = file_Find( gamemode_name .. "/gamemode/autorun/" .. "*", "LUA" )
+                for j = 1, #autorun_directories, 1 do
+                    local module_object = module_require( gamemode_name .. "." .. autorun_directories[ j ], true, 2 )
                     if module_object ~= nil then
                         local err_msg = module_object.Error
                         if err_msg ~= nil then
-                            error( err_msg, 2 )
+                            error( err_msg )
                         end
                     end
+                end
+
+                -- Entities
+                local entities_path = gamemode_name .. "/gamemode/entities/"
+                local _, entity_directories = file_Find( entities_path .. "*", "LUA" )
+                for j = 1, #entity_directories, 1 do
+                    local folder_name = entity_directories[ j ]
+                    entity_require( folder_name, gamemode_name, entities_path .. folder_name )
+                end
+
+                --- Weapons
+                local weapons_path = gamemode_name .. "/gamemode/weapons/"
+                local _, weapon_directories = file_Find( weapons_path .. "*", "LUA" )
+                for j = 1, #weapon_directories, 1 do
+                    local folder_name = weapon_directories[ j ]
+                    weapon_require( folder_name, gamemode_name, weapons_path .. folder_name )
                 end
             end
         end
@@ -2054,37 +2338,30 @@ do
                     end
                 end )
             elseif uint1_1 == 2 then
-                local file_path = glua_net.ReadString()
+                local lua_path = glua_net.ReadString()
 
                 local compressed_lua = glua_net.ReadData( glua_net.BytesLeft() * 8 )
                 local lua_code = util_Decompress( compressed_lua )
 
                 if lua_code == nil then
-                    logger:error( "Failed to decompress file '%s'.", file_path )
+                    logger:error( "Failed to decompress file '%s'.", lua_path )
                     return
                 end
 
-                client_contents[ file_path ] = lua_code
+                client_contents[ lua_path ] = lua_code
 
                 local file_sha256 = util_SHA256( lua_code )
-                client_checksums[ file_path ] = file_sha256
+                client_checksums[ lua_path ] = file_sha256
 
-                logger:debug( "Received file '%s' checksum SHA-256 '%s'.", file_path, file_sha256 )
+                logger:debug( "Received file '%s' checksum SHA-256 '%s'.", lua_path, file_sha256 )
 
-                local gamemode_name, module_type, directory_path = string_match( file_path, "^([^/]+)/gamemode/(%w+)/(.+)/.+%.lua$" )
-                if gamemode_name == nil or not ( module_type == "modules" or module_type == "autorun" ) or directory_path == nil then return end
+                local gamemode_name, module_type, directory_path = string_match( lua_path, "^([^/]+)/gamemode/(%w+)/(.+)/.+%.lua$" )
+                if gamemode_name == nil or module_type == nil or directory_path == nil then return end
 
-                local segments, segment_count = string.byteSplit( directory_path, 0x2F --[[ / ]] )
+                local handler = handlers[ module_type ]
+                if handler == nil then return end
 
-                for i = segment_count, 1, -1 do
-                    local module_object = modules[ gamemode_name .. "." .. table_concat( segments, ".", 1, i ) ]
-                    if module_object ~= nil then
-                        ---@cast module_object ash.Module
-                        module_object:reload()
-                        break
-                    end
-                end
-
+                handler( gamemode_name, directory_path, lua_path )
             end
         end )
 

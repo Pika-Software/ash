@@ -1,5 +1,6 @@
 local Entity_GetNW2Var = Entity.GetNW2Var
 local Entity_SetNW2Var = Entity.SetNW2Var
+local CurTime = CurTime
 
 ---@type ash.model
 local ash_model = require( "ash.model" )
@@ -225,10 +226,11 @@ end
 
 do
 
-    local CurTime = CurTime
-
     ---@type table<Player, table<integer, number>>
     local press_times = {}
+
+    ---@type table<Player, table<integer, number>>
+    local release_times = {}
 
     --- [SHARED]
     ---
@@ -243,24 +245,6 @@ do
 
     --- [SHARED]
     ---
-    --- Gets the time the player pressed a key.
-    ---
-    ---@param pl Player
-    ---@param key integer
-    ---@return number seconds_in_use
-    function ash_player.getKeyDownTime( pl, key )
-        if players_key_states[ pl ][ key ] then
-            return CurTime() - press_times[ pl ][ key ]
-        else
-            return 0
-        end
-    end
-
-    ---@type table<Player, table<integer, number>>
-    local release_times = {}
-
-    --- [SHARED]
-    ---
     --- Gets the time the player released a key.
     ---
     ---@param pl Player
@@ -272,17 +256,24 @@ do
 
     --- [SHARED]
     ---
+    --- Gets the time the player pressed a key.
+    ---
+    ---@param pl Player
+    ---@param key integer
+    ---@return number seconds_in_use
+    function ash_player.getKeyDownTime( pl, key )
+        return CurTime() - press_times[ pl ][ key ]
+    end
+
+    --- [SHARED]
+    ---
     --- Gets the time the player released a key.
     ---
     ---@param pl Player
     ---@param key integer
     ---@return number seconds_in_use
     function ash_player.getKeyUpTime( pl, key )
-        if players_key_states[ pl ][ key ] then
-            return CurTime() - release_times[ pl ][ key ]
-        else
-            return 0
-        end
+        return CurTime() - release_times[ pl ][ key ]
     end
 
     do
@@ -574,7 +565,7 @@ do
             model_path = model_precache( model_path )
 
             if rawget( players_model, pl ) ~= model_path  then
-                local new_model = hook_Run( "ash.player.Model", pl, model_path, players_model[ pl ] ) or model_path
+                local new_model = hook_Run( "ash.player.Model", pl, players_model[ pl ], model_path ) or model_path
 
                 if new_model ~= model_path then
                     new_model = model_precache( new_model )
@@ -719,7 +710,7 @@ do
 
         local sequence = Entity_GetSequence( pl )
         if rawget( players_sequence, pl ) ~= sequence then
-            local new_sequence = hook_Run( "ash.player.Sequence", pl, sequence, players_sequence[ pl ] ) or sequence
+            local new_sequence = hook_Run( "ash.player.Sequence", pl, players_sequence[ pl ], sequence ) or sequence
             players_sequence[ pl ] = new_sequence
 
             if new_sequence ~= sequence then
@@ -1240,7 +1231,7 @@ do
                 end
             end
 
-            -- walking
+            -- forward walking
             return 100
         elseif bit_band( in_keys, 131072 ) ~= 0 then -- in run
             if is_crouching then
@@ -1250,13 +1241,15 @@ do
 
             if bit_band( in_keys, 8 ) == 0 then
                 if bit_band( in_keys, 16 ) ~= 0 then
+                    -- backward running
                     return 160
                 elseif bit_band( in_keys, side_keys ) ~= 0 then
+                    -- side running
                     return 170
                 end
             end
 
-            -- running
+            -- forward running
             return 300
         else
             if is_crouching then
@@ -1266,8 +1259,10 @@ do
 
             if bit_band( in_keys, 8 ) == 0 then
                 if bit_band( in_keys, 16 ) ~= 0 then
+                    -- backward walking
                     return 140
                 elseif bit_band( in_keys, side_keys ) ~= 0 then
+                    -- side walking
                     return 160
                 end
             end
@@ -1355,7 +1350,6 @@ do
 
     local Entity_IsValid = Entity.IsValid
     local entity_use = ash_entity.use
-    local CurTime = CurTime
 
     ---@type table<Player, number>
     local usage_starts = {}
@@ -1542,14 +1536,16 @@ do
     ---@param activity integer
     ---@param cycle number
     ---@param auto_kill boolean
-    function ash_player.startGestureByActivity( pl, slot, activity, cycle, auto_kill )
-        if SERVER then
+    ---@param networked boolean
+    function ash_player.startGestureByActivity( pl, slot, activity, cycle, auto_kill, networked )
+        if SERVER and networked ~= false then
             net.Start( "network" )
             net.WriteUInt( 3, 8 )
             net.WritePlayer( pl )
             net.WriteUInt( slot, 3 )
             net.WriteUInt( activity, 32 )
             net.WriteBool( auto_kill )
+            net.WriteDouble( CurTime() )
             net.WriteFloat( cycle )
             net.Broadcast()
         end
@@ -1571,14 +1567,16 @@ do
     ---@param sequence_name string
     ---@param cycle number
     ---@param auto_kill boolean
-    function ash_player.startGestureBySequence( pl, slot, sequence_name, cycle, auto_kill )
-        if SERVER then
+    ---@param networked boolean
+    function ash_player.startGestureBySequence( pl, slot, sequence_name, cycle, auto_kill, networked )
+        if SERVER and networked ~= false then
             net.Start( "network" )
             net.WriteUInt( 4, 8 )
             net.WritePlayer( pl )
             net.WriteUInt( slot, 3 )
             net.WriteString( sequence_name )
             net.WriteBool( auto_kill )
+            net.WriteDouble( CurTime() )
             net.WriteFloat( cycle )
             net.Broadcast()
         end
@@ -1597,8 +1595,9 @@ do
     ---
     ---@param pl Player
     ---@param slot ash.player.GESTURE_SLOT
-    function ash_player.stopGesture( pl, slot )
-        if SERVER then
+    ---@param networked boolean
+    function ash_player.stopGesture( pl, slot, networked )
+        if SERVER and networked ~= false then
             net.Start( "network" )
             net.WriteUInt( 5, 8 )
             net.WritePlayer( pl )
@@ -1616,8 +1615,9 @@ do
     ---@param pl Player
     ---@param slot ash.player.GESTURE_SLOT
     ---@param weight number
-    function ash_player.setGestureWeight( pl, slot, weight )
-        if SERVER then
+    ---@param networked boolean
+    function ash_player.setGestureWeight( pl, slot, weight, networked )
+        if SERVER and networked ~= false then
             net.Start( "network" )
             net.WriteUInt( 6, 8 )
             net.WritePlayer( pl )

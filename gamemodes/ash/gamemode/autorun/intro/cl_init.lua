@@ -24,11 +24,10 @@ ash_ui.font( "ash.intro.TextSmall", {
 } )
 
 local RT_SIZE = math_min( ash_ui.ScreenWidth, ash_ui.ScreenHeight )
-local DOT_SPACING = ash_ui.scale( "0.6vmin" )
-local DOT_RADIUS = ash_ui.scale( "0.2vmin" )
+local DOT_SPACING = math.ceil( ash_ui.scale( "0.6vmin" ) )
+local DOT_RADIUS = math.ceil( ash_ui.scale( "0.2vmin" ) )
 
-local dots = {}
-local dot_count = 0
+local dots = { [ 0 ] = 0 }
 
 local rt = GetRenderTarget( "ash_intro_dots", RT_SIZE, RT_SIZE )
 
@@ -75,38 +74,39 @@ local function BuildDotMatrixFromRT()
     render.PushRenderTarget( rt )
     render.CapturePixels()
 
-    dot_count = 0
+    local index = 0
 
     for y = 0, RT_SIZE - 1, DOT_SPACING do
         for x = 0, RT_SIZE - 1, DOT_SPACING do
             local r, g, b, a = render.ReadPixel( x, y )
             if ( a == nil or a > 10 ) and ( r > 10 or g > 10 or b > 10 ) then
-                dot_count = dot_count + 1
+                index = index + 1
 
-                local dot = dots[ dot_count ]
+                local dot = dots[ index ]
                 if dot == nil then
-                    dots[ dot_count ] = {
-                        tx = x,
-                        ty = y,
+                    dots[ index ] = {
+                        target_x = x,
+                        target_y = y,
                         r = r,
                         g = g,
                         b = b,
                         x = x,
                         y = y,
-                        t = 1,
+                        progress = 1,
                         p0 = { x = x, y = y },
                         p1 = { x = x, y = y },
                         p2 = { x = x, y = y },
                         p3 = { x = x, y = y },
                     }
                 else
-                    dot.tx = x
-                    dot.ty = y
+                    dot.target_x = x
+                    dot.target_y = y
                 end
             end
         end
     end
 
+    dots[ 0 ] = index
 
     render.PopRenderTarget()
 end
@@ -150,11 +150,11 @@ hook.Add( "ash.Loaded", "Welcome", function()
 
         hue, saturation, lightness = ash_ui.Colors.dreamwork_main:toHSV()
 
-        WriteTextToRT( "Developers:\n- Unknown Developer\n- AngoNex\n", "ash.intro.TextSmall" )
-        BuildDotMatrixFromRT()
+        -- WriteTextToRT( "Developers:\n- Unknown Developer\n- AngoNex\n", "ash.intro.TextSmall" )
+        -- BuildDotMatrixFromRT()
 
-        futures.sleep( 2 )
-        if fading then return end
+        -- futures.sleep( 2 )
+        -- if fading then return end
 
         WriteTextToRT( "'^'", "ash.intro.TextBig" )
         BuildDotMatrixFromRT()
@@ -194,18 +194,18 @@ hook.Add( "ash.Loaded", "Welcome", function()
         surface_SetDrawColor( 0, 0, 0, alpha )
         surface.DrawRect( 0, 0, screen_width, screen_height )
 
-        local ox = screen_width / 2 - RT_SIZE / 2
-        local oy = screen_height / 2 - RT_SIZE / 2
+        local ox = ash_ui.ScreenCenterX - RT_SIZE * 0.5
+        local oy = ash_ui.ScreenCenterY - RT_SIZE * 0.5
 
-        for i = 1, dot_count, 1 do
+        for i = 1, dots[ 0 ], 1 do
             local dot = dots[ i ]
 
-            local tx, ty = dot.tx, dot.ty
-            local frac = dot.t
+            local target_x, target_y = dot.target_x, dot.target_y
+            local progress = dot.progress
 
-            if frac >= 1 or math_abs( dot.p3.x - tx ) > 1 or math_abs( dot.p3.y - ty ) > 1 then
-                frac = 0
-                dot.t = frac
+            if progress >= 1 or math_abs( dot.p3.x - target_x ) > 1 or math_abs( dot.p3.y - target_y ) > 1 then
+                progress = 0
+                dot.progress = progress
 
                 dot.p0 = {
                     x = dot.x,
@@ -218,31 +218,31 @@ hook.Add( "ash.Loaded", "Welcome", function()
                 }
 
                 dot.p2 = {
-                    x = tx + ( math_random() - 0.5 ) * randOffset,
-                    y = ty + ( math_random() - 0.5 ) * randOffset
+                    x = target_x + ( math_random() - 0.5 ) * randOffset,
+                    y = target_y + ( math_random() - 0.5 ) * randOffset
                 }
 
                 dot.p3 = {
-                    x = tx,
-                    y = ty
+                    x = target_x,
+                    y = target_y
                 }
             end
 
-            frac = math_min( frac + speed * frame_time, 1 )
-            dot.t = frac
+            progress = math_min( progress + speed * frame_time, 1 )
+            dot.progress = progress
 
-            local invT = 1 - frac
+            local invT = 1 - progress
 
             local p0, p1, p2, p3 = dot.p0, dot.p1, dot.p2, dot.p3
 
-            local x = invT ^ 3 * p0.x + 3 * invT ^ 2 * frac * p1.x + 3 * invT * frac ^ 2 * p2.x + frac ^ 3 * p3.x
-            local y = invT ^ 3 * p0.y + 3 * invT ^ 2 * frac * p1.y + 3 * invT * frac ^ 2 * p2.y + frac ^ 3 * p3.y
+            local x = invT ^ 3 * p0.x + 3 * invT ^ 2 * progress * p1.x + 3 * invT * progress ^ 2 * p2.x + progress ^ 3 * p3.x
+            local y = invT ^ 3 * p0.y + 3 * invT ^ 2 * progress * p1.y + 3 * invT * progress ^ 2 * p2.y + progress ^ 3 * p3.y
 
             dot.x = x
             dot.y = y
 
-            local dx = dot.x - tx
-            local dy = dot.y - ty
+            local dx = dot.x - target_x
+            local dy = dot.y - target_y
             local dist = math_sqrt( dx * dx + dy * dy )
             local brightness = ( 1 - dist / 30 )
 

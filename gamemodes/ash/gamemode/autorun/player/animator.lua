@@ -531,6 +531,8 @@ do
                     elseif bit_band( in_keys, IN_SPEED ) == 0 then
                         if bit_band( in_keys, in_walk_keys ) == 0 then
                             activity = getStandActivity( pl )
+                        elseif bit_band( in_keys, IN_WALK ) == 0 then
+                            activity = getRunActivity( pl )
                         else
                             activity = getWalkActivity( pl )
                         end

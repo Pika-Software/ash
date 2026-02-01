@@ -106,11 +106,10 @@ do
     local ents_FindInSphere = ents.FindInSphere
 
     local view_getAimVector = ash_view.getAimVector
-    local view_getEyeOrigin = ash_view.getEyeOrigin
 
     ---@param pl Player
     hook.Add( "ash.player.SelectsUseEntity", "Defaults", function( pl )
-        local start = view_getEyeOrigin( pl )
+        local start = pl:EyePos()
 
         trace.start = start
         trace.endpos = start + view_getAimVector( pl ) * player_getUseDistance( pl )
@@ -118,21 +117,23 @@ do
 
         trace_cast( trace )
 
-        if trace_result.Hit then
-            if not trace_result.HitWorld then
-                local entity = trace_result.Entity
-                if hook_Run( "ash.player.ShouldUse", pl, entity ) ~= false then
-                    return entity
-                end
+        if not trace_result.Hit or trace_result.StartSolid then
+            return
+        end
+
+        if not trace_result.HitWorld then
+            local entity = trace_result.Entity
+            if hook_Run( "ash.player.ShouldUse", pl, entity ) ~= false then
+                return entity
             end
+        end
 
-            local entites = ents_FindInSphere( trace_result.HitPos, 1 )
+        local entites = ents_FindInSphere( trace_result.HitPos, 1 )
 
-            for i = 1, #entites, 1 do
-                local entity = entites[ i ]
-                if entity ~= pl and hook_Run( "ash.player.ShouldUse", pl, entity ) ~= false then
-                    return entity
-                end
+        for i = 1, #entites, 1 do
+            local entity = entites[ i ]
+            if entity ~= pl and hook_Run( "ash.player.ShouldUse", pl, entity ) ~= false then
+                return entity
             end
         end
     end )
@@ -185,5 +186,114 @@ require( "ash.player.footsteps.dynamic" )
 hook.Add( "ash.player.CanNoclip", "Defaults", function( pl )
     if pl:IsSuperAdmin() then return true end
 end )
+
+do
+
+    local util_TraceLine = util.TraceLine
+
+    ---@type TraceResult
+    local trace_result = {}
+
+    ---@type Trace
+    local trace = {
+        output = trace_result
+    }
+
+    ---@param pl Player
+    ---@param data Bullet
+    local function data_setup( pl, data )
+        local eye_pos = pl:EyePos()
+        local shoot_pos = pl:GetShootPos()
+        data.Src = shoot_pos
+
+        trace.start = eye_pos
+        trace.endpos = eye_pos + pl:GetAimVector() * 16384
+        trace.filter = pl
+
+        util_TraceLine( trace )
+
+        data.Dir = ( ( trace_result.HitPos or trace.endpos ) - shoot_pos ):GetNormalized()
+    end
+
+    ---@param entity Entity
+    ---@param data Bullet
+    hook.Add( "EntityFireBullets", "BulletFix", function( entity, data )
+        if entity:IsPlayer() then
+            ---@cast entity Player
+            data_setup( entity, data )
+        elseif entity:IsWeapon() then
+            local owner = entity:GetOwner()
+            if owner and owner:IsValid() and owner:IsPlayer() then
+                ---@cast owner Player
+                data_setup( owner, data )
+            end
+        end
+    end, PRE_HOOK )
+
+end
+
+do
+
+    local Player_AddVCDSequenceToGestureSlot = Player.AddVCDSequenceToGestureSlot
+
+    local Entity_GetLayerSequence = Entity.GetLayerSequence
+    local Entity_SetLayerWeight = Entity.SetLayerWeight
+    local Entity_LookupSequence = Entity.LookupSequence
+
+    local player_isTyping = ash_player.isTyping
+
+    local math_clamp = math.clamp
+    local FrameTime = FrameTime
+
+    ---@type table<Player, number>
+    local fractions = {}
+    gc.setTableRules( fractions, true )
+
+    hook.Add( "UpdateAnimation", "TypeAnim", function( pl )
+        local fraction = fractions[ pl ] or 0
+
+        if player_isTyping( pl ) then
+            fraction = math_clamp( fraction + FrameTime() * 2.5, 0, 1 )
+        elseif fraction ~= 0 then
+            fraction = math_clamp( fraction - FrameTime() * 2.5, 0, 1 )
+        else
+            return
+        end
+
+        Entity_SetLayerWeight( pl, 5, fraction )
+        fractions[ pl ] = fraction
+
+        if fraction == 0 then
+            fractions[ pl ] = nil
+            return
+        end
+
+        local idle_sequence = Entity_LookupSequence( pl, "agl_texting_idle" )
+        if idle_sequence == nil or idle_sequence < 1 then
+            idle_sequence = Entity_LookupSequence( pl, "gesture_voicechat" )
+            if idle_sequence == nil or idle_sequence < 1 then
+                idle_sequence = 0
+            end
+        end
+
+        if idle_sequence ~= 0 and Entity_GetLayerSequence( pl, 5 ) ~= idle_sequence then
+            Player_AddVCDSequenceToGestureSlot( pl, 5, idle_sequence, 0, false )
+        end
+    end )
+
+end
+
+do
+
+    local player_isInVehicle = ash_player.isInVehicle
+    local ACT_MP_STAND_IDLE = ACT_MP_STAND_IDLE
+
+    hook.Add( "CalcMainActivity", "PrisonerPod", function( pl )
+        if player_isInVehicle( pl ) and pl:GetNW2Bool( "m_bInPrisonerPod" ) then
+            return ACT_MP_STAND_IDLE, pl:LookupSequence( "drive_pd" ) or -1
+        end
+    end )
+
+end
 
 return flame_player

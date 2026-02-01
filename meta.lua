@@ -351,6 +351,12 @@ gc = std.gc
 ---@diagnostic disable-next-line: lowercase-global
 console = std.console
 
+---@diagnostic disable-next-line: lowercase-global
+http = std.http
+
+---@diagnostic disable-next-line: lowercase-global
+setTimeout = std.setTimeout
+
 ---@class flame : ash.Gamemode
 ---@diagnostic disable-next-line: lowercase-global
 flame = flame or {}

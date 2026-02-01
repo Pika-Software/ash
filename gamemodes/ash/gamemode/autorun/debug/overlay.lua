@@ -20,29 +20,29 @@ local cam_IgnoreZ = cam.IgnoreZ
 local overlay = {}
 
 ---@type function[]
-local render_queue = {}
-
----@type integer
-local render_queue_size = 0
+local render_queue = {
+    [ 0 ] = 0
+}
 
 ---@type number[]
 local death_times = {}
 
 local function gen( lifetime, fn )
     if system_HasFocus() then
-        render_queue_size = render_queue_size + 1
-        death_times[ render_queue_size ] = CurTime() + math.max( lifetime or 0, 0.5 )
-        render_queue[ render_queue_size ] = fn
+        local queue_size = render_queue[ 0 ] + 1
+        render_queue[ queue_size ] = fn
+        death_times[ queue_size ] = CurTime() + math.max( lifetime or 0, 0.5 )
+        render_queue[ 0 ] = queue_size
     end
 end
 
 timer.Create( "OverlayTicks", 0.1, 0, function()
     local now = CurTime()
 
-    for i = render_queue_size, 1, -1 do
+    for i = render_queue[ 0 ], 1, -1 do
         if now > death_times[ i ] then
+            render_queue[ 0 ] = render_queue[ 0 ] - 1
             table.remove( render_queue, i )
-            render_queue_size = render_queue_size - 1
         end
     end
 end )
@@ -75,6 +75,7 @@ overlay.line = line
 ---@param b? integer
 ---@param write_depth? boolean
 ---@param lifetime? number
+---@diagnostic disable-next-line: duplicate-set-field
 function overlay.cross( origin, size, r, g, b, write_depth, lifetime )
     assert( arg( origin, 1, "Vector" ) )
     assert( arg( size, 2, "number" ) )
@@ -112,6 +113,7 @@ local matColorIgnoreZ = Material( "color_ignorez" )
 ---@param b? integer
 ---@param write_depth? boolean
 ---@param lifetime? number
+---@diagnostic disable-next-line: duplicate-set-field
 function overlay.box( filled, origin, angles, mins, maxs, r, g, b, write_depth, lifetime )
     assert( arg( origin, 1, "Vector" ) )
 
@@ -160,6 +162,7 @@ end
 ---@param b? integer
 ---@param write_depth? boolean
 ---@param lifetime? number
+---@diagnostic disable-next-line: duplicate-set-field
 function overlay.text( str, origin, size, r, g, b, write_depth, lifetime )
     assert( arg( str, 1, "string" ) )
     assert( arg( origin, 2, "Vector" ) )
@@ -185,7 +188,7 @@ end
 hook.Add( "PostDrawTranslucentRenderables", "Render", function( is_depth, is_skybox, is_3d_skybox )
     if is_skybox then return end
 
-    for i = render_queue_size, 1, -1 do
+    for i = render_queue[ 0 ], 1, -1 do
         render_queue[ i ]()
     end
 end )

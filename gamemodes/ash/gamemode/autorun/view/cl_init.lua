@@ -3,6 +3,9 @@ local hook_Run = hook.Run
 ---@type ash.ui
 local ash_ui = require( "ash.ui" )
 
+---@type ash.player
+local ash_player = require( "ash.player" )
+
 ---@class ash.view
 ---@field AimVector Vector The aim vector.
 ---@field Data ash.view.Data The view data.
@@ -24,7 +27,6 @@ ash_view.Data = data
 
 do
 
-    local util_AimVector = util.AimVector
     local render_View = render.RenderView
     local cam_Start2D = cam.Start2D
     local cam_End2D = cam.End2D
@@ -45,35 +47,8 @@ do
         offcenter.bottom = h
     end
 
-    hook.Add( "ash.ui.ScreenResolutionChanged", "Render", resolutionChanged )
+    hook.Add( "ash.ui.ScreenResolution", "Render", resolutionChanged )
     resolutionChanged( ash_ui.ScreenWidth, ash_ui.ScreenHeight, ash_ui.ScreenAspect )
-
-    do
-
-        local gui_IsGameUIVisible = gui.IsGameUIVisible
-
-        ash_view.AimVector = Vector( 0, 0, 0 )
-
-        ---@type fun(): Angle
-        ---@diagnostic disable-next-line: undefined-global
-        local MainEyeAngles = MainEyeAngles
-
-        local function aim_update()
-            if gui_IsGameUIVisible() then return end
-
-            local aim = util_AimVector( data.angles or MainEyeAngles(), data.fov or 90, ash_ui.CursorX or 0, ash_ui.CursorY or 0, ash_ui.ScreenWidth or 0, ash_ui.ScreenHeight or 0 )
-            if ash_view.AimVector ~= aim then
-                ash_view.AimVector = aim
-                hook_Run( "ash.view.AimVector", aim )
-            end
-        end
-
-        hook.Add( "ash.player.ViewAngles", "Aim", aim_update, PRE_HOOK )
-        hook.Add( "ash.ui.CursorMoved", "Aim", aim_update, PRE_HOOK )
-        -- hook.Add( "ash.player.Mouse", "Aim", aim_update, PRE_HOOK )
-        aim_update()
-
-    end
 
     hook.Add( "RenderScene", "Render", function( arguments, origin, angles, fov )
         if arguments[ 2 ] == true then return true end
@@ -95,25 +70,54 @@ end
 
 do
 
-    ---@type fun(): Vector
+    local Entity_SetNW2Var = Entity.SetNW2Var
+    local Entity_IsValid = Entity.IsValid
+
+    local gui_IsGameUIVisible = gui.IsGameUIVisible
+    local util_AimVector = util.AimVector
+
+    ---@type fun(): Angle
     ---@diagnostic disable-next-line: undefined-global
-    local MainEyePos = MainEyePos
+    local MainEyeAngles = MainEyeAngles
 
     local net_Start = net.Start
     local net_WriteFloat = net.WriteFloat
     local net_SendToServer = net.SendToServer
 
-    hook.Add( "ash.view.AimVector", "Sync", function( aim )
+    hook.Add( "ash.view.AimVector", "Sync", function( _, aim )
         net_Start( "sync", true )
-        local origin = data.origin or MainEyePos()
-        net_WriteFloat( origin[ 1 ] )
-        net_WriteFloat( origin[ 2 ] )
-        net_WriteFloat( origin[ 3 ] )
         net_WriteFloat( aim[ 1 ] )
         net_WriteFloat( aim[ 2 ] )
         net_WriteFloat( aim[ 3 ] )
         net_SendToServer()
     end )
+
+    ash_view.AimVector = Vector( 0, 0, 0 )
+
+    ---@param pl Player
+    local function aim_update( pl )
+        local aim_vector = util_AimVector( data.angles or MainEyeAngles(), data.fov or 90, ash_ui.CursorX or 0, ash_ui.CursorY or 0, ash_ui.ScreenWidth or 0, ash_ui.ScreenHeight or 0 ) or ash_view.AimVector
+
+        if ash_view.AimVector == aim_vector then return end
+        ash_view.AimVector = aim_vector
+
+        Entity_SetNW2Var( pl, "m_vAim", aim_vector )
+        hook_Run( "ash.view.AimVector", pl, aim_vector )
+    end
+
+    hook.Add( "ash.player.ViewAngles", "AimVector", function( pl )
+        aim_update( pl )
+    end, PRE_HOOK )
+
+    hook.Add( "ash.ui.CursorMoved", "AimVector", function()
+        if gui_IsGameUIVisible() then return end
+
+        ---@diagnostic disable-next-line: undefined-field
+        local pl = ash_player.Entity
+        if pl ~= nil and Entity_IsValid( pl ) then
+            aim_update( pl )
+        end
+    end, PRE_HOOK )
 
 end
 
@@ -132,6 +136,5 @@ do
     end )
 
 end
-
 
 return ash_view

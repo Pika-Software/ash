@@ -195,11 +195,20 @@ do
 
 end
 
+hook.Add( "PlayerEnteredVehicle", "PrisonerPod", function( pl, vehicle, role )
+    if vehicle:GetModel() == "models/vehicles/prisoner_pod_inner.mdl" then
+        pl:SetNW2Bool( "m_bInPrisonerPod", true )
+    end
+end )
+
+hook.Add( "PlayerLeaveVehicle", "PrisonerPod", function( pl )
+    pl:SetNW2Bool( "m_bInPrisonerPod", false )
+end )
+
 do
 
     local player_isDead = ash_player.isDead
     local math_ceil = math.ceil
-    local math_max = math.max
 
     local temp_vector = Vector( 0, 0, 0 )
 
@@ -249,6 +258,7 @@ end
 ---@param pl Player
 ---@param ragdoll_entity Entity
 hook.Add( "ash.player.RagdollSetup", "Defaults", function( pl, ragdoll_entity )
+    if pl:Alive() then return end
     pl:SpectateEntity( ragdoll_entity )
     pl:Spectate( OBS_MODE_CHASE )
 end )

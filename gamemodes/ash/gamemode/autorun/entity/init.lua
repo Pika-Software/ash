@@ -1,3 +1,12 @@
+MODULE.Networks = {
+    "network"
+}
+
+MODULE.ClientFiles = {
+    "cl_init.lua",
+    "shared.lua"
+}
+
 ---@class ash.entity
 local ash_entity = include( "shared.lua" )
 

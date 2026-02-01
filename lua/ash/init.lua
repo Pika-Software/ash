@@ -1,3 +1,9 @@
+---@class ash
+local ash = ash
+
+if ash.Loaded then return end
+ash.Loaded = true
+
 AddCSLuaFile( "ash/cl_init.lua" )
 AddCSLuaFile( ash.ChainFile )
 ash.resend()

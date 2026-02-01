@@ -1,6 +1,8 @@
 "ash"
 {
 	"base"          "base"
-    "title"         "ash"
+    "title"         "Ash"
+	"author"		"Unknown Developer"
+	"version"		"1.0.0"
 	"menusystem"	"0"
 }

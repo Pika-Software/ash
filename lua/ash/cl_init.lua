@@ -1,6 +1,9 @@
 ---@class ash
 local ash = ash
 
+if ash.Loaded then return end
+ash.Loaded = true
+
 ---@type dreamwork.std
 local std = _G.dreamwork.std
 

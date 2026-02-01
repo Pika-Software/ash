@@ -10,105 +10,12 @@ local Entity_IsValid = Entity.IsValid
 
 local Variable = std.console.Variable
 local hook_Run = hook.Run
+local isnumber = isnumber
 
 local NULL = NULL
 
 ---@class ash.entity
 local ash_entity = {}
-
-do
-
-    local entity_Create = SERVER and ents.Create or ents.CreateClientside
-    local entity_Register = scripted_ents.Register
-    local Entity_DrawModel = Entity.DrawModel
-    local getfenv = getfenv
-
-    ---@class ash.entity.Structure : ENT
-    ---@field ClassName string The class name of the entity to register.
-    ---@field Type "anim" | "brush" | "point" | "ai" | "nextbot" | "filter" | nil The type of the entity. Defaults to `"anim"`.
-    ---@field PrintName string | nil The name of the entity. Defaults use the class name.
-    ---@field Spawnable boolean | nil Whether the entity can be spawned by players. Defaults to `false`.
-    ---@field Editable boolean | nil Whether the entity can be edited by players. Defaults to `false`.
-    ---@field Category string | nil The name of the entity category. Defaults to `nil`.
-    ---@field RenderGroup RENDERGROUP | integer | nil The render group of the entity. Defaults to `RENDERGROUP_TRANSLUCENT`.
-    ---@field WantsTranslucency boolean | nil Whether the entity wants translucency. Defaults to `true`.
-    ---@field DisableDuplicator boolean | nil Whether the entity should be disabled in the duplicator. Defaults to `false`.
-    ---@field IconOverride string | nil The icon of the entity. Defaults to `nil`.
-    ---@field PhysicsSolidMask CONTENTS | integer | nil The physics solid mask of the entity. Defaults to `nil`.
-    ---@field OnCreate nil | fun( self: Entity, ... ) The function to call when the entity is created. Defaults to `nil`.
-
-    --- [SHARED]
-    ---
-    --- Register an entity and return a creation function to create it.
-    ---
-    ---@generic T : ash.entity.Structure
-    ---@param entity_structure T The entity structure to register.
-    ---@param ignore_environment? boolean If `true` entity will be registered without a module prefix.
-    ---@return fun( ... ): T | nil entity The entity creation function.
-    function ash_entity.register( entity_structure, ignore_environment )
-        ---@diagnostic disable-next-line: undefined-field
-        local class_name = entity_structure.ClassName
-        if class_name == nil then
-            error( "failed to register entity, 'ClassName' field cannot be nil", 2 )
-        end
-
-        if entity_structure.Type == nil then
-            ---@diagnostic disable-next-line: inject-field
-            entity_structure.Type = "anim"
-        end
-
-        if entity_structure.Draw == nil then
-            entity_structure.Draw = Entity_DrawModel
-        end
-
-        if entity_structure.DrawTranslucent == nil then
-            entity_structure.DrawTranslucent = Entity_DrawModel
-        end
-
-        if not ignore_environment then
-            local environment = getfenv( 3 )
-            if environment ~= nil then
-                ---@type ash.Module
-                local module = environment.MODULE
-                if module ~= nil then
-                    class_name = module.Prefix .. class_name
-                end
-            end
-        end
-
-        entity_structure.Spawnable = entity_structure.Spawnable == true
-        entity_structure.Editable = entity_structure.Editable == true
-
-        entity_structure.WantsTranslucency = entity_structure.WantsTranslucency ~= false
-        entity_structure.DisableDuplicator = entity_structure.DisableDuplicator == true
-
-        if entity_structure.RenderGroup == nil then
-            entity_structure.RenderGroup = 8
-        end
-
-        entity_Register( entity_structure, class_name )
-
-        local on_create = entity_structure.OnCreate
-        if not isfunction( on_create ) then
-            on_create = nil
-        end
-
-        return function( ... )
-            local entity = entity_Create( class_name )
-
-            if entity ~= nil and entity ~= NULL and Entity_IsValid( entity ) then
-                if on_create ~= nil then
-                    on_create( entity, ... )
-                end
-
-                return entity
-            end
-
-            return nil
-        end
-    end
-
-end
 
 ash_entity.isPlayer = Entity.IsPlayer
 
@@ -531,10 +438,9 @@ do
     local Entity_GetModel = Entity.GetModel
 
     ---@type Entity[]
-    local queue = {}
-
-    ---@type integer
-    local queue_size = 0
+    local queue = {
+        [ 0 ] = 0
+    }
 
     hook.Add( "OnEntityCreated", "Handler", function( entity )
         if hook_Run( "ash.entity.AllowCreation", entity ) == false then
@@ -545,18 +451,17 @@ do
             return false
         end
 
-        queue_size = queue_size + 1
+        local queue_size = queue[ 0 ] + 1
         queue[ queue_size ] = entity
+        queue[ 0 ] = queue_size
     end, PRE_HOOK )
 
     hook.Add( "Think", "Processor", function()
-        for i = queue_size, 1, -1 do
+        for i = queue[ 0 ], 1, -1 do
             local entity = queue[ i ]
-
-            queue_size = queue_size - 1
             queue[ i ] = nil
 
-            if Entity_IsValid( entity ) then
+            if entity ~= nil and Entity_IsValid( entity ) then
                 local class_name = Entity_GetClass( entity )
                 hook_Run( "ash.entity.Created", entity, class_name )
 
@@ -581,6 +486,8 @@ do
                 end
             end
         end
+
+        queue[ 0 ] = 0
     end, PRE_HOOK )
 
     hook.Add( "EntityRemoved", "Handler", function( entity, is_full_update )
@@ -867,12 +774,20 @@ end, PRE_HOOK )
 
 do
 
-    local Entity_GetPoseParameter = Entity.GetPoseParameter
     local Entity_GetPoseParameterRange = Entity.GetPoseParameterRange
+    local Entity_LookupPoseParameter = Entity.LookupPoseParameter
+    local Entity_ClearPoseParameters = Entity.ClearPoseParameters
+    local Entity_SetPoseParameter = Entity.SetPoseParameter
+    local Entity_GetPoseParameter = Entity.GetPoseParameter
 
     local math_remap = math.remap
+    local net = net
 
     ash_entity.getPoseParamaterCount = Entity.GetNumPoseParameters
+    ash_entity.getPoseParamaterFloat = Entity_GetPoseParameter
+    ash_entity.getPoseParamaterIndex = Entity_LookupPoseParameter
+    ash_entity.getPosteParameterName = Entity.GetPoseParameterName
+    ash_entity.getPoseParamaterRange = Entity.GetPoseParameterRange
 
     --- [SHARED]
     ---
@@ -885,12 +800,188 @@ do
         return math_remap( Entity_GetPoseParameter( entity, index ), 0, 1, Entity_GetPoseParameterRange( entity, index ) )
     end
 
-    ash_entity.setPoseParameter = Entity.SetPoseParameter
-    ash_entity.resetPoseParameters = Entity.ClearPoseParameters
-    ash_entity.lookupPoseParameter = Entity.LookupPoseParameter
-    ash_entity.getPoseParamaterFloat = Entity_GetPoseParameter
-    ash_entity.getPosteParameterName = Entity.GetPoseParameterName
-    ash_entity.getPoseParamaterRange = Entity.GetPoseParameterRange
+    ---@class ash.entity.PoseParameter
+    ---@field index integer
+    ---@field value number
+
+    ---@type table<Player, ash.entity.PoseParameter[]>
+    local player_pose_parameters = {}
+
+    setmetatable( player_pose_parameters, {
+        __index = function( self, pl )
+            local parameters = { [ 0 ] = 0 }
+            self[ pl ] = parameters
+            return parameters
+        end,
+        __mode = "k"
+    } )
+
+    if SERVER then
+
+        --- [SERVER]
+        ---
+        --- Resets a entity's pose parameters.
+        ---
+        ---@param entity Entity
+        ---@param networked boolean
+        function ash_entity.resetPoseParameters( entity, networked )
+            if networked ~= false then
+                net.Start( "network" )
+                net.WriteUInt( 1, 8 )
+                net.WriteEntity( entity )
+                net.Broadcast()
+            end
+
+            if entity:IsPlayer() then
+                ---@cast entity Player
+                player_pose_parameters[ entity ] = nil
+            end
+
+            Entity_ClearPoseParameters( entity )
+        end
+
+        --- [SERVER]
+        ---
+        --- Sets a entity's pose parameter.
+        ---
+        ---@param entity Entity
+        ---@param name string | integer
+        ---@param value number
+        ---@param networked boolean
+        function ash_entity.setPoseParameter( entity, name, value, networked )
+            ---@type integer
+            local index
+
+            if isnumber( name ) then
+                ---@cast name integer
+                index = name
+            else
+                ---@cast name string
+                index = Entity_LookupPoseParameter( entity, name )
+            end
+
+            if index == nil or index < 0 then return end
+
+            if networked ~= false then
+                net.Start( "network" )
+                net.WriteUInt( 2, 8 )
+                net.WriteEntity( entity )
+                net.WriteUInt( index, 16 )
+                net.WriteDouble( value )
+                net.Broadcast()
+            end
+
+            if entity:IsPlayer() then
+                ---@cast entity Player
+
+                local parameters = player_pose_parameters[ entity ]
+                local count = parameters[ 0 ]
+
+                local found = false
+
+                for i = 1, count, 1 do
+                    local parameter = parameters[ i ]
+                    if parameter ~= nil and parameter.index == index then
+                        parameter.value = value
+                        found = true
+                        break
+                    end
+                end
+
+                if not found then
+                    count = count + 1
+
+                    parameters[ count ] = {
+                        index = index,
+                        value = value
+                    }
+
+                    parameters[ 0 ] = count
+                end
+            end
+
+            Entity_SetPoseParameter( entity, index, value )
+        end
+
+    else
+
+        --- [CLIENT]
+        ---
+        --- Resets a entity's pose parameters.
+        ---
+        ---@param entity Entity
+        function ash_entity.resetPoseParameters( entity )
+            if entity:IsPlayer() then
+                ---@cast entity Player
+                player_pose_parameters[ entity ] = nil
+            end
+
+            Entity_ClearPoseParameters( entity )
+        end
+
+        --- [CLIENT]
+        ---
+        --- Sets a entity's pose parameter.
+        ---
+        ---@param entity Entity
+        ---@param name string | integer
+        ---@param value number
+        function ash_entity.setPoseParameter( entity, name, value )
+            ---@type integer
+            local index
+
+            if isnumber( name ) then
+                ---@cast name integer
+                index = name
+            else
+                ---@cast name string
+                index = Entity_LookupPoseParameter( entity, name )
+            end
+
+            if index == nil or index < 0 then return end
+
+            if entity:IsPlayer() then
+                ---@cast entity Player
+
+                local parameters = player_pose_parameters[ entity ]
+                local count = parameters[ 0 ]
+
+                local found = false
+
+                for i = 1, count, 1 do
+                    local parameter = parameters[ i ]
+                    if parameter ~= nil and parameter.index == index then
+                        parameter.value = value
+                        found = true
+                        break
+                    end
+                end
+
+                if not found then
+                    count = count + 1
+
+                    parameters[ count ] = {
+                        index = index,
+                        value = value
+                    }
+
+                    parameters[ 0 ] = count
+                end
+            end
+
+            Entity_SetPoseParameter( entity, index, value )
+        end
+
+    end
+
+    hook.Add( "UpdateAnimation", "PoseParameters", function( pl )
+        local parameters = player_pose_parameters[ pl ]
+
+        for i = 1, parameters[ 0 ], 1 do
+            local parameter = parameters[ i ]
+            Entity_SetPoseParameter( pl, parameter.index, parameter.value )
+        end
+    end, PRE_HOOK )
 
 end
 
