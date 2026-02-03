@@ -32,9 +32,6 @@ local entity_getHitboxBounds = ash_entity.getHitboxBounds
 local ash_trace = require( "ash.trace" )
 local trace_cast = ash_trace.cast
 
----@type ash.utils
-local ash_utils = require( "ash.utils" )
-
 ---@type ash.level
 local ash_level = require( "ash.level" )
 
@@ -95,13 +92,10 @@ do
     ---@param pl Player
     function ash_player.ragdollRemove( pl )
         local ragdoll = player_getRagdoll( pl )
-        if ragdoll ~= nil and Entity_IsValid( ragdoll ) and hook_Run( "ash.player.ShouldRemoveRagdoll", pl, ragdoll ) ~= false then
-            hook_Run( "ash.player.RagdollRemove", pl, ragdoll )
+        if ragdoll ~= nil and Entity_IsValid( ragdoll ) and hook_Run( "ash.player.ragdoll.ShouldRemove", pl, ragdoll ) ~= false then
             ragdoll:Remove()
         end
     end
-
-    hook.Add( "ash.player.PreDeath", "DefaultRagdoll", ash_player.ragdollRemove )
 
 end
 
@@ -111,9 +105,15 @@ do
     local Entity_GetPhysicsObjectCount = Entity.GetPhysicsObjectCount
     local Entity_GetPhysicsObjectNum = Entity.GetPhysicsObjectNum
     local Entity_SetCollisionGroup = Entity.SetCollisionGroup
+    local Entity_SetModel = Entity.SetModel
 
     local animator_getVelocity = ash_player.animator.getVelocity
     local level_containsPosition = ash_level.containsPosition
+
+    local entity_getPlayerColor = ash_entity.getPlayerColor
+    local entity_setPlayerColor = ash_entity.setPlayerColor
+
+    local ents_Create = ents.Create
 
     ---@type ash.trace.Output
     ---@diagnostic disable-next-line: missing-fields
@@ -124,6 +124,9 @@ do
         output = trace_result
     }
 
+    ---@type table<Entity, Player>
+    local ragdoll_owners = {}
+
     --- [SERVER]
     ---
     --- Creates the player's ragdoll entity.
@@ -131,9 +134,16 @@ do
     ---@param pl Player
     ---@return Entity ragdoll
     function ash_player.ragdollCreate( pl )
-        local ragdoll_entity = hook_Run( "ash.player.RagdollCreate", pl ) or NULL
+        hook_Run( "ash.player.ragdoll.PreCreate", pl )
 
+        local ragdoll_entity = ents_Create( "prop_ragdoll" )
         if ragdoll_entity ~= nil and Entity_IsValid( ragdoll_entity ) then
+            ragdoll_owners[ ragdoll_entity ] = pl
+
+            Entity_SetModel( ragdoll_entity, ash_player.getModel( pl ) )
+
+            ragdoll_entity:Spawn()
+
             local player_velocity = animator_getVelocity( pl )
             ash_player.setRagdoll( pl, ragdoll_entity )
 
@@ -148,6 +158,7 @@ do
                         local matrix = Entity_GetBoneMatrix( pl, bone_id )
                         if matrix ~= nil then
                             physics_object:SetAngles( matrix:GetAngles() )
+
                             local origin = matrix:GetTranslation()
 
                             if level_containsPosition( origin ) then
@@ -174,13 +185,35 @@ do
                 end
             end
 
-            hook_Run( "ash.player.RagdollSetup", pl, ragdoll_entity )
+            ---@type string[]
+            local materials = pl:GetMaterials()
+            for i = 1, #materials, 1 do
+                ragdoll_entity:SetSubMaterial( i - 1, materials[ i ] )
+            end
+
+            entity_setPlayerColor( ragdoll_entity, entity_getPlayerColor( pl ) )
+            ragdoll_entity:SetColor( pl:GetColor() )
+
+            hook_Run( "ash.player.ragdoll.Setup", pl, ragdoll_entity )
         end
 
-        hook_Run( "ash.player.RagdollCreated", pl, ragdoll_entity )
+        hook_Run( "ash.player.ragdoll.PostCreate", pl, ragdoll_entity )
 
         return ragdoll_entity
     end
+
+    ---@param pl Player
+    hook.Add( "ash.player.ragdoll.Create", "Defaults", function( arguments, pl )
+    end, POST_HOOK_RETURN )
+
+    hook.Add( "ash.entity.Removed", "Ragdoll", function( ragdoll )
+        local owner = ragdoll_owners[ ragdoll ]
+
+        if owner == nil then return end
+        ragdoll_owners[ ragdoll ] = nil
+
+        hook_Run( "ash.player.ragdoll.Removed", owner, ragdoll )
+    end, PRE_HOOK )
 
 end
 
@@ -339,48 +372,24 @@ do
 
     end
 
-    ---@param pl Player
-    ---@param attacker Entity
-    ---@param dmg_info CTakeDamageInfo
-    hook.Add( "ash.player.RagdollCreate", "DefaultRagdoll", function( pl, attacker, dmg_info )
-        local ragdoll_entity = ents.Create( "prop_ragdoll" )
-
-        for key, value in pairs( pl:GetSaveTable( true ) ) do
-            ragdoll_entity:SetSaveValue( key, value )
+    hook.Add( "DoPlayerDeath", "Death", function( pl, attacker, dmg_info )
+        if hook_Run( "ash.player.ragdoll.ShouldCreate", pl ) ~= false then
+            ash_player.ragdollCreate( pl )
         end
 
-        ragdoll_entity:Spawn()
-        return ragdoll_entity
-    end )
+        hook_Run( "ash.player.PreDeath", pl, attacker, dmg_info )
+    end, PRE_HOOK )
 
-    do
+    hook.Add( "PlayerDeath", "Death", function( pl, inflictor, attacker )
+        hook_Run( "ash.player.Death", pl, false, inflictor or NULL, attacker or NULL )
+    end, PRE_HOOK )
 
-        local entity_getPlayerColor = ash_entity.getPlayerColor
-        local entity_setPlayerColor = ash_entity.setPlayerColor
+    hook.Add( "PlayerSilentDeath", "Death", function( pl )
+        hook_Run( "ash.player.Death", pl, true, NULL, NULL )
+    end, PRE_HOOK )
 
-        ---@param pl Player
-        ---@param ragdoll_entity Entity
-        hook.Add( "ash.player.RagdollSetup", "DefaultSetup", function( pl, ragdoll_entity )
-            entity_setPlayerColor( ragdoll_entity, entity_getPlayerColor( pl ) )
-        end )
-
-    end
-
-    do
-
-        hook.Add( "DoPlayerDeath", "Ragdoll", function( pl, attacker, dmg_info )
-            hook_Run( "ash.player.PreDeath", pl, attacker, dmg_info )
-
-            if hook_Run( "ash.player.CanRagdoll", pl ) ~= false then
-                ash_player.ragdollCreate( pl )
-            end
-        end, PRE_HOOK )
-
-    end
-
-    hook.Add( "PostPlayerDeath", "Spawn", function( pl )
+    hook.Add( "PostPlayerDeath", "Death", function( pl )
         awaiting_respawn[ pl ] = true
-        hook_Run( "ash.player.Death", pl )
         hook_Run( "ash.player.PostDeath", pl )
     end, PRE_HOOK )
 
@@ -390,7 +399,7 @@ do
         local Entity_Spawn = Entity.Spawn
 
         hook.Add( "ash.player.Key", "Spawn", function( pl, in_key )
-            if awaiting_respawn[ pl ] and bit_band( in_key, respawn_keys[ pl ] ) ~= 0 and hook_Run( "ash.player.CanSpawn", pl ) ~= false then
+            if awaiting_respawn[ pl ] and bit_band( in_key, respawn_keys[ pl ] ) ~= 0 and hook_Run( "ash.player.ShouldSpawn", pl ) ~= false then
                 Entity_Spawn( pl )
             end
         end, PRE_HOOK )
@@ -578,7 +587,7 @@ do
         end
     end )
 
-    local utils_isSpawnpointClass = ash_utils.isSpawnpointClass
+    local utils_isSpawnpointClass = ash_entity.isSpawnpointClass
     local Vector_DistToSqr = Vector.DistToSqr
 
     local function entity_created( entity, class_name )
@@ -661,8 +670,8 @@ hook.Add( "PlayerSay", "ChatHandler", function( arguments, sender, message, is_t
     return ""
 end, POST_HOOK_RETURN )
 
-hook.Add( "GetFallDamage", "LandingHandler", function( arguments, pl, fall_speed )
-    return arguments[ 2 ] or 0
+hook.Add( "GetFallDamage", "LandingHandler", function()
+    return 0
 end, POST_HOOK_RETURN )
 
 hook.Add( "CanPlayerSuicide", "SuicideHandler", function( arguments, pl )

@@ -246,15 +246,20 @@ end
 
 ---@param pl Player
 ---@param ragdoll_entity Entity
-hook.Add( "ash.player.RagdollSetup", "Defaults", function( pl, ragdoll_entity )
-    if pl:Alive() then return end
-    pl:SpectateEntity( ragdoll_entity )
-    pl:Spectate( OBS_MODE_CHASE )
+hook.Add( "ash.player.ragdoll.Setup", "Defaults", function( pl, ragdoll_entity )
+    if not pl:Alive() then
+        pl:SpectateEntity( ragdoll_entity )
+        pl:Spectate( OBS_MODE_CHASE )
+    end
 end )
 
-hook.Add( "ash.player.RagdollCreated", "Defaults", function( pl )
+hook.Add( "ash.player.ragdoll.PreCreate", "Defaults", function( pl )
     ash_player.ragdollRemove( pl )
-end, PRE_HOOK )
+end )
+
+hook.Add( "ash.player.PreDeath", "Defaults", function( pl )
+    ash_player.ragdollRemove( pl )
+end )
 
 do
 
@@ -262,7 +267,7 @@ do
     local death_times = {}
     gc.setTableRules( death_times, true )
 
-    hook.Add( "ash.player.CanSpawn", "Defaults", function( pl )
+    hook.Add( "ash.player.ShouldSpawn", "Defaults", function( pl )
         if ( CurTime() - ( death_times[ pl ] or 0 ) ) > 3 then return end
         return false
     end )
