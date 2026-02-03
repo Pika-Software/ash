@@ -18,7 +18,17 @@ local ash_phrases = require( "ash.player.phrases" )
 ---@type ash.entity
 local ash_entity = require( "ash.entity" )
 
+--- [SERVER]
+---
+--- Set the player's speed modifier.
+---
+---@param pl Player
+function flame_player.setSpeedModifier( pl, modifier )
+    pl:SetNW2Float( "m_flSpeedModifier", modifier )
+end
+
 local hook_Run = hook.Run
+local math_max = math.max
 
 hook.Add( "PlayerCanPickupWeapon", "Defaults", function( pl, wep )
     return true
@@ -54,58 +64,37 @@ do
 
             pl:SetSkin( math.clamp( pl:GetInfoNum( "flame_player_skin", 0 ), 0, model_info.skin_count ) )
 
-            local scale = model_info.scale
-            pl:SetNW2Float( "m_fModelScale", scale )
-
             local mins, maxs = model_info.mins, model_info.maxs
 
+            local mins_x, mins_y, mins_z = mins:Unpack()
             local maxs_x, maxs_y, maxs_z = maxs:Unpack()
-            local mins_z = mins[ 3 ]
 
-            local width = math_floor( ( math_abs( maxs_x ) + math_abs( maxs_y ) ) * 0.5 )
-            local height = math_floor( math_abs( maxs_z ) )
+            local width = math_floor( math.min( math_abs( mins_x ) + math_abs( mins_y ), math_abs( maxs_x ) + math_abs( maxs_y ) ) * 0.5 )
+            local height = math_floor( math_abs( maxs_z ) + mins_z )
 
-            local bottom = math_floor( math_abs( mins_z ) )
-            if mins_z < 0 then
-                bottom = -bottom
-            end
-
-            local hull_mins = Vector( -width, -width, bottom )
+            local hull_mins = Vector( -width, -width, 0 )
             local hull_maxs = Vector( width, width, height )
 
             ash_player.setHull( pl, false, hull_mins, hull_maxs )
 
-            height = height * 0.5 -- 0.75
+            height = height * 0.5
             hull_maxs[ 3 ] = height
 
             ash_player.setHull( pl, true, hull_mins, hull_maxs )
 
-            local bone_count = model_info.bone_count
-            local bones = model_info.bones
+            pl:SetStepSize( height * 0.5 )
 
-            local root_height = 16
+            local scale = 1 + math.round( ( 1 - ( 1 / ( model_info.volume / 100 ) ) ) * 0.5, 2 )
 
-            for i = 1, bone_count, 1 do
-                local bone_info = bones[ i ]
-                if bone_info.id == 0 then
-                    root_height = bone_info.postion[ 3 ] * 0.5
-                    break
-                end
-            end
-
-            ash_player.setUseDistance( pl, 72 * scale )
-
-            pl:SetStepSize( root_height )
-            pl:SetJumpPower( 200 * scale )
+            pl:SetJumpPower( 250 * scale )
+            flame_player.setSpeedModifier( pl, scale )
+            ash_player.setUseDistance( pl, math_floor( 85 * scale ) )
 
             if model_info.type == "female" then
                 ash_phrases.setVoice( pl, "female01" )
             else
                 ash_phrases.setVoice( pl, "male01" )
             end
-
-            -- ash_player.setHullSize( pl, false, 32, 32, 96 )
-            -- ash_player.setHullSize( pl, true, 32, 32, 32 )
         end )
 
     end
@@ -231,7 +220,7 @@ do
 
         pl:EmitSound( "Player.FallDamage", 80, math.random( 80, 120 ), math.min( 1, damage_amount / pl:Health() ), CHAN_BODY, 0, 1 )
 
-        local fraction = pl:GetNW2Float( "m_fModelScale", 1 )
+        local fraction = 1 -- pl:GetNW2Float( "m_fModelScale", 1 )
         util.ScreenShake( hit_pos, 15, 150, 0.25 * fraction, 128 * fraction, false )
 
         local entity = trace_result.Entity
@@ -262,6 +251,10 @@ hook.Add( "ash.player.RagdollSetup", "Defaults", function( pl, ragdoll_entity )
     pl:SpectateEntity( ragdoll_entity )
     pl:Spectate( OBS_MODE_CHASE )
 end )
+
+hook.Add( "ash.player.RagdollCreated", "Defaults", function( pl )
+    ash_player.ragdollRemove( pl )
+end, PRE_HOOK )
 
 do
 
@@ -294,43 +287,35 @@ hook.Add( "ash.player.footsteps.Sound", "Defaults", function( pl, sound_position
     return sound_level, 100, volume
 end )
 
-do
+-- do
 
-    local Entity_IsPlayerHolding = Entity.IsPlayerHolding
-    local Entity_GetMoveType = Entity.GetMoveType
-    local Entity_IsValid = Entity.IsValid
+--     local Entity_IsPlayerHolding = Entity.IsPlayerHolding
+--     local Entity_GetMoveType = Entity.GetMoveType
+--     local Entity_IsValid = Entity.IsValid
 
-    local Player_PickupObject = Player.PickupObject
+--     local Player_PickupObject = Player.PickupObject
 
-    local queue, queue_size = {}, 0
+--     local queue, queue_size = {}, 0
 
-    hook.Add( "ash.player.ShouldUse", "Defaults", function( pl, entity )
-        if Entity_GetMoveType( entity ) ~= 6 then return end
-        if Entity_IsPlayerHolding( entity ) then return false end
+--     hook.Add( "flame.player.PickupObject", "Defaults", function( pl, entity )
+--         queue_size = queue_size + 1
+--         queue[ queue_size ] = { pl, entity }
+--     end )
 
-        ---@type PhysObj
-        local phys = entity:GetPhysicsObject()
-        if phys ~= nil and phys:IsValid() and phys:IsMotionEnabled() then
-            queue_size = queue_size + 1
-            queue[ queue_size ] = { pl, entity }
-            return false
-        end
-    end )
+--     hook.Add( "Tick", "PickupController", function()
+--         if queue_size == 0 then return end
 
-    hook.Add( "Tick", "PickupController", function()
-        if queue_size == 0 then return end
+--         local data = queue[ queue_size ]
 
-        local data = queue[ queue_size ]
+--         queue[ queue_size ] = nil
+--         queue_size = queue_size - 1
 
-        queue[ queue_size ] = nil
-        queue_size = queue_size - 1
+--         local pl, entity = data[ 1 ], data[ 2 ]
+--         if Entity_IsValid( pl ) and Entity_IsValid( entity ) and not Entity_IsPlayerHolding( entity ) then
+--             Player_PickupObject( pl, entity )
+--         end
+--     end, POST_HOOK )
 
-        local pl, entity = data[ 1 ], data[ 2 ]
-        if Entity_IsValid( pl ) and Entity_IsValid( entity ) and not Entity_IsPlayerHolding( entity ) then
-            Player_PickupObject( pl, entity )
-        end
-    end, POST_HOOK )
-
-end
+-- end
 
 return flame_player

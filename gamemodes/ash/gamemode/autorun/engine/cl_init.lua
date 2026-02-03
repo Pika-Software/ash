@@ -1,5 +1,105 @@
+---@alias ash.engine.HUD.Element
+---| "CHudHealth" The player health meter.
+---| "CHudBattery" The player armor meter.
+---| "CHudSuitPower" HEV Suit power.
+---| "CHudGeiger" Geiger counter from Half-Life 2. Only active when the sound plays. Hiding this stops the sound.
+---| "CHudDamageIndicator" The damage indicator from Half-Life 2, active only when visible.
+---| "CHudPoisonDamageIndicator" The "Neurotoxin Detected" HUD above Health when you get hit by a poison headcrab.
+---| "CHudAmmo" Primary ammo counter.
+---| "CHudSecondaryAmmo" Secondary ammo counter ( SMG1 grenades, AR2 energy balls )
+---| "CHudChat" The default chat box, escape menu, and console.
+---| "CHudHistoryResource" Weapon Pickup Indicator
+---| "CHudWeaponSelection" The weapon selection panel.
+---| "CHudZoom" Suit zoom from Half-Life 2.
+---| "CHudWeapon" Handles creation/updating colors of `CHudCrosshair`.
+---| "CHudCrosshair" The default SWEP and HL2 weapon crosshair.
+---| "CHUDQuickInfo" Health and ammo near crosshair. ( `hud_quickinfo` `1` )
+---| "CHudVehicle" Crosshair for jeep and airboat when gun is mounted.
+---| "CHudTrain" Possibly the controls HUD for controllable func_tracktrain.
+---| "CHudCloseCaption" Close captions.
+---| "CHudGMod" The `GetHUDPanel()` Panel.
+---| "CHudDeathNotice" The death notice panel. Disabled in Garry's Mod.
+---| "CHudHintDisplay" The key hint display? Disabled in Garry's Mod.
+---| "CHudMenu" A generic menu on the left side of the screen with simple 1/2/3/etc key inputs. Typically used in other Source games as map voting, etc.
+---| "CHudMessage" Possibly handles the Half-Life 2 title on HUD on relevant maps, as well as the text from `game_text` entity.
+---| "CHudSquadStatus" Citizen Squad status HUD from Half-Life 2. Only called if citizens follow you.
+---| "NetGraph" The netgraph. Only works if `net_graph` convar is above `0`.
+---| string
+
 ---@class ash.engine
+---@field HUD table<ash.engine.HUD.Element, boolean> The table/map of enabled/disabled UI elements.
 local ash_engine = include( "shared.lua" )
+
+do
+
+    ---@type table<ash.engine.HUD.Element, boolean>
+    local ui_elements = {
+        -- Health, Armor & HEV Suit
+        CHudHealth = false,
+        CHudBattery = false,
+        CHudSuitPower = false,
+
+        -- Damage
+        CHudGeiger = true,
+        CHudDamageIndicator = true,
+        CHudPoisonDamageIndicator = true,
+
+        -- Ammo
+        CHudAmmo = false,
+        CHudSecondaryAmmo = false,
+
+        -- Chat
+        CHudChat = true,
+
+        -- Weapon pickup indicator
+        CHudHistoryResource = false,
+
+        -- Weapon Selector
+        CHudWeaponSelection = true,
+
+        -- Zoom HUD Effects
+        CHudZoom = true,
+
+        -- Crosshair
+        CHudWeapon = true,
+        CHudCrosshair = true,
+        CHUDQuickInfo = false,
+
+        -- Vehicle Crosshair
+        CHudVehicle = true,
+
+        -- func_tracktrain vehicles HUD
+        CHudTrain = true,
+
+        -- Close captions
+        CHudCloseCaption = false,
+
+        -- GMOD HUD's
+        CHudGMod = true,
+
+        CHudDeathNotice = true,
+        CHudHintDisplay = false,
+
+        -- Voting menu
+        CHudMenu = true,
+
+        -- game_text entity messages
+        CHudMessage = true,
+
+        -- NPC Squad
+        CHudSquadStatus = false,
+
+        -- Debug
+        NetGraph = true
+    }
+
+    ash_engine.HUD = ui_elements
+
+    hook.Add( "HUDShouldDraw", "HUDDrawControl", function( name )
+        if ui_elements[ name ] == true then return true end
+    end )
+
+end
 
 local render_GetRenderTarget = render.GetRenderTarget
 local Texture_GetName = Texture.GetName

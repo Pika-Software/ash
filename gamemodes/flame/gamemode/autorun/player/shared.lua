@@ -75,10 +75,21 @@ do
 
     local Entity_GetNW2Float = Entity.GetNW2Float
 
+    --- [SHARED]
+    ---
+    --- Get the player's speed modifier.
+    ---
+    ---@param pl Player
+    ---@return number modifier
+    function flame_player.getSpeedModifier( pl )
+        return Entity_GetNW2Float( pl, "m_flSpeedModifier", 1 )
+    end
+
+
     local function move_speed_multiplier( arguments, pl )
         local speed = arguments[ 2 ]
         if speed ~= nil then
-            return speed * Entity_GetNW2Float( pl, "m_fModelScale", 1 )
+            return speed * Entity_GetNW2Float( pl, "m_flSpeedModifier", 1 )
         end
     end
 

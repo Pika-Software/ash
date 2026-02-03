@@ -333,7 +333,7 @@ do
 
     local is_local = false
 
-    hook.Add( "PreDrawTranslucentWorld", "Render", function( _, is_depth_pass )
+    hook.Add( "PostDrawTranslucentWorld", "Render", function( _, is_depth_pass )
         for _, pl in player_Iterator() do
             is_local = player_isLocal( pl )
 
@@ -358,7 +358,7 @@ do
         end
     end, POST_HOOK )
 
-    hook.Add( "PreDrawTranslucentReflection", "Render", function( _, is_depth_pass )
+    hook.Add( "PostDrawTranslucentReflection", "Render", function( _, is_depth_pass )
         for _, pl in player_Iterator() do
             is_local = player_isLocal( pl )
 

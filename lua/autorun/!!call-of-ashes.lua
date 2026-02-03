@@ -614,10 +614,6 @@ if LUA_SERVER then
 
     end
 
-end
-
-if LUA_SERVER then
-
     --- [SERVER]
     ---
     --- Rebuild ash gamemode.

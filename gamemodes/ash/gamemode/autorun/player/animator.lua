@@ -450,8 +450,10 @@ do
         local player_getKeys = ash_player.getKeys
         local bit_band = bit.band
 
-        local in_walk_keys = bit.bor( IN_FORWARD, IN_BACK, IN_MOVELEFT, IN_MOVERIGHT )
+        local IN_MOVE = bit.bor( IN_FORWARD, IN_BACK, IN_MOVELEFT, IN_MOVERIGHT )
+
         local IN_SPEED = IN_SPEED
+        local IN_WALK = IN_WALK
 
         local is_crouching, move_type = false, 0
 
@@ -515,7 +517,7 @@ do
                     if entity_getWaterLevel( pl ) == 3 then
                         activity = getSwimActivity( pl )
                     elseif is_crouching then
-                        if bit_band( in_keys, in_walk_keys ) == 0 then
+                        if bit_band( in_keys, IN_MOVE ) == 0 then
                             local weapon_entity = Player_GetActiveWeapon( pl )
                             if weapon_entity == nil or not Entity_IsValid( weapon_entity ) or unarmed_holdtypes[ Weapon_GetHoldType( weapon_entity ) ] then
                                 local sequence_name = getCrouchUnarmedSequence( pl )
@@ -528,16 +530,18 @@ do
                         else
                             activity = getCrouchWalkActivity( pl )
                         end
-                    elseif bit_band( in_keys, IN_SPEED ) == 0 then
-                        if bit_band( in_keys, in_walk_keys ) == 0 then
+                    elseif bit_band( in_keys, IN_MOVE ) == 0 then
+                        if bit_band( in_keys, IN_SPEED ) == 0 then
                             activity = getStandActivity( pl )
-                        elseif bit_band( in_keys, IN_WALK ) == 0 then
-                            activity = getRunActivity( pl )
                         else
-                            activity = getWalkActivity( pl )
+                            activity = getRunActivity( pl )
                         end
-                    else
+                    elseif bit_band( in_keys, IN_WALK ) ~= 0 then
+                        activity = getWalkActivity( pl )
+                    elseif bit_band( in_keys, IN_SPEED ) ~= 0 then
                         activity = getRunActivity( pl )
+                    else
+                        activity = getWalkActivity( pl )
                     end
 
                     goto activity_selected

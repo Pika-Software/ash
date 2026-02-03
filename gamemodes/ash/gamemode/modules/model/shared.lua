@@ -120,8 +120,8 @@ end
 ---@class ash.model.Bone
 ---@field id integer
 ---@field name string
----@field postion Vector
----@field angle Angle
+---@field position Vector
+---@field angles Angle
 ---@field flags integer
 ---@field surface_material string
 ---@field phys_id integer
@@ -165,7 +165,7 @@ end
 ---@field hands string
 ---@field mins Vector
 ---@field maxs Vector
----@field scale number
+---@field volume number
 ---@field has_wings boolean
 ---@field skin_count integer
 ---@field surface_material string
@@ -231,7 +231,7 @@ function ash_model.set( model_name, model_path, hands_path )
             hands = hands_path,
             mins = Vector( -16, -16, 0 ),
             maxs = Vector( 16, 16, 72 ),
-            scale = 1,
+            volume = 100,
             has_wings = false,
             skin_count = 0,
             surface_material = "flesh",
@@ -280,8 +280,9 @@ function ash_model.set( model_name, model_path, hands_path )
     model_info.version = engine_info.Version or model_info.version
 
     local mins, maxs = engine_info.HullMin, engine_info.HullMax
-    model_info.scale = Vector_Distance( mins, maxs ) / 80
     model_info.mins, model_info.maxs = mins, maxs
+
+    model_info.volume = Vector_Distance( mins, maxs )
 
     local sub_models = engine_info.IncludeModels or {}
 
@@ -307,8 +308,8 @@ function ash_model.set( model_name, model_path, hands_path )
                 bones[ i ] = {
                     id = i - 1,
                     name = bone.Name,
-                    postion = bone.Position,
-                    angle = bone.Angle,
+                    position = bone.Position,
+                    angles = bone.Angle,
                     flags = bone.Flags,
                     surface_material = bone.SurfacePropName,
                     phys_id = bone.PhysObj
