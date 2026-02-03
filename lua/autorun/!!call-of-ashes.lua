@@ -938,6 +938,8 @@ end
 ---@field Environment table The environment of the module.
 ---@field Result? any[] The result of the module execution.
 ---@field Error? string The error of the module execution.
+---@field Time number The time of the module execution.
+---@field Realm "shared" | "client" | "server" | "unknown" The execution realm of the module.
 local Module = class.base( "ash.Module", false )
 
 ---@class ash.ModuleClass : ash.Module
@@ -951,13 +953,130 @@ function Module:__tostring()
     return string_format( "%s: %p [%s]", type( self ), self, self.Name )
 end
 
----@param name string
----@param location string
----@protected
-function Module:__init( name, location )
-    self.Prefix = name .. "::"
-    self.Location = location
-    self.Name = name
+do
+
+    local init_file = LUA_CLIENT and "/cl_init.lua" or "/init.lua"
+    local os_clock = os.clock
+
+    ---@param name string
+    ---@param location string
+    ---@protected
+    function Module:__init( name, location )
+        self.Prefix = name .. "::"
+        self.Realm = "unknown"
+        self.Time = os_clock()
+        self.Name = name
+
+        if file_Exists( location, "LUA" ) and file_IsDir( location, "LUA" ) then
+            self.Location = location
+
+            if LUA_SERVER then
+                local client_path = location .. "/cl_init.lua"
+                if file_Exists( client_path, "LUA" ) then
+                    clientFileSend( client_path, 2 )
+                end
+
+                local shared_path = location .. "/shared.lua"
+                if file_Exists( shared_path, "LUA" ) then
+                    clientFileSend( shared_path, 2 )
+                end
+            end
+
+            local entrypoint_path = location .. init_file
+            if file_Exists( entrypoint_path, "LUA" ) then
+                self.Realm = LUA_SERVER and "server" or "client"
+            else
+
+                entrypoint_path = location .. "/shared.lua"
+
+                if file_Exists( entrypoint_path, "LUA" ) then
+                    self.Realm = "shared"
+                else
+
+                    entrypoint_path = location .. "/cl_init.lua"
+
+                    if LUA_SERVER and file_Exists( entrypoint_path, "LUA" ) and not file_IsDir( entrypoint_path, "LUA" ) then
+                        self.Realm = "client"
+                    end
+
+                    self.Error = string_format( "entrypoint for '%s' not found", location )
+                    return nil
+                end
+
+            end
+
+            self.EntryPoint = entrypoint_path
+            return
+        end
+
+        location = location .. ".lua"
+
+        if file_Exists( location, "LUA" ) then
+            if LUA_SERVER then
+                clientFileSend( location, 2 )
+            end
+
+            self.EntryPoint = location
+            self.Location = location
+            self.Realm = "shared"
+            return
+        end
+
+        self.Error = string_format( "execution location '%s' not found", location )
+    end
+
+end
+
+do
+
+    local realm = LUA_SERVER and "server" or "client"
+
+    --- [SHARED]
+    ---
+    --- Returns whether the module is executable.
+    ---
+    ---@return boolean
+    function Module:isExecutable()
+        local module_realm = self.Realm
+
+        if module_realm == "unknown" then
+            return false
+        end
+
+        if module_realm == "shared" then
+            return true
+        end
+
+        return module_realm == realm
+    end
+
+end
+
+--- [SHARED]
+---
+--- Returns whether the module is loaded.
+---
+---@return boolean is_loaded
+function Module:isLoaded()
+    return self.Environment ~= nil
+end
+
+--- [SHARED]
+---
+--- Returns whether the module is available.
+---
+---@return boolean is_available
+function Module:isAvailable()
+    return self.EntryPoint ~= nil
+end
+
+--- [SHARED]
+---
+--- Returns whether the module execution is failed.
+---
+---@return boolean is_failed
+function Module:isFailed()
+    return self.Error ~= nil
 end
 
 local path_perform
@@ -1207,10 +1326,17 @@ end
 function Module:load( stack_level, enviroment )
     if self.Environment ~= nil then return end
 
+    local entry_point_path = self.EntryPoint
+    if entry_point_path == nil then
+        std.errorf( 2, false, "%s does not have an entry point.", self )
+    end
+
+    ---@cast entry_point_path string
+
     setmetatable( enviroment, enviroment_metatable )
     self.Environment = enviroment
 
-    local success, result = pcall( file_compile( self.EntryPoint, enviroment, stack_level ) )
+    local success, result = pcall( file_compile( entry_point_path, enviroment, stack_level ) )
 
     if success then
         self.Result = result
@@ -1219,6 +1345,37 @@ function Module:load( stack_level, enviroment )
     end
 
     hook_Run( "ash.ModuleLoaded", self )
+end
+
+--- [SHARED]
+---
+--- Post-load operations for the module.
+---
+function Module:postload()
+    if LUA_SERVER then
+
+        local networks = self.Networks
+        if networks ~= nil then
+            local prefix = self.Prefix
+
+            for i = 1, #networks, 1 do
+                glua_util.AddNetworkString( prefix .. networks[ i ] )
+            end
+        end
+
+        local client_files = self.ClientFiles
+        if client_files ~= nil then
+            for i = 1, #client_files, 1 do
+                local file_path = self.Location .. "/" .. client_files[ i ]
+                if file_Exists( file_path, "lsv" ) and not file_IsDir( file_path, "lsv" ) then
+                    clientFileSend( file_path, 2 )
+                else
+                    logger:error( "Failed to send file '%s' to the client from '%s'.", file_path, self )
+                end
+            end
+        end
+
+    end
 end
 
 --- [SHARED]
@@ -1740,12 +1897,9 @@ end
 
 do
 
-    ---@type table<string, ash.Module> | table<integer, string>
-    ---@diagnostic disable-next-line: assign-type-mismatch
-    local modules = ash.Modules or {}
+    ---@type table<string, ash.Module>
+    local modules = {}
     ash.Modules = modules
-
-    local init_file = LUA_CLIENT and "/cl_init.lua" or "/init.lua"
 
     --- [SHARED]
     ---
@@ -1794,100 +1948,46 @@ do
         ---@type ash.Module | nil
         ---@diagnostic disable-next-line: assign-type-mismatch
         local module_object = modules[ module_name ]
+
         if module_object ~= nil and not ignore_cache then
             return module_object
         end
 
-        local homedir = root_name .. "/gamemode/autorun/" .. folder_name
-        if not file_IsDir( homedir, "LUA" ) then
-            homedir = root_name .. "/gamemode/modules/" .. folder_name
-            if not file_IsDir( homedir, "LUA" ) then
-                return nil
-            end
+        local location = root_name .. "/gamemode/autorun/" .. folder_name
+        if not file_IsDir( location, "LUA" ) then
+            location = root_name .. "/gamemode/modules/" .. folder_name
+            if not file_IsDir( location, "LUA" ) then return nil end
         end
 
-        local entrypoint_path
-
-        if segments_count == 2 then
-
-            entrypoint_path = homedir .. init_file
-
-            if not file_Exists( entrypoint_path, "LUA" ) then
-                entrypoint_path = homedir .. "/shared.lua"
-            end
-
-        else
-
-            entrypoint_path = homedir .. "/" .. table_concat( segments, "/", 3, segments_count )
-
-            if file_IsDir( entrypoint_path, "LUA" ) then
-                homedir, entrypoint_path = entrypoint_path, entrypoint_path .. init_file
-
-                if not file_Exists( entrypoint_path, "LUA" ) then
-                    entrypoint_path = homedir .. "/shared.lua"
-                end
-            else
-                entrypoint_path = entrypoint_path .. ".lua"
-                homedir = path_getDirectory( entrypoint_path, false ) or homedir
-            end
-
+        if segments_count > 2 then
+            location = location .. "/" .. table_concat( segments, "/", 3, segments_count )
         end
 
-        if LUA_SERVER then
-            local cl_init_path = homedir .. "/cl_init.lua"
-            if file_Exists( cl_init_path, "LUA" ) then
-                clientFileSend( cl_init_path, stack_level )
-            end
-
-            local shared_path = homedir .. "/shared.lua"
-            if file_Exists( shared_path, "LUA" ) then
-                clientFileSend( shared_path, stack_level )
-            end
-        end
-
-        if not file_Exists( entrypoint_path, "LUA" ) then
-            return nil
-        end
-
-        if module_object == nil then
-            module_object = ModuleClass( module_name, homedir )
+        if module_object == nil or not module_object:isAvailable() then
+            module_object = ModuleClass( module_name, location )
+            if not module_object:isExecutable() then return end
             modules[ module_name ] = module_object
-            table_insert( modules, module_name )
         else
             module_object:unload()
         end
 
-        module_object.EntryPoint = entrypoint_path
+        if not module_object:isAvailable() then
+            logger:error( "'%s' is not available, %s.", module_object, module_object.Error or "unknown error" )
+            return nil
+        end
+
         module_object:load( stack_level, {
             MODULE = module_object
         } )
 
-        if LUA_SERVER then
-
-            local networks = module_object.Networks
-            if networks ~= nil then
-                local prefix = module_object.Prefix
-
-                for i = 1, #networks, 1 do
-                    glua_util.AddNetworkString( prefix .. networks[ i ] )
-                end
-            end
-
-            local client_files = module_object.ClientFiles
-            if client_files ~= nil then
-                for i = 1, #client_files, 1 do
-                    local file_path = homedir .. "/" .. client_files[ i ]
-                    if file_Exists( file_path, "lsv" ) and not file_IsDir( file_path, "lsv" ) then
-                        clientFileSend( file_path, stack_level )
-                    else
-                        logger:error( "Failed to send file '%s' to the client from '%s'.", file_path, module_object )
-                    end
-                end
-            end
-
+        if module_object:isFailed() then
+            logger:error( "'%s' loading is failed, %s.", module_object, module_object.Error or "unknown error" )
+            return nil
         end
 
-        logger:debug( "'%s' loaded.", module_object )
+        module_object:postload()
+
+        logger:debug( "Successfully '%s' initialized.", module_object )
 
         return module_object
     end
@@ -1925,52 +2025,35 @@ do
 
         ---@param class_name string
         ---@param gamemode_name string
-        ---@param folder_path string
-        function entity_require( class_name, gamemode_name, folder_path )
-            if LUA_SERVER then
-                local cl_init_path = folder_path .. "/cl_init.lua"
-                if file_Exists( cl_init_path, "LUA" ) then
-                    clientFileSend( cl_init_path, 2 )
-                end
-
-                local shared_path = folder_path .. "/shared.lua"
-                if file_Exists( shared_path, "LUA" ) then
-                    clientFileSend( shared_path, 2 )
-                end
-            end
-
-            local entrypoint_path = folder_path .. init_file
-            if not file_Exists( entrypoint_path, "LUA" ) then
-                entrypoint_path = folder_path .. "/shared.lua"
-                if not file_Exists( entrypoint_path, "LUA" ) then
-                    return nil
-                end
-            end
-
-            local module_name = "ash.entities." .. gamemode_name .. "." .. class_name
+        ---@param location string
+        function entity_require( class_name, gamemode_name, location )
+            local module_name = "@entity." .. gamemode_name .. "." .. class_name
 
             ---@type ash.EntityModule | nil
             ---@diagnostic disable-next-line: assign-type-mismatch
             local module_object = modules[ module_name ]
 
-            if module_object == nil then
-                module_object = EntityModuleClass( module_name, folder_path )
+            if module_object == nil or not module_object:isAvailable() then
+                module_object = EntityModuleClass( module_name, location )
+                if not module_object:isExecutable() then return end
                 modules[ module_name ] = module_object
-                table_insert( modules, module_name )
             else
                 module_object:unload()
             end
 
-            module_object.EntryPoint = entrypoint_path
+            if not module_object:isAvailable() then
+                logger:error( "'%s' is not available, %s.", module_object, module_object.Error or "unknown error" )
+                return nil
+            end
 
             ---@type ash.Entity.Structure
             local entity_structure = {
                 Type = "anim",
                 RenderGroup = 8,
-                Folder = folder_path,
                 ClassName = class_name,
                 Draw = ENTITY_DrawModel,
                 PrintName = "#" .. class_name,
+                Folder = module_object.Location,
                 DrawTranslucent = ENTITY_DrawModel
             }
 
@@ -1979,10 +2062,9 @@ do
                 ENT = entity_structure
             } )
 
-            local err_msg = module_object.Error
-            if err_msg ~= nil then
-                error_display( err_msg )
-                return
+            if module_object:isFailed() then
+                logger:error( "'%s' loading is failed, %s.", module_object, module_object.Error or "unknown error" )
+                return nil
             end
 
             entity_structure.Spawnable = entity_structure.Spawnable == true
@@ -1991,28 +2073,7 @@ do
             entity_structure.WantsTranslucency = entity_structure.WantsTranslucency ~= false
             entity_structure.DisableDuplicator = entity_structure.DisableDuplicator == true
 
-            if LUA_SERVER then
-
-                local networks = module_object.Networks
-                if networks ~= nil then
-                    for i = 1, #networks, 1 do
-                        glua_util.AddNetworkString( module_object.Prefix .. networks[ i ] )
-                    end
-                end
-
-                local client_files = module_object.ClientFiles
-                if client_files ~= nil then
-                    for i = 1, #client_files, 1 do
-                        local file_path = folder_path .. "/" .. client_files[ i ]
-                        if file_Exists( file_path, "lsv" ) and not file_IsDir( file_path, "lsv" ) then
-                            clientFileSend( file_path, 2 )
-                        else
-                            logger:error( "Failed to send file '%s' to the client from '%s'.", file_path, module_object )
-                        end
-                    end
-                end
-
-            end
+            module_object:postload()
 
             class_name = entity_structure.ClassName or class_name
             entity_Register( entity_structure, class_name )
@@ -2022,49 +2083,32 @@ do
 
         ---@param class_name string
         ---@param gamemode_name string
-        ---@param folder_path string
-        function weapon_require( class_name, gamemode_name, folder_path )
-            if LUA_SERVER then
-                local cl_init_path = folder_path .. "/cl_init.lua"
-                if file_Exists( cl_init_path, "LUA" ) then
-                    clientFileSend( cl_init_path, 2 )
-                end
-
-                local shared_path = folder_path .. "/shared.lua"
-                if file_Exists( shared_path, "LUA" ) then
-                    clientFileSend( shared_path, 2 )
-                end
-            end
-
-            local entrypoint_path = folder_path .. init_file
-            if not file_Exists( entrypoint_path, "LUA" ) then
-                entrypoint_path = folder_path .. "/shared.lua"
-                if not file_Exists( entrypoint_path, "LUA" ) then
-                    return nil
-                end
-            end
-
-            local module_name = "ash.entities." .. gamemode_name .. "." .. class_name
+        ---@param location string
+        function weapon_require( class_name, gamemode_name, location )
+            local module_name = "@weapon." .. gamemode_name .. "." .. class_name
 
             ---@type ash.WeaponModule | nil
             ---@diagnostic disable-next-line: assign-type-mismatch
             local module_object = modules[ module_name ]
 
-            if module_object == nil then
-                module_object = WeaponModuleClass( module_name, folder_path )
+            if module_object == nil or not module_object:isAvailable() then
+                module_object = WeaponModuleClass( module_name, location )
+                if not module_object:isExecutable() then return end
                 modules[ module_name ] = module_object
-                table_insert( modules, module_name )
             else
                 module_object:unload()
             end
 
-            module_object.EntryPoint = entrypoint_path
+            if not module_object:isAvailable() then
+                logger:error( "'%s' is not available, %s.", module_object, module_object.Error or "unknown error" )
+                return nil
+            end
 
             ---@type ash.Weapon.Structure
             local weapon_structure = {
                 Base = "weapon_base",
                 ClassName = class_name,
-                Folder = folder_path,
+                Folder = module_object.Location,
                 UseHands = true,
                 PrintName = "#" .. class_name,
                 DrawAmmo = false,
@@ -2078,37 +2122,15 @@ do
                 SWEP = weapon_structure
             } )
 
-            local err_msg = module_object.Error
-            if err_msg ~= nil then
-                error_display( err_msg )
-                return
+            if module_object:isFailed() then
+                logger:error( "'%s' loading is failed, %s.", module_object, module_object.Error or "unknown error" )
+                return nil
             end
 
             weapon_structure.Spawnable = weapon_structure.Spawnable == true
             weapon_structure.DisableDuplicator = weapon_structure.DisableDuplicator == true
 
-            if LUA_SERVER then
-
-                local networks = module_object.Networks
-                if networks ~= nil then
-                    for i = 1, #networks, 1 do
-                        glua_util.AddNetworkString( module_object.Prefix .. networks[ i ] )
-                    end
-                end
-
-                local client_files = module_object.ClientFiles
-                if client_files ~= nil then
-                    for i = 1, #client_files, 1 do
-                        local file_path = folder_path .. "/" .. client_files[ i ]
-                        if file_Exists( file_path, "lsv" ) and not file_IsDir( file_path, "lsv" ) then
-                            clientFileSend( file_path, 2 )
-                        else
-                            logger:error( "Failed to send file '%s' to the client from '%s'.", file_path, module_object )
-                        end
-                    end
-                end
-
-            end
+            module_object:postload()
 
             class_name = weapon_structure.ClassName or class_name
             weapon_Register( weapon_structure, class_name )
@@ -2236,6 +2258,11 @@ do
         local raw_tonumber = raw.tonumber
 
         local function reload( chain )
+            for module_name, module_object in raw_pairs( modules ) do
+                module_object:unload()
+                modules[ module_name ] = nil
+            end
+
             for i = #chain, 1, -1 do
                 local gamemode_info = chain[ i ]
                 local gamemode_name = gamemode_info.name
@@ -2259,18 +2286,52 @@ do
 
                 -- Entities
                 local entities_path = gamemode_name .. "/gamemode/entities/"
-                local _, entity_directories = file_Find( entities_path .. "*", "LUA" )
+                local entity_files, entity_directories = file_Find( entities_path .. "*", "LUA" )
+
+                ---@type table<string, boolean>
+                local loaded_entities = {}
+
                 for j = 1, #entity_directories, 1 do
                     local folder_name = entity_directories[ j ]
-                    entity_require( folder_name, gamemode_name, entities_path .. folder_name )
+                    if loaded_entities[ folder_name ] == nil then
+                        entity_require( folder_name, gamemode_name, entities_path .. folder_name )
+                        loaded_entities[ folder_name ] = true
+                    end
+                end
+
+                for j = 1, #entity_files, 1 do
+                    local class_name = path.getFile( entity_files[ j ], false )
+                    if loaded_entities[ class_name ] == nil then
+                        entity_require( class_name, gamemode_name, entities_path .. class_name )
+                        loaded_entities[ class_name ] = true
+                    else
+                        logger:error( "Detected same named file and directory for entity class '%s', file will be ignored.", class_name )
+                    end
                 end
 
                 --- Weapons
                 local weapons_path = gamemode_name .. "/gamemode/weapons/"
-                local _, weapon_directories = file_Find( weapons_path .. "*", "LUA" )
+                local weapon_files, weapon_directories = file_Find( weapons_path .. "*", "LUA" )
+
+                ---@type table<string, boolean>
+                local loaded_weapons = {}
+
                 for j = 1, #weapon_directories, 1 do
                     local folder_name = weapon_directories[ j ]
-                    weapon_require( folder_name, gamemode_name, weapons_path .. folder_name )
+                    if loaded_weapons[ folder_name ] == nil then
+                        weapon_require( folder_name, gamemode_name, weapons_path .. folder_name )
+                        loaded_weapons[ folder_name ] = true
+                    end
+                end
+
+                for j = 1, #weapon_files, 1 do
+                    local class_name = path.getFile( weapon_files[ j ], false )
+                    if loaded_weapons[ class_name ] == nil then
+                        weapon_require( class_name, gamemode_name, weapons_path .. class_name )
+                        loaded_weapons[ class_name ] = true
+                    else
+                        logger:error( "Detected same named file and directory for weapon class '%s', file will be ignored.", class_name )
+                    end
                 end
             end
         end
@@ -2366,8 +2427,23 @@ do
     concommand.Add( "ash.info." .. ( LUA_SERVER and "server" or "client" ), function()
         print( string_format( "%s by %s\n\nModules:", ash.Tag, ash.Author ) )
 
-        for i = 1, #modules, 1 do
-            print( string_format( "%d. %s", i, modules[ modules[ i ] ] ) )
+        ---@type ash.Module[]
+        local list = {}
+        local list_size = 0
+
+        for _, module_object in raw_pairs( modules ) do
+            list_size = list_size + 1
+            list[ list_size ] = module_object
+        end
+
+        ---@param v1 ash.Module
+        ---@param v2 ash.Module
+        table.sort( list, function( v1, v2 )
+            return v1.Time > v2.Time
+        end )
+
+        for i = 1, list_size, 1 do
+            print( string_format( "%d. %s", i, list[ i ].Name ) )
         end
 
         print()

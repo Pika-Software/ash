@@ -4,8 +4,8 @@ local util = util
 ---@class ash.entity.damage
 local ash_damage = include( "shared.lua" )
 
----@type ash.utils
-local ash_utils = require( "ash.utils" )
+---@type ash.entity
+local ash_entity = require( "ash.entity" )
 
 do
 
@@ -56,10 +56,10 @@ local damage_isNeverGib = ash_damage.isNeverGib
 local Entity_GetClass = Entity.GetClass
 local Vector_Length = Vector.Length
 
-local utils_isRagdollClass = ash_utils.isRagdollClass
-local utils_isButtonClass = ash_utils.isButtonClass
-local utils_isPropClass = ash_utils.isPropClass
-local utils_isDoorClass = ash_utils.isDoorClass
+local utils_isRagdollClass = ash_entity.isRagdollClass
+local utils_isButtonClass = ash_entity.isButtonClass
+local utils_isPropClass = ash_entity.isPropClass
+local utils_isDoorClass = ash_entity.isDoorClass
 
 local vector_origin = vector_origin
 
