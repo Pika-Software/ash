@@ -244,20 +244,16 @@ do
 
 end
 
----@param pl Player
----@param ragdoll_entity Entity
-hook.Add( "ash.player.ragdoll.Setup", "Defaults", function( pl, ragdoll_entity )
-    if not pl:Alive() then
-        pl:SpectateEntity( ragdoll_entity )
-        pl:Spectate( OBS_MODE_CHASE )
-    end
-end )
+-- ---@param pl Player
+-- ---@param ragdoll_entity Entity
+-- hook.Add( "ash.player.ragdoll.Setup", "Defaults", function( pl, ragdoll_entity )
+--     if not pl:Alive() then
+--         pl:SpectateEntity( ragdoll_entity )
+--         pl:Spectate( OBS_MODE_CHASE )
+--     end
+-- end )
 
 hook.Add( "ash.player.ragdoll.PreCreate", "Defaults", function( pl )
-    ash_player.ragdollRemove( pl )
-end )
-
-hook.Add( "ash.player.PreDeath", "Defaults", function( pl )
     ash_player.ragdollRemove( pl )
 end )
 
@@ -279,18 +275,34 @@ do
 end
 
 hook.Add( "ash.player.footsteps.Sound", "Defaults", function( pl, sound_position, player_shoes, material_name, selected_state, bone_id )
-    local sound_level, volume = 75, 1.00
+    local sound_level, pitch, volume = 75, 100, 0.25
 
-    if selected_state == "wandering" then
-        sound_level, volume = 40, 0.75
-    elseif selected_state == "running" then
-        sound_level, volume = 90, 1.25
-    elseif selected_state == "falling" then
-        sound_level, volume = 100, 1.50
+    -- if selected_state == "wandering" then
+    --     sound_level, pitch, volume = 40, 100, 0.25
+    -- elseif selected_state == "running" then
+    --     sound_level, pitch, volume = 90, 100, 1.00
+    -- elseif selected_state == "falling" then
+    --     sound_level, pitch, volume = 100, 100, 1.25
+    -- end
+
+    return sound_level, pitch, volume, 1
+end )
+
+---@param arguments table
+---@param pl Player
+---@param vehicle Entity
+hook.Add( "CanPlayerEnterVehicle", "Defaults", function( arguments, pl, vehicle )
+    local allowed = arguments[ 2 ]
+    if allowed ~= nil then
+        return allowed
     end
 
-    return sound_level, 100, volume
-end )
+    return pl:Alive() and vehicle:IsValid()
+end, POST_HOOK_RETURN )
+
+hook.Add( "GravGunPickupAllowed", "Defaults", function( arguments, pl, entity )
+    return arguments[ 2 ] ~= false
+end, POST_HOOK_RETURN )
 
 -- do
 

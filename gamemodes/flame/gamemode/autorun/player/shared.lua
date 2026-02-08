@@ -134,7 +134,7 @@ do
 
         if not trace_result.HitWorld then
             local entity = trace_result.Entity
-            if hook_Run( "ash.player.ShouldUse", pl, entity ) ~= false then
+            if entity ~= nil and Entity_IsValid( entity ) and hook_Run( "ash.player.ShouldUse", pl, entity ) ~= false then
                 return entity
             end
         end
@@ -143,7 +143,7 @@ do
 
         for i = 1, #entites, 1 do
             local entity = entites[ i ]
-            if entity ~= pl and hook_Run( "ash.player.ShouldUse", pl, entity ) ~= false then
+            if entity ~= pl and Entity_IsValid( entity ) and hook_Run( "ash.player.ShouldUse", pl, entity ) ~= false then
                 return entity
             end
         end
@@ -306,5 +306,9 @@ do
     end )
 
 end
+
+hook.Add( "GravGunPunt", "Defaults", function( arguments, pl, entity )
+    return arguments[ 2 ] ~= false
+end, POST_HOOK_RETURN )
 
 return flame_player
