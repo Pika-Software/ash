@@ -892,7 +892,7 @@ do
     ---@type integer[]
     local in_keys = {}
 
-    for i = 1, 32, 1 do
+    for i = 0, 24, 1 do
         in_keys[ i ] = 2 ^ i
     end
 
@@ -903,7 +903,7 @@ do
                 if players_keys[ pl ] == keys then return end
                 local pressed_keys = players_key_states[ pl ]
 
-                for i = 1, 32, 1 do
+                for i = 0, 24, 1 do
                     local in_key = in_keys[ i ]
 
                     local key_state = bit_band( keys, in_key ) ~= 0
@@ -925,7 +925,7 @@ do
             local pressed_keys = players_key_states[ pl ]
             players_keys[ pl ] = keys
 
-            for i = 1, 32, 1 do
+            for i = 0, 24, 1 do
                 local in_key = in_keys[ i ]
 
                 local key_state = bit_band( keys, in_key ) ~= 0
