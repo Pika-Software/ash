@@ -747,15 +747,6 @@ do
 
 end
 
-local type_to_flag = {
-    pistol = 4,
-    revolver = 6,
-    smg = 2,
-    ar2 = 0,
-    shotgun	= 1,
-    rpg = 7
-}
-
 ---@param arguments table
 ---@param entity Entity
 ---@param bullet Bullet
@@ -763,34 +754,6 @@ hook.Add( "EntityFireBullets", "BulletCallback", function( arguments, entity, bu
     if arguments[ 2 ] == false then return false end
 
     local callback = bullet.Callback
-
-    if bullet.TracerName == nil then
-        bullet.TracerName = "none"
-    end
-
-    local inflictor = bullet.Inflictor
-
-    if inflictor ~= nil and inflictor:IsValid() and inflictor:IsWeapon() then
-        ---@cast inflictor Weapon
-
-        local flag = type_to_flag[ inflictor:GetHoldType() ]
-        bullet.Tracer = 0
-
-        local ef = EffectData()
-
-        if entity:IsPlayer() then
-            ---@cast entity Player
-            ef:SetEntity( entity:GetViewModel( 0 ) )
-            flag = bit.bor( 256, flag )
-        else
-            ef:SetEntity( inflictor )
-        end
-
-        ef:SetFlags( flag )
-        ef:SetAttachment( inflictor:LookupAttachment( "muzzle" ) or 1 )
-
-        util.Effect( "MuzzleFlash", ef )
-    end
 
     bullet.Callback = function( attacker, trace_result, damage_info )
         local do_effects, do_damage = hook_Run( "ash.entity.BulletImpact", bullet, attacker, trace_result, damage_info )
