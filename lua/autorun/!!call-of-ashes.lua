@@ -231,10 +231,11 @@ if LUA_SERVER then
 
     ---@param file_path string
     ---@param stack_level? integer
+    ---@param dont_break? boolean
     ---@return boolean has_changes
     ---@return string lua_code
     ---@return string file_sha256
-    function clientFileSend( file_path, stack_level )
+    function clientFileSend( file_path, stack_level, dont_break )
         if stack_level == nil then
             stack_level = 2
         else
@@ -248,11 +249,13 @@ if LUA_SERVER then
         end
 
         if file_object == nil then
-            std.errorf( stack_level, false, "File '%s' not found.", file_path )
+            std.errorf( stack_level, dont_break, "File '%s' not found.", file_path )
+            return false, "", ""
         end
 
         if is_directory then
-            std.errorf( stack_level, false, "File '%s' is a directory.", file_path )
+            std.errorf( stack_level, dont_break, "File '%s' is a directory.", file_path )
+            return false, "", ""
         end
 
         ---@cast file_object dreamwork.std.fs.File
@@ -264,7 +267,8 @@ if LUA_SERVER then
         local file_handler = file.Open( mount_path, "rb", mount_point )
 
         if file_handler == nil then
-            std.errorf( stack_level, false, "File '%s' does not exist.", file_path )
+            std.errorf( stack_level, dont_break, "File '%s' does not exist.", file_path )
+            return false, "", ""
         end
 
         ---@cast file_handler File
@@ -273,7 +277,8 @@ if LUA_SERVER then
         file_handler:Close()
 
         if lua_code == nil or string_byte( lua_code, 1, 1 ) == nil then
-            std.errorf( stack_level, false, "File '%s' is empty.", file_path )
+            std.errorf( stack_level, dont_break, "File '%s' is empty.", file_path )
+            return false, "", ""
         end
 
         ---@cast lua_code string
@@ -299,7 +304,8 @@ if LUA_SERVER then
                 return true, lua_code, file_sha256
             end
 
-            std.errorf( stack_level, false, "Failed to add file 'lua/%s' to the client.", file_path )
+            std.errorf( stack_level, dont_break, "Failed to add file 'lua/%s' to the client.", file_path )
+            return false, "", ""
         end
 
         return false, lua_code, file_sha256
@@ -586,12 +592,12 @@ if LUA_SERVER then
 
                 local cl_init_path = directory_path .. "/cl_init.lua"
                 if file_Exists( cl_init_path, "LUA" ) then
-                    clientFileSend( cl_init_path, 2 )
+                    clientFileSend( cl_init_path, 2, true )
                 end
 
                 local shared_path = directory_path .. "/shared.lua"
                 if file_Exists( shared_path, "LUA" ) then
-                    clientFileSend( shared_path, 2 )
+                    clientFileSend( shared_path, 2, true )
                 end
 
                 folder_send( directory_path .. "/" )
@@ -973,12 +979,12 @@ do
             if LUA_SERVER then
                 local client_path = location .. "/cl_init.lua"
                 if file_Exists( client_path, "LUA" ) then
-                    clientFileSend( client_path, 2 )
+                    clientFileSend( client_path, 2, true )
                 end
 
                 local shared_path = location .. "/shared.lua"
                 if file_Exists( shared_path, "LUA" ) then
-                    clientFileSend( shared_path, 2 )
+                    clientFileSend( shared_path, 2, true )
                 end
             end
 
@@ -1013,7 +1019,7 @@ do
 
         if file_Exists( location, "LUA" ) then
             if LUA_SERVER then
-                clientFileSend( location, 2 )
+                clientFileSend( location, 2, true )
             end
 
             self.EntryPoint = location
@@ -1131,7 +1137,7 @@ if LUA_SERVER then
     ---
     ---@param file_path string
     function environment.AddCSLuaFile( file_path )
-        clientFileSend( path_perform( file_path ), 2 )
+        clientFileSend( path_perform( file_path ), 2, false )
     end
 
     ash.send = environment.AddCSLuaFile
@@ -1368,7 +1374,7 @@ function Module:postload()
             for i = 1, #client_files, 1 do
                 local file_path = self.Location .. "/" .. client_files[ i ]
                 if file_Exists( file_path, "lsv" ) and not file_IsDir( file_path, "lsv" ) then
-                    clientFileSend( file_path, 2 )
+                    clientFileSend( file_path, 2, true )
                 else
                     logger:error( "Failed to send file '%s' to the client from '%s'.", file_path, self )
                 end
@@ -2208,7 +2214,7 @@ do
             local lua_path = string_format( "%s/gamemode/%s/%s/%s", gamemode_name, module_type, directory_path, file_name )
 
             if client_checksums[ lua_path ] ~= nil then
-                local has_changes, lua_code, file_sha256 = clientFileSend( lua_path, 2 )
+                local has_changes, lua_code, file_sha256 = clientFileSend( lua_path, 2, true )
                 if has_changes then
                     std.setTimeout( function()
                         glua_net.Start( "ash.network" )
