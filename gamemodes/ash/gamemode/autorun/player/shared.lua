@@ -408,6 +408,7 @@ do
     local Entity_GetFlags = Entity.GetFlags
     local Entity_GetSkin = Entity.GetSkin
 
+    local Player_GetRenderAngles = Player.GetRenderAngles
     local Player_GetVehicle = Player.GetVehicle
     local Player_InVehicle = Player.InVehicle
     local Player_IsTyping = Player.IsTyping
@@ -675,6 +676,28 @@ do
         __mode = "k"
     } )
 
+    ---@type table<Player, Angle>
+    local player_angles = {}
+
+    setmetatable( player_angles, {
+        __index = function( self, pl )
+            local angles = Player_GetRenderAngles( pl )
+            self[ pl ] = angles
+            return angles
+        end,
+        __mode = "k"
+    } )
+
+    --- [SHARED]
+    ---
+    --- Returns the angles of the player.
+    ---
+    ---@param pl Player
+    ---@return Angle
+    function ash_player.getAngles( pl )
+        return player_angles[ pl ]
+    end
+
     ---@param pl Player
     hook.Add( "ash.player.Think", "StateController", function( pl )
         local in_vehicle = Player_InVehicle( pl )
@@ -825,6 +848,12 @@ do
                     end
                 end
             end
+        end
+
+        local angles = Player_GetRenderAngles( pl )
+        if player_angles[ pl ] ~= angles then
+            hook_Run( "ash.player.Angles", pl, player_angles[ pl ], angles )
+            player_angles[ pl ] = angles
         end
     end, PRE_HOOK )
 
@@ -1534,9 +1563,9 @@ do
     ---@param pl Player
     ---@param slot ash.player.GESTURE_SLOT
     ---@param activity integer
-    ---@param cycle number
-    ---@param auto_kill boolean
-    ---@param networked boolean
+    ---@param cycle? number
+    ---@param auto_kill? boolean
+    ---@param networked? boolean
     function ash_player.startGestureByActivity( pl, slot, activity, cycle, auto_kill, networked )
         if SERVER and networked ~= false then
             net.Start( "network" )
@@ -1544,15 +1573,15 @@ do
             net.WritePlayer( pl )
             net.WriteUInt( slot, 3 )
             net.WriteUInt( activity, 32 )
-            net.WriteBool( auto_kill )
+            net.WriteBool( auto_kill ~= false )
             net.WriteDouble( CurTime() )
-            net.WriteFloat( cycle )
+            net.WriteFloat( cycle or 0 )
             net.Broadcast()
         end
 
         local sequence_id = Entity_SelectWeightedSequence( pl, activity )
         if sequence_id ~= nil and sequence_id > 0 then
-            return Player_AddVCDSequenceToGestureSlot( pl, slot, sequence_id, cycle, auto_kill )
+            return Player_AddVCDSequenceToGestureSlot( pl, slot, sequence_id, cycle or 0, auto_kill )
         end
 
         return Player_AnimRestartGesture( pl, slot, activity, auto_kill )
@@ -1565,9 +1594,9 @@ do
     ---@param pl Player
     ---@param slot ash.player.GESTURE_SLOT
     ---@param sequence_name string
-    ---@param cycle number
-    ---@param auto_kill boolean
-    ---@param networked boolean
+    ---@param cycle? number
+    ---@param auto_kill? boolean
+    ---@param networked? boolean
     function ash_player.startGestureBySequence( pl, slot, sequence_name, cycle, auto_kill, networked )
         if SERVER and networked ~= false then
             net.Start( "network" )
@@ -1575,15 +1604,15 @@ do
             net.WritePlayer( pl )
             net.WriteUInt( slot, 3 )
             net.WriteString( sequence_name )
-            net.WriteBool( auto_kill )
+            net.WriteBool( auto_kill ~= false )
             net.WriteDouble( CurTime() )
-            net.WriteFloat( cycle )
+            net.WriteFloat( cycle or 0 )
             net.Broadcast()
         end
 
         local sequence_id = Entity_LookupSequence( pl, sequence_name )
         if sequence_id ~= nil and sequence_id > 0 then
-            return Player_AddVCDSequenceToGestureSlot( pl, slot, sequence_id, cycle, auto_kill )
+            return Player_AddVCDSequenceToGestureSlot( pl, slot, sequence_id, cycle or 0, auto_kill )
         end
 
         return Player_AnimResetGestureSlot( pl, slot )
@@ -1595,7 +1624,7 @@ do
     ---
     ---@param pl Player
     ---@param slot ash.player.GESTURE_SLOT
-    ---@param networked boolean
+    ---@param networked? boolean
     function ash_player.stopGesture( pl, slot, networked )
         if SERVER and networked ~= false then
             net.Start( "network" )

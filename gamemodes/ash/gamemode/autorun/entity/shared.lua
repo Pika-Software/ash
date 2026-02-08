@@ -643,6 +643,8 @@ do
 
     hook.Add( "Think", "Processor", function()
         for i = queue[ 0 ], 1, -1 do
+            ---@type Entity
+            ---@diagnostic disable-next-line: assign-type-mismatch
             local entity = queue[ i ]
             queue[ i ] = nil
 
@@ -962,27 +964,49 @@ do
     local Entity_GetPoseParameterRange = Entity.GetPoseParameterRange
     local Entity_LookupPoseParameter = Entity.LookupPoseParameter
     local Entity_ClearPoseParameters = Entity.ClearPoseParameters
-    local Entity_SetPoseParameter = Entity.SetPoseParameter
+
     local Entity_GetPoseParameter = Entity.GetPoseParameter
+    local Entity_SetPoseParameter = Entity.SetPoseParameter
 
     local math_remap = math.remap
     local net = net
 
-    ash_entity.getPoseParamaterCount = Entity.GetNumPoseParameters
-    ash_entity.getPoseParamaterFloat = Entity_GetPoseParameter
-    ash_entity.getPoseParamaterIndex = Entity_LookupPoseParameter
-    ash_entity.getPosteParameterName = Entity.GetPoseParameterName
-    ash_entity.getPoseParamaterRange = Entity.GetPoseParameterRange
+    ash_entity.getPoseParameterCount = Entity.GetNumPoseParameters
+    ash_entity.getPoseParameterIndex = Entity_LookupPoseParameter
+    ash_entity.getPoseParameterName = Entity.GetPoseParameterName
+    ash_entity.getPoseParameterRange = Entity.GetPoseParameterRange
 
-    --- [SHARED]
-    ---
-    --- Returns the value of a pose parameter.
-    ---
-    ---@param entity Entity
-    ---@param index integer
-    ---@return number value
-    function ash_entity.getPoseParameter( entity, index )
-        return math_remap( Entity_GetPoseParameter( entity, index ), 0, 1, Entity_GetPoseParameterRange( entity, index ) )
+    if SERVER then
+
+        --- [SHARED]
+        ---
+        --- Returns the value of a pose parameter.
+        ---
+        ---@param entity Entity
+        ---@param index integer
+        ---@return number value
+        function ash_entity.getPoseParameterFloat( entity, index )
+            local min, max = Entity_GetPoseParameterRange( entity, index )
+            return math_remap( Entity_GetPoseParameter( entity, index ), min, max, 0, 1 )
+        end
+
+        ash_entity.getPoseParameter = Entity_GetPoseParameter
+
+    else
+
+        ash_entity.getPoseParameterFloat = Entity_GetPoseParameter
+
+        --- [SHARED]
+        ---
+        --- Returns the value of a pose parameter.
+        ---
+        ---@param entity Entity
+        ---@param index integer
+        ---@return number value
+        function ash_entity.getPoseParameter( entity, index )
+            return math_remap( Entity_GetPoseParameter( entity, index ), 0, 1, Entity_GetPoseParameterRange( entity, index ) )
+        end
+
     end
 
     ---@class ash.entity.PoseParameter

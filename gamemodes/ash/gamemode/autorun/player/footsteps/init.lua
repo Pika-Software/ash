@@ -47,26 +47,34 @@ function footsteps.registerLegacy( shoes_type, directory_path, sound_data )
         sound_data = {}
     end
 
-    for _, file_name in ipairs( file_Find( "sound/" .. directory_path .. "/*", "GAME" ) ) do
-        local material_name = string_match( file_name, "^(%l+)" ) or "default"
+    ---@type table<string, boolean>
+    local materials = {}
 
-        local sounds = file_Find( "sound/" .. directory_path .. "/" .. material_name .. "*", "GAME" )
-        local sound_count = #sounds
+    local material_files = file_Find( "sound/" .. directory_path .. "/*", "GAME" )
+    for i = 1, #material_files, 1 do
+        local material_name = string_match( material_files[ i ], "^(%l+)" )
+        if material_name ~= nil and materials[ material_name ] == nil then
+            materials[ material_name ] = true
 
-        if sound_count ~= 0 then
-            for j = 1, sound_count, 1 do
-                sounds[ j ] = ")^" .. directory_path .. "/" .. sounds[ j ]
-            end
+            local files = file_Find( "sound/" .. directory_path .. "/" .. material_name .. "*", "GAME" )
+            local file_count = #files
 
-            sound_data.sound = sounds
+            if file_count ~= 0 and not footsteps.exists( shoes_type, material_name ) then
+                local sound = {}
+                for j = 1, file_count, 2 do
+                    sound[ #sound + 1 ] = ")^" .. directory_path .. "/" .. files[ j ]
+                end
 
-            local base_name = shoes_type .. "." .. material_name
-            sound_registry[ base_name ] = true
+                sound_data.sound = sound
 
-            for j = 1, move_types_count, 1 do
-                local sound_name = base_name .. "." .. move_types[ j ]
-                if not sound_exists( sound_name ) then
-                    sound_merge( sound_name, sound_data )
+                local base_name = shoes_type .. "." .. material_name
+                sound_registry[ base_name ] = true
+
+                for j = 1, move_types_count, 1 do
+                    local sound_name = base_name .. "." .. move_types[ j ]
+                    if not sound_exists( sound_name ) then
+                        sound_merge( sound_name, sound_data )
+                    end
                 end
             end
         end
@@ -309,9 +317,6 @@ end
 
 do
 
-    local sound_play = ash_sound.play
-    local math_random = math.random
-
     ---@type table<string, string>
     local move_states = {
         crouching = "wandering",
@@ -328,24 +333,7 @@ do
         end
     } )
 
-    --- [SHARED]
-    ---
-    --- Plays a footstep sound.
-    ---
-    ---@param origin Vector
-    ---@param shoes_type string
-    ---@param material_name string
-    ---@param move_type string
-    ---@param volume number | nil
-    ---@param sound_level integer | nil
-    ---@param pitch integer | nil
-    ---@param dsp integer | nil
-    function footsteps.play( origin, shoes_type, material_name, move_type, volume, sound_level, pitch, dsp )
-        local sound_name = shoes_type .. "." .. material_name
-        if sound_registry[ sound_name ] then
-            sound_play( sound_name .. "." .. move_states[ move_type ], origin, sound_level, pitch, volume, dsp )
-        end
-    end
+    local EmitSound = EmitSound
 
     ---@param pl Player
     ---@param sound_position Vector
@@ -355,18 +343,18 @@ do
     hook.Add( "ash.player.footsteps.FootDown", "Sounds", function( pl, sound_position, player_shoes, material_name, move_state, bone_id, fallback_sound )
         local selected_state = move_states[ move_state ]
 
-        local sound_level, pitch, volume = hook_Run( "ash.player.footsteps.Sound", pl, sound_position, player_shoes, material_name, selected_state, bone_id )
+        local sound_level, pitch, volume, dsp = hook_Run( "ash.player.footsteps.Sound", pl, sound_position, player_shoes, material_name, selected_state, bone_id )
 
         if material_name ~= nil then
             local sound_name = player_shoes .. "." .. material_name
             if sound_registry[ sound_name ] then
-                sound_play( sound_name .. "." .. selected_state, sound_position, sound_level, pitch, volume, 1 )
+                EmitSound( sound_name .. "." .. move_state, sound_position, -1, 6, volume, sound_level, 0, pitch, dsp )
                 return
             end
         end
 
         if fallback_sound ~= nil then
-            sound_play( fallback_sound, sound_position, sound_level, pitch, volume, 1 )
+            EmitSound( fallback_sound, sound_position, -1, 6, volume, sound_level, 0, pitch, 1 )
         end
     end )
 
