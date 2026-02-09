@@ -8,7 +8,7 @@ AddCSLuaFile( "ash/cl_init.lua" )
 AddCSLuaFile( ash.ChainFile )
 ash.resend()
 
-ash.reload()
+ash.reload( false )
 
 local logger = ash.Logger
 

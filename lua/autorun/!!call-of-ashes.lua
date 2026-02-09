@@ -2032,12 +2032,17 @@ do
         ---@param class_name string
         ---@param gamemode_name string
         ---@param location string
-        function entity_require( class_name, gamemode_name, location )
+        ---@param ignore_cache? boolean
+        function entity_require( class_name, gamemode_name, location, ignore_cache )
             local module_name = "@entity." .. gamemode_name .. "." .. class_name
 
             ---@type ash.EntityModule | nil
             ---@diagnostic disable-next-line: assign-type-mismatch
             local module_object = modules[ module_name ]
+
+            if module_object ~= nil and not ignore_cache then
+                return module_object
+            end
 
             if module_object == nil or not module_object:isAvailable() then
                 module_object = EntityModuleClass( module_name, location )
@@ -2090,12 +2095,17 @@ do
         ---@param class_name string
         ---@param gamemode_name string
         ---@param location string
-        function weapon_require( class_name, gamemode_name, location )
+        ---@param ignore_cache? boolean
+        function weapon_require( class_name, gamemode_name, location, ignore_cache )
             local module_name = "@weapon." .. gamemode_name .. "." .. class_name
 
             ---@type ash.WeaponModule | nil
             ---@diagnostic disable-next-line: assign-type-mismatch
             local module_object = modules[ module_name ]
+
+            if module_object ~= nil and not ignore_cache then
+                return module_object
+            end
 
             if module_object == nil or not module_object:isAvailable() then
                 module_object = WeaponModuleClass( module_name, location )
@@ -2238,10 +2248,9 @@ do
     --- Includes and sends a module in the server and/or client.
     ---
     ---@param module_name string The name of the module. e.g. "ash.utils"
-    ---@param ignore_cache? boolean If true, the module will be loaded even if it is already loaded.
     ---@return ... The result of the module.
-    function ash.require( module_name, ignore_cache )
-        local module_object = module_require( module_name, ignore_cache == true, 2 )
+    function ash.require( module_name )
+        local module_object = module_require( module_name, false, 2 )
 
         if module_object == nil then
             std.errorf( 2, false, "Module '%s' not found!", module_name )
@@ -2263,7 +2272,7 @@ do
 
         local raw_tonumber = raw.tonumber
 
-        local function reload( chain )
+        local function reload( chain, ignore_cache )
             for module_name, module_object in raw_pairs( modules ) do
                 module_object:unload()
                 modules[ module_name ] = nil
@@ -2281,7 +2290,7 @@ do
                 -- Autorun
                 local _, autorun_directories = file_Find( gamemode_name .. "/gamemode/autorun/" .. "*", "LUA" )
                 for j = 1, #autorun_directories, 1 do
-                    local module_object = module_require( gamemode_name .. "." .. autorun_directories[ j ], true, 2 )
+                    local module_object = module_require( gamemode_name .. "." .. autorun_directories[ j ], ignore_cache, 2 )
                     if module_object ~= nil then
                         local err_msg = module_object.Error
                         if err_msg ~= nil then
@@ -2300,7 +2309,7 @@ do
                 for j = 1, #entity_directories, 1 do
                     local folder_name = entity_directories[ j ]
                     if loaded_entities[ folder_name ] == nil then
-                        entity_require( folder_name, gamemode_name, entities_path .. folder_name )
+                        entity_require( folder_name, gamemode_name, entities_path .. folder_name, ignore_cache )
                         loaded_entities[ folder_name ] = true
                     end
                 end
@@ -2308,7 +2317,7 @@ do
                 for j = 1, #entity_files, 1 do
                     local class_name = path.getFile( entity_files[ j ], false )
                     if loaded_entities[ class_name ] == nil then
-                        entity_require( class_name, gamemode_name, entities_path .. class_name )
+                        entity_require( class_name, gamemode_name, entities_path .. class_name, ignore_cache )
                         loaded_entities[ class_name ] = true
                     else
                         logger:error( "Detected same named file and directory for entity class '%s', file will be ignored.", class_name )
@@ -2325,7 +2334,7 @@ do
                 for j = 1, #weapon_directories, 1 do
                     local folder_name = weapon_directories[ j ]
                     if loaded_weapons[ folder_name ] == nil then
-                        weapon_require( folder_name, gamemode_name, weapons_path .. folder_name )
+                        weapon_require( folder_name, gamemode_name, weapons_path .. folder_name, ignore_cache )
                         loaded_weapons[ folder_name ] = true
                     end
                 end
@@ -2333,7 +2342,7 @@ do
                 for j = 1, #weapon_files, 1 do
                     local class_name = path.getFile( weapon_files[ j ], false )
                     if loaded_weapons[ class_name ] == nil then
-                        weapon_require( class_name, gamemode_name, weapons_path .. class_name )
+                        weapon_require( class_name, gamemode_name, weapons_path .. class_name, ignore_cache )
                         loaded_weapons[ class_name ] = true
                     else
                         logger:error( "Detected same named file and directory for weapon class '%s', file will be ignored.", class_name )
@@ -2346,8 +2355,9 @@ do
         ---
         --- Reloads all modules.
         ---
-        function ash.reload()
-            xpcall( reload, error_display, ash.Chain )
+        ---@param ignore_cache? boolean If true, the module will be loaded even if it is already loaded.
+        function ash.reload( ignore_cache )
+            xpcall( reload, error_display, ash.Chain, ignore_cache )
         end
 
     end
@@ -2363,7 +2373,7 @@ do
             end
 
             ash.resend()
-            ash.reload()
+            ash.reload( true )
 
             glua_timer.Create( "ash.reload", 1, 1, function()
                 glua_net.Start( "ash.network" )
@@ -2383,7 +2393,9 @@ do
         glua_net.Receive( "ash.network", function()
             local uint1_1 = glua_net.ReadUInt( 2 )
             if uint1_1 == 0 then
-                glua_timer.Create( "ash.reload", 1, 1, ash.reload )
+                glua_timer.Create( "ash.reload", 1, 1, function()
+                    ash.reload( true )
+                end )
             elseif uint1_1 == 1 then
                 local module_name = glua_net.ReadString()
                 local timer_name = "ash.reload." .. module_name
