@@ -309,6 +309,17 @@ do
         __mode = "k"
     } )
 
+    --- [CLIENT]
+    ---
+    --- Returns the player's active weapon.
+    ---
+    ---@param pl Player
+    ---@return Weapon weapon
+    ---@diagnostic disable-next-line: duplicate-set-field
+    function ash_player.getActiveWeapon( pl )
+        return active_weapons[ pl ]
+    end
+
     hook.Add( "ash.player.Think", "WeaponLookup", function( pl, is_local )
         local active_weapon = Player_GetActiveWeapon( pl ) or NULL
         if rawget( active_weapons, pl ) ~= active_weapon then

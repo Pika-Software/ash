@@ -851,7 +851,7 @@ do
         end
 
         local angles = Player_GetRenderAngles( pl )
-        if player_angles[ pl ] ~= angles then
+        if rawget( player_angles, pl ) ~= angles then
             hook_Run( "ash.player.Angles", pl, player_angles[ pl ], angles )
             player_angles[ pl ] = angles
         end
@@ -900,7 +900,7 @@ do
 
         hook.Add( "PlayerNW2Changed", "NW2Sync", function( pl, key, _, keys )
             if key == "m_iPlayerKeys" then
-                if players_keys[ pl ] == keys then return end
+                if rawget( players_keys, pl ) == keys then return end
                 local pressed_keys = players_key_states[ pl ]
 
                 for i = 0, 24, 1 do

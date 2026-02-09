@@ -30,10 +30,15 @@
 ---@field HUD table<ash.engine.HUD.Element, boolean> The table/map of enabled/disabled UI elements.
 local ash_engine = include( "shared.lua" )
 
+---@type ash.player
+local ash_player = require( "ash.player" )
+
+local hook_Run = hook.Run
+
 do
 
     ---@type table<ash.engine.HUD.Element, boolean>
-    local ui_elements = {
+    local defaults = {
         -- Health, Armor & HEV Suit
         CHudHealth = false,
         CHudBattery = false,
@@ -93,10 +98,58 @@ do
         NetGraph = true
     }
 
-    ash_engine.HUD = ui_elements
+    ---@type table<ash.engine.HUD.Element, boolean>
+    local should_draw = {}
+    setmetatable( should_draw, { __index = defaults } )
 
-    hook.Add( "HUDShouldDraw", "HUDDrawControl", function( name )
-        if ui_elements[ name ] == true then return true end
+    hook.Add( "HUDShouldDraw", "ShouldDrawHUD", function( name )
+        return should_draw[ name ] == true
+    end, PRE_HOOK_RETURN )
+
+    local player_getActiveWeapon = ash_player.getActiveWeapon
+    local Entity_IsValid = Entity.IsValid
+    local ErrorNoHalt = ErrorNoHalt
+    local xpcall = xpcall
+
+    local names, name_count = table.keys( defaults )
+
+    timer.Create( "ShouldDrawHUD", 0.25, 0, function()
+        for i = 1, name_count, 1 do
+            local name = names[ i ]
+
+            local pl = ash_player.Entity
+            if pl ~= nil and Entity_IsValid( pl ) and pl:Alive() then
+                local weapon = player_getActiveWeapon( pl )
+                if weapon ~= nil and Entity_IsValid( weapon ) then
+                    ---@diagnostic disable-next-line: undefined-field
+                    local ShouldDrawHUD = weapon.ShouldDrawHUD
+                    if ShouldDrawHUD ~= nil then
+                        local success, result = xpcall( ShouldDrawHUD, ErrorNoHalt, weapon, pl, name )
+                        if success and result ~= nil then
+                            should_draw[ name ] = result == true
+                            goto skip
+                        end
+                    end
+
+                    ---@diagnostic disable-next-line: undefined-field
+                    local HUDShouldDraw = weapon.HUDShouldDraw
+                    if HUDShouldDraw ~= nil then
+                        local success, result = xpcall( HUDShouldDraw, ErrorNoHalt, weapon, name )
+                        if success and result ~= nil then
+                            should_draw[ name ] = result == true
+                            goto skip
+                        end
+                    end
+                end
+
+                local success, result = xpcall( hook_Run, ErrorNoHalt, "ash.engine.ShouldDrawHUD", pl, name )
+                if success and result ~= nil then
+                    should_draw[ name ] = result == true
+                end
+
+                ::skip::
+            end
+        end
     end )
 
 end

@@ -1,3 +1,4 @@
+local Entity_IsValid = Entity.IsValid
 local hook_Run = hook.Run
 
 ---@class flame.player

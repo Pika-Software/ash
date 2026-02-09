@@ -398,12 +398,16 @@ do
         local Entity_SetPos = Entity.SetPos
         local Entity_Spawn = Entity.Spawn
 
+        ---@param pl Player
+        ---@param in_key integer
         hook.Add( "ash.player.Key", "Spawn", function( pl, in_key )
             if awaiting_respawn[ pl ] and bit_band( in_key, respawn_keys[ pl ] ) ~= 0 and hook_Run( "ash.player.ShouldSpawn", pl ) ~= false then
                 Entity_Spawn( pl )
             end
         end, PRE_HOOK )
 
+        ---@param pl Player
+        ---@param transition boolean
         hook.Add( "PlayerSpawn", "PreSpawn", function( pl, transition )
             awaiting_respawn[ pl ] = false
 
@@ -419,6 +423,18 @@ do
             pl:SetCrouchedWalkSpeed( 1 )
 
             hook_Run( "ash.player.SetupModel", pl, transition )
+            hook_Run( "ash.player.SetupAmmo", pl, transition )
+
+            local weapon_classes = hook_Run( "ash.player.SetupWeapons", pl, transition )
+            if weapon_classes ~= nil then
+                for i = 1, #weapon_classes, 1 do
+                    local weapon = pl:Give( weapon_classes[ i ] )
+                    if weapon ~= nil and Entity_IsValid( weapon ) and weapon:IsWeapon() then
+                        hook_Run( "ash.player.SetupWeapon", pl, weapon, transition )
+                    end
+                end
+            end
+
             hook_Run( "ash.player.SetupLoadout", pl, transition )
 
             hook_Run( "ash.player.Spawn", pl, transition )
@@ -451,9 +467,37 @@ do
 
 end
 
-hook.Add( "PlayerSwitchWeapon", "WeaponLookup", function( arguments, pl, old, new )
-    return hook_Run( "ash.player.SwitchedWeapon", pl, old, new ) == false or arguments[ 2 ] == true
-end, POST_HOOK_RETURN )
+do
+
+    local Player_GetActiveWeapon = Player.GetActiveWeapon
+
+    ---@type table<Player, Weapon>
+    local active_weapons = {}
+
+    setmetatable( active_weapons, {
+        __index = function( self, pl )
+            return Player_GetActiveWeapon( pl ) or NULL
+        end,
+        __mode = "k"
+    } )
+
+    --- [SERVER]
+    ---
+    --- Returns the player's active weapon.
+    ---
+    ---@param pl Player
+    ---@return Weapon weapon
+    ---@diagnostic disable-next-line: duplicate-set-field
+    function ash_player.getActiveWeapon( pl )
+        return active_weapons[ pl ]
+    end
+
+    hook.Add( "PlayerSwitchWeapon", "WeaponLookup", function( arguments, pl, old, new )
+        active_weapons[ pl ] = new
+        return hook_Run( "ash.player.SwitchedWeapon", pl, old, new ) == false or arguments[ 2 ] == true
+    end, POST_HOOK_RETURN )
+
+end
 
 do
 
