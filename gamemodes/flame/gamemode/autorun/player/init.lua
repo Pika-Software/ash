@@ -290,16 +290,7 @@ end )
 
 ---@param arguments table
 ---@param pl Player
----@param vehicle Entity
-hook.Add( "CanPlayerEnterVehicle", "Defaults", function( arguments, pl, vehicle )
-    local allowed = arguments[ 2 ]
-    if allowed ~= nil then
-        return allowed
-    end
-
-    return pl:Alive() and vehicle:IsValid()
-end, POST_HOOK_RETURN )
-
+---@param entity Entity
 hook.Add( "GravGunPickupAllowed", "Defaults", function( arguments, pl, entity )
     return arguments[ 2 ] ~= false
 end, POST_HOOK_RETURN )

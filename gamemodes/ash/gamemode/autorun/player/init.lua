@@ -726,4 +726,42 @@ hook.Add( "CanPlayerSuicide", "SuicideHandler", function( arguments, pl )
     return hook_Run( "ash.player.Suicide", pl ) ~= false
 end, POST_HOOK_RETURN )
 
+---@param pl Player
+---@param vehicle Entity
+hook.Add( "CanPlayerEnterVehicle", "VehicleEnter", function( pl, vehicle )
+    return hook_Run( "ash.player.ShouldEnterVehicle", pl, vehicle )
+end, PRE_HOOK_RETURN )
+
+---@param pl Player
+---@param vehicle Entity
+hook.Add( "CanExitVehicle", "VehicleLeave", function( vehicle, pl )
+    return hook_Run( "ash.player.ShouldLeaveVehicle", pl, vehicle )
+end, PRE_HOOK_RETURN )
+
+---@param pl Player
+---@param vehicle Entity
+hook.Add( "PlayerEnteredVehicle", "VehicleEnter", function( pl, vehicle )
+    hook_Run( "ash.player.Vehicle", pl, vehicle, true )
+end, PRE_HOOK )
+
+---@param pl Player
+---@param vehicle Entity
+hook.Add( "PlayerLeaveVehicle", "VehicleLeave", function( pl, vehicle )
+    hook_Run( "ash.player.Vehicle", pl, vehicle, false )
+end, PRE_HOOK )
+
+---@param arguments table
+---@param pl Player
+---@param vehicle Entity
+hook.Add( "CanPlayerEnterVehicle", "VehicleHandler", function( arguments, pl, vehicle )
+    return arguments[ 2 ] ~= false
+end, POST_HOOK_RETURN )
+
+---@param arguments table
+---@param pl Player
+---@param vehicle Entity
+hook.Add( "CanExitVehicle", "VehicleHandler", function( arguments, vehicle, pl )
+    return arguments[ 2 ] ~= false
+end, POST_HOOK_RETURN )
+
 return ash_player
