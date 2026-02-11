@@ -240,7 +240,7 @@ do
 
 end
 
-ash.reload( false )
+ash.reload()
 
 hook.Add( "CreateMove", "ash.Workshop", function( cmd )
     cmd:ClearMovement()

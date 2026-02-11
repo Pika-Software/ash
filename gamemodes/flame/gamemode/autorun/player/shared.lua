@@ -26,6 +26,10 @@ end, POST_HOOK_RETURN )
 if SERVER then
 
     local entity_isActivityExists = ash_entity.isActivityExists
+    local player_getAngles = ash_player.getAngles
+    local math_abs = math.abs
+
+    local ACT_FLINCH_STOMACH = ACT_FLINCH_STOMACH
 
     local hit_activities = {
         [ HITGROUP_HEAD ] = ACT_FLINCH_HEAD,
@@ -39,34 +43,51 @@ if SERVER then
         [ HITGROUP_GEAR ] = ACT_FLINCH_PHYSICS
     }
 
-    hook.Add( "ScalePlayerDamage", "FlinchOnHit", function( pl, hitgroup, dmginfo )
+    ---@param pl Player
+    ---@param hitgroup integer
+    ---@param damage_info CTakeDamageInfo
+    hook.Add( "ScalePlayerDamage", "FlinchOnHit", function( pl, hitgroup, damage_info )
         local activity = hit_activities[ hitgroup ]
-        if activity == nil then
+        if activity ~= nil and entity_isActivityExists( pl, activity ) then
+            player_startGestureByActivity( pl, 4, activity, 0, true, false )
             return
         end
 
-        if not entity_isActivityExists( pl, activity ) then
-            local sequence_name
+        local sequence_name
 
-            if hitgroup == HITGROUP_LEFTARM then
-                sequence_name = "flinch_shoulder_l"
-            elseif hitgroup == HITGROUP_RIGHTARM then
-                sequence_name = "flinch_shoulder_r"
-            elseif hitgroup == HITGROUP_LEFTLEG then
-                sequence_name = "flinch_01"
-            elseif hitgroup == HITGROUP_RIGHTLEG then
-                sequence_name = "flinch_02"
+        if hitgroup == 1 then -- head
+            sequence_name = "flinch_head_0" .. math.random( 1, 2 )
+        elseif hitgroup == 2 or hitgroup == 3 then -- chest or stomach
+            sequence_name = "flinch_stomach_0" .. math.random( 1, 2 )
+        elseif hitgroup == 4 then -- left arm
+            sequence_name = "flinch_shoulder_l"
+        elseif hitgroup == 5 then -- right arm
+            sequence_name = "flinch_shoulder_r"
+        elseif hitgroup == 6 then -- left leg
+            sequence_name = "flinch_01"
+        elseif hitgroup == 7 then -- right leg
+            sequence_name = "flinch_02"
+        else
+
+            local damage_position = damage_info:GetDamagePosition()
+
+            local direction = ( damage_position - pl:EyePos() )
+            direction:Normalize()
+
+            if math_abs( direction:Dot( player_getAngles( pl ):Forward() ) ) > 0.25 then
+                sequence_name = "flinch_back_01"
+            else
+                sequence_name = "flinch_phys_0" .. math.random( 1, 2 )
             end
 
-            if sequence_name ~= nil then
-                player_startGestureBySequence( pl, 4, sequence_name, 0, true )
-            end
-
-            activity = ACT_FLINCH_STOMACH
         end
 
-        if entity_isActivityExists( pl, activity ) then
-            player_startGestureByActivity( pl, 4, activity, 0, true )
+        if sequence_name == nil then
+            if entity_isActivityExists( pl, ACT_FLINCH_STOMACH ) then
+                player_startGestureByActivity( pl, 4, ACT_FLINCH_STOMACH, 0, true, false )
+            end
+        else
+            player_startGestureBySequence( pl, 4, sequence_name, 0, true, true )
         end
     end, PRE_HOOK )
 

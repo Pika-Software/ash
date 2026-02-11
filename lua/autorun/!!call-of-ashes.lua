@@ -82,7 +82,7 @@ ash = ash or {
     Name = "Ash",
     Loaded = false,
     Version = "0.4.0",
-    Author = "Unknown Developer",
+    Author = "Unknown Developer & AngoNex",
     DedicatedServer = game.IsDedicated()
 }
 
@@ -375,7 +375,7 @@ function ash.pack( name, description )
         injection_handler:Write( name .. "\0" )
         injection_handler:Write( description .. "\0" )
 
-        injection_handler:Write( "Unknown Developer\0" )
+        injection_handler:Write( ash.Author .. "\0" )
         injection_handler:WriteULong( 1 )
 
         -- Start of file list
@@ -392,7 +392,7 @@ function ash.pack( name, description )
             injection_handler:WriteULong( string_len( info_content ) ) -- size
             injection_handler:Write( "\0\0\0\0" )
 
-            injection_handler:WriteULong( tonumber( glua_util.CRC( info_content ), 10 ) ) -- crc32
+            injection_handler:WriteULong( tonumber( glua_util.CRC( info_content ), 10 ) or 0 ) -- crc32
 
             logger:debug( "File '%s' (%d) will be injected.", info_path, i )
         end
@@ -2182,13 +2182,13 @@ do
         entities = function( gamemode_name, directory_path )
             local class_name = string_match( directory_path, "^([^/]+)" )
             if class_name ~= nil then
-                entity_require( class_name, gamemode_name, gamemode_name .. "/gamemode/entities/" .. class_name )
+                entity_require( class_name, gamemode_name, gamemode_name .. "/gamemode/entities/" .. class_name, true )
             end
         end,
         weapons = function( gamemode_name, directory_path )
             local class_name = string_match( directory_path, "^([^/]+)" )
             if class_name ~= nil then
-                weapon_require( class_name, gamemode_name, gamemode_name .. "/gamemode/weapons/" .. class_name )
+                weapon_require( class_name, gamemode_name, gamemode_name .. "/gamemode/weapons/" .. class_name, true )
             end
         end,
         modules = function( gamemode_name, directory_path )
@@ -2272,7 +2272,7 @@ do
 
         local raw_tonumber = raw.tonumber
 
-        local function reload( chain, ignore_cache )
+        local function reload( chain )
             for module_name, module_object in raw_pairs( modules ) do
                 module_object:unload()
                 modules[ module_name ] = nil
@@ -2290,7 +2290,7 @@ do
                 -- Autorun
                 local _, autorun_directories = file_Find( gamemode_name .. "/gamemode/autorun/" .. "*", "LUA" )
                 for j = 1, #autorun_directories, 1 do
-                    local module_object = module_require( gamemode_name .. "." .. autorun_directories[ j ], ignore_cache, 2 )
+                    local module_object = module_require( gamemode_name .. "." .. autorun_directories[ j ], false, 2 )
                     if module_object ~= nil then
                         local err_msg = module_object.Error
                         if err_msg ~= nil then
@@ -2309,7 +2309,7 @@ do
                 for j = 1, #entity_directories, 1 do
                     local folder_name = entity_directories[ j ]
                     if loaded_entities[ folder_name ] == nil then
-                        entity_require( folder_name, gamemode_name, entities_path .. folder_name, ignore_cache )
+                        entity_require( folder_name, gamemode_name, entities_path .. folder_name, false )
                         loaded_entities[ folder_name ] = true
                     end
                 end
@@ -2317,7 +2317,7 @@ do
                 for j = 1, #entity_files, 1 do
                     local class_name = path.getFile( entity_files[ j ], false )
                     if loaded_entities[ class_name ] == nil then
-                        entity_require( class_name, gamemode_name, entities_path .. class_name, ignore_cache )
+                        entity_require( class_name, gamemode_name, entities_path .. class_name, false )
                         loaded_entities[ class_name ] = true
                     else
                         logger:error( "Detected same named file and directory for entity class '%s', file will be ignored.", class_name )
@@ -2334,7 +2334,7 @@ do
                 for j = 1, #weapon_directories, 1 do
                     local folder_name = weapon_directories[ j ]
                     if loaded_weapons[ folder_name ] == nil then
-                        weapon_require( folder_name, gamemode_name, weapons_path .. folder_name, ignore_cache )
+                        weapon_require( folder_name, gamemode_name, weapons_path .. folder_name, false )
                         loaded_weapons[ folder_name ] = true
                     end
                 end
@@ -2342,7 +2342,7 @@ do
                 for j = 1, #weapon_files, 1 do
                     local class_name = path.getFile( weapon_files[ j ], false )
                     if loaded_weapons[ class_name ] == nil then
-                        weapon_require( class_name, gamemode_name, weapons_path .. class_name, ignore_cache )
+                        weapon_require( class_name, gamemode_name, weapons_path .. class_name, false )
                         loaded_weapons[ class_name ] = true
                     else
                         logger:error( "Detected same named file and directory for weapon class '%s', file will be ignored.", class_name )
@@ -2355,9 +2355,8 @@ do
         ---
         --- Reloads all modules.
         ---
-        ---@param ignore_cache? boolean If true, the module will be loaded even if it is already loaded.
-        function ash.reload( ignore_cache )
-            xpcall( reload, error_display, ash.Chain, ignore_cache )
+        function ash.reload()
+            xpcall( reload, error_display, ash.Chain )
         end
 
     end
@@ -2373,7 +2372,7 @@ do
             end
 
             ash.resend()
-            ash.reload( true )
+            ash.reload()
 
             glua_timer.Create( "ash.reload", 1, 1, function()
                 glua_net.Start( "ash.network" )
@@ -2393,9 +2392,7 @@ do
         glua_net.Receive( "ash.network", function()
             local uint1_1 = glua_net.ReadUInt( 2 )
             if uint1_1 == 0 then
-                glua_timer.Create( "ash.reload", 1, 1, function()
-                    ash.reload( true )
-                end )
+                glua_timer.Create( "ash.reload", 1, 1, ash.reload )
             elseif uint1_1 == 1 then
                 local module_name = glua_net.ReadString()
                 local timer_name = "ash.reload." .. module_name
