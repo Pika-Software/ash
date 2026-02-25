@@ -288,13 +288,6 @@ hook.Add( "ash.player.footsteps.Sound", "Defaults", function( pl, sound_position
     return sound_level, pitch, volume, 1
 end )
 
----@param arguments table
----@param pl Player
----@param entity Entity
-hook.Add( "GravGunPickupAllowed", "Defaults", function( arguments, pl, entity )
-    return arguments[ 2 ] ~= false
-end, POST_HOOK_RETURN )
-
 -- do
 
 --     local Entity_IsPlayerHolding = Entity.IsPlayerHolding

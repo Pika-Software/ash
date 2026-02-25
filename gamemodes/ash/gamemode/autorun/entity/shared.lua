@@ -345,7 +345,24 @@ end
 
 do
 
+    local Entity_SelectWeightedSequenceSeeded = Entity.SelectWeightedSequenceSeeded
     local Entity_SelectWeightedSequence = Entity.SelectWeightedSequence
+
+    --- [SHARED]
+    ---
+    --- Get sequence by activity.
+    ---
+    ---@param entity Entity
+    ---@param activity integer
+    ---@param seed integer
+    ---@return integer | nil
+    function ash_entity.getSequenceByActivity( entity, activity, seed )
+        if seed == nil then
+            return Entity_SelectWeightedSequence( entity, activity )
+        else
+            return Entity_SelectWeightedSequenceSeeded( entity, activity, seed )
+        end
+    end
 
     --- [SHARED]
     ---
@@ -353,12 +370,65 @@ do
     ---
     ---@param entity Entity
     ---@param activity integer
+    ---@return boolean is_exists
     function ash_entity.isActivityExists( entity, activity )
         local sequence_id = Entity_SelectWeightedSequence( entity, activity )
         return sequence_id ~= nil and sequence_id > 0
     end
 
 end
+
+ash_entity.getActivityNameBySequence = Entity.GetSequenceActivityName
+ash_entity.getActivityBySequence = Entity.GetSequenceActivity
+
+do
+
+    local Entity_LookupSequence = Entity.LookupSequence
+
+    ash_entity.getSequenceByName = Entity_LookupSequence
+
+    --- [SHARED]
+    ---
+    --- Check if sequence exists.
+    ---
+    ---@param entity Entity
+    ---@param sequence_name string
+    function ash_entity.isSequenceExists( entity, sequence_name )
+        local sequence_id = Entity_LookupSequence( entity, sequence_name )
+        return sequence_id ~= nil and sequence_id > 0
+    end
+
+end
+
+ash_entity.getSequences = Entity.GetSequenceList
+
+ash_entity.getSequence = Entity.GetSequence
+ash_entity.setSequence = Entity.SetSequence
+
+ash_entity.getSequenceProgress = Entity.GetCycle
+ash_entity.setSequenceProgress = Entity.SetCycle
+
+ash_entity.getSequenceRate = Entity.GetPlaybackRate
+ash_entity.setSequenceRate = Entity.SetPlaybackRate
+
+ash_entity.getSequenceInfo = Entity.GetSequenceInfo
+
+ash_entity.startSequence = Entity.ResetSequence
+ash_entity.resetSequence = Entity.ResetSequenceInfo
+
+ash_entity.getSequenceName = Entity.GetSequenceName
+ash_entity.getSequenceCount = Entity.GetSequenceCount
+ash_entity.getSequenceDuration = Entity.SequenceDuration
+
+ash_entity.getSequenceVelocity = Entity.GetSequenceVelocity
+ash_entity.getSequenceGroundSpeed = Entity.GetSequenceGroundSpeed
+
+ash_entity.getSequenceMovement = Entity.GetSequenceMovement
+ash_entity.getSequenceMovementYaw = Entity.GetSequenceMoveYaw
+ash_entity.getSequenceMovementDistance = Entity.GetSequenceMoveDist
+
+ash_entity.getLayerSequence = Entity.GetLayerSequence
+ash_entity.setLayerSequence = Entity.SetLayerSequence
 
 do
 

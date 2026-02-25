@@ -575,7 +575,7 @@ if LUA_SERVER then
             return
         end
 
-        logger:info( "Tethering completed, chain is ready!" )
+        logger:info( "Tethering completed, gamemode chain received!" )
         ---@cast chain ash.gamemode.Info[]
 
         ash.Chain = chain

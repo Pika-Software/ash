@@ -106,6 +106,7 @@ do
     local Entity_GetPhysicsObjectNum = Entity.GetPhysicsObjectNum
     local Entity_SetCollisionGroup = Entity.SetCollisionGroup
     local Entity_SetModel = Entity.SetModel
+    local Entity_SetSkin = Entity.SetSkin
 
     local animator_getVelocity = ash_player.animator.getVelocity
     local level_containsPosition = ash_level.containsPosition
@@ -141,6 +142,7 @@ do
             ragdoll_owners[ ragdoll_entity ] = pl
 
             Entity_SetModel( ragdoll_entity, ash_player.getModel( pl ) )
+            Entity_SetSkin( ragdoll_entity, ash_player.getSkin( pl ) )
 
             ragdoll_entity:Spawn()
 
@@ -753,14 +755,25 @@ end, PRE_HOOK )
 ---@param arguments table
 ---@param pl Player
 ---@param vehicle Entity
-hook.Add( "CanPlayerEnterVehicle", "VehicleHandler", function( arguments, pl, vehicle )
-    return arguments[ 2 ] ~= false
-end, POST_HOOK_RETURN )
+hook.Add( "CanPlayerEnterVehicle", "VehicleEnter", function( arguments, pl, vehicle )
+    if arguments[ 2 ] ~= false then
+        hook_Run( "ash.player.EnterVehicle", pl, vehicle )
+    end
+end, POST_HOOK )
 
 ---@param arguments table
 ---@param pl Player
 ---@param vehicle Entity
-hook.Add( "CanExitVehicle", "VehicleHandler", function( arguments, vehicle, pl )
+hook.Add( "CanExitVehicle", "VehicleLeave", function( arguments, vehicle, pl )
+    if arguments[ 2 ] ~= false then
+        hook_Run( "ash.player.LeaveVehicle", pl, vehicle )
+    end
+end, POST_HOOK )
+
+---@param arguments table
+---@param pl Player
+---@param entity Entity
+hook.Add( "GravGunPickupAllowed", "GravityGunHandler", function( arguments, pl, entity )
     return arguments[ 2 ] ~= false
 end, POST_HOOK_RETURN )
 

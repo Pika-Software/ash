@@ -10,7 +10,7 @@ do
     local in_water_reflection = false
     local in_water_refraction = false
 
-    hook.Add( "PreDrawTranslucentRenderables", "Render", function( is_depth_pass, is_skybox_drawing, is_3d_skybox )
+    hook.Add( "PreDrawTranslucentRenderables", "RenderHooks", function( is_depth_pass, is_skybox_drawing, is_3d_skybox )
         local texture = render_GetRenderTarget()
         if texture ~= nil then
             local texture_name = Texture_GetName( texture )
@@ -40,7 +40,7 @@ do
         return hook_Run( "PreDrawTranslucentWorld", is_depth_pass )
     end, PRE_HOOK )
 
-    hook.Add( "PostDrawTranslucentRenderables", "Render", function( _, is_depth_pass, is_skybox_drawing, is_3d_skybox )
+    hook.Add( "PostDrawTranslucentRenderables", "RenderHooks", function( _, is_depth_pass, is_skybox_drawing, is_3d_skybox )
         if in_water_reflection then
             in_water_reflection = false
 
@@ -78,7 +78,7 @@ do
     local in_water_reflection = false
     local in_water_refraction = false
 
-    hook.Add( "PreDrawOpaqueRenderables", "Render", function( is_depth_pass, is_skybox_drawing, is_3d_skybox )
+    hook.Add( "PreDrawOpaqueRenderables", "RenderHooks", function( is_depth_pass, is_skybox_drawing, is_3d_skybox )
         local texture = render_GetRenderTarget()
         if texture ~= nil then
             local texture_name = Texture_GetName( texture )
@@ -108,7 +108,7 @@ do
         return hook_Run( "PreDrawOpaqueWorld", is_depth_pass )
     end, PRE_HOOK_RETURN )
 
-    hook.Add( "PostDrawOpaqueRenderables", "Render", function( _, is_depth_pass, is_skybox_drawing, is_3d_skybox )
+    hook.Add( "PostDrawOpaqueRenderables", "RenderHooks", function( _, is_depth_pass, is_skybox_drawing, is_3d_skybox )
         if in_water_reflection then
             in_water_reflection = false
 
