@@ -399,6 +399,7 @@ do
 
         local Entity_SetPos = Entity.SetPos
         local Entity_Spawn = Entity.Spawn
+        local Player_SetEyeAngles = Player.SetEyeAngles
 
         ---@param pl Player
         ---@param in_key integer
@@ -447,7 +448,12 @@ do
         ---@diagnostic disable-next-line: undefined-doc-param
         hook.Add( "PlayerSpawn", "PostSpawn", function( _, pl, is_transition )
             if not is_transition then
-                Entity_SetPos( pl, hook_Run( "ash.player.SetupPosition", pl ) or vector_origin )
+                local pos, ang = hook_Run( "ash.player.SetupPosition", pl )
+                pos = pos or vector_origin
+                ang = ang or angle_zero
+
+                Entity_SetPos( pl, pos )
+                Player_SetEyeAngles( pl, ang )
             end
 
             hook_Run( "ash.player.PostSpawn", pl, is_transition )
@@ -626,10 +632,10 @@ do
         if spawnpoint ~= nil then
             local entity = spawnpoint.entity
             if entity ~= nil and Entity_IsValid( entity ) then
-                return entity:GetPos()
+                return entity:GetPos(), entity:GetAngles()
             end
 
-            return spawnpoint.position
+            return spawnpoint.position, spawnpoint.angles
         end
     end )
 
