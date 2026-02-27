@@ -55,6 +55,24 @@ do
         local math_floor = math.floor
         local math_abs = math.abs
 
+        -- local string_match = string.match
+        -- local string_lower = string.lower
+
+        -- ---@type string[]
+        -- local height_patterns = {
+        --     "ValveBiped%.Bip01_Head%d*",
+        --     "ValveBiped%.Bip01_Neck%d*",
+        --     "ValveBiped%.Bip01_Spine%d*",
+        --     -- "ValveBiped.Bip01_[RL]_Clavicle",
+        --     -- "ValveBiped.Bip01_[RL]_UpperArm"
+        -- }
+
+        -- local height_pattern_count = #height_patterns
+
+        -- for i = 1, height_pattern_count, 1 do
+        --     height_patterns[ i ] = string_lower( height_patterns[ i ] )
+        -- end
+
         ---@param pl Player
         hook.Add( "ash.player.SetupModel", "Default", function( pl )
             ash_entity.setPlayerColor( pl, Color( flame_player.StoRGB( pl:GetInfo( "flame_player_color" ) ) ) )
@@ -117,6 +135,11 @@ do
         ash_phrases.play( pl, "death" )
         return true
     end )
+
+    -- local lp = Entity( 1 )
+    -- if lp and lp:IsValid() then
+    --     lp:Spawn()
+    -- end
 
 end
 
@@ -318,5 +341,59 @@ end )
 --     end, POST_HOOK )
 
 -- end
+
+-- local math_random, math_max = math.random, math.max
+-- local DamageInfo = DamageInfo
+-- local CurTime = CurTime
+
+-- local vector_origin = vector_origin
+-- local DMG_DROWN = DMG_DROWN
+
+
+-- local FCVAR_FLAGS = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY)
+
+-- local mp_player_air_capacity_min = CreateConVar("mp_player_air_capacity_min", "15", FCVAR_FLAGS, "Minimum time a player can stay underwater.", 0, 0x4000):GetFloat()
+-- local mp_player_air_capacity_max = CreateConVar("mp_player_air_capacity_max", "45", FCVAR_FLAGS, "Maximum time a player can stay underwater.", 0, 0x4000):GetFloat()
+-- local mp_player_drown_damage_delay = CreateConVar("mp_player_drown_damage_delay", "0.5", FCVAR_FLAGS, "Delay between a player taking damage from drowning.", 0, 10):GetFloat()
+
+-- cvars.AddChangeCallback("mp_player_air_capacity_min", function(_, __, value)
+-- 	mp_player_air_capacity_min = tonumber(value) or 0
+-- end, addonName)
+
+-- cvars.AddChangeCallback("mp_player_air_capacity_max", function(_, __, value)
+-- 	mp_player_air_capacity_max = tonumber(value) or 0
+-- end, addonName)
+
+-- cvars.AddChangeCallback("mp_player_drown_damage_delay", function(_, __, value)
+-- 	mp_player_drown_damage_delay = tonumber(value) or 0
+-- end, addonName)
+
+-- hook.Add("OnEntityWaterLevelChanged", addonName, function(self, oldWaterLevel, newWaterLevel)
+-- 	if newWaterLevel == 3 and oldWaterLevel < newWaterLevel and self:IsPlayer() and player_isAlive(self) then
+-- 		if mp_player_air_capacity_min == mp_player_air_capacity_max then
+-- 			self.m_dDrownDamageTime = CurTime() + mp_player_air_capacity_min
+-- 			return
+-- 		end
+-- 		self.m_dDrownDamageTime = CurTime() + random(mp_player_air_capacity_min, mp_player_air_capacity_max)
+-- 	end
+-- end, PRE_HOOK)
+
+-- hook.Add("PlayerInitialSpawn", addonName, function(self)
+-- 	self.m_dDrownDamageTime = 0
+-- end, PRE_HOOK)
+
+-- hook.Add("ash.player.Think", addonName, function(self)
+-- 	if player_isAlive(self) and WaterLevel(self) == 3 and self.m_dDrownDamageTime < CurTime() then
+-- 		self.m_dDrownDamageTime = CurTime() + mp_player_drown_damage_delay
+-- 		local damageInfo = DamageInfo()
+-- 		damageInfo:SetDamageType(DMG_DROWN)
+-- 		damageInfo:SetDamageForce(vector_origin)
+-- 		damageInfo:SetAttacker(self)
+-- 		damageInfo:SetDamage(max(5, self:Health() * 0.1))
+-- 		damageInfo:SetDamagePosition(EyePos(self))
+-- 		self:EmitSound("Player.DrownContinue")
+-- 		return self:TakeDamageInfo(damageInfo)
+-- 	end
+-- end, PRE_HOOK)
 
 return flame_player

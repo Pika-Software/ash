@@ -118,3 +118,10 @@ do
     end )
 
 end
+
+hook.Add( "ash.entity.WaterLevel", "WaterWash", function( entity, old, new )
+    if new == 3 and old < new then
+        entity:EmitSound( "ambient/water/water_splash" .. math.random( 1, 3 ) .. ".wav" )
+        entity:RemoveAllDecals()
+    end
+end )

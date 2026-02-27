@@ -6,6 +6,7 @@ MODULE.ClientFiles = {
     "animator.lua",
     "cl_init.lua",
     "shared.lua",
+    "camera.lua",
     "voice.lua"
 }
 

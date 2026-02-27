@@ -1136,6 +1136,8 @@ do
     ---@param mv CMoveData
     ---@diagnostic disable-next-line: redundant-parameter
     hook.Add( "Move", "SpeedController", function( arguments, pl, mv )
+        if players_in_vehicle[ pl ] then return end
+
         local suppress_engine = arguments[ 2 ]
         if suppress_engine ~= nil then
             return suppress_engine
@@ -1660,6 +1662,161 @@ do
 
 end
 
+---@param pl Player
+---@param is_local boolean
+hook.Add( "ash.player.Initialized", "Sync", function( pl, is_local )
+    hook_Run( "ash.player.Sync", pl, is_local )
+end )
+
+-- https://steamcommunity.com/groups/thealium/memberslistxml/?xml=1
+
+-- do
+
+
+--     local function flatten_vector(dir, norm)
+--         return dir - dir:Dot(norm) * norm
+--     end
+
+--     local function rotate_hull(mins, maxs, mat)
+--         local mins = mat * mins
+--         local maxs = mat * maxs
+
+--         -- since we rotated the OBB, we need to get the actual min and max again
+--         local min_mins = Vector(math.min(mins[1], maxs[1]), math.min(mins[2], maxs[2]), math.min(mins[3], maxs[3]))
+--         local max_maxs = Vector(math.max(mins[1], maxs[1]), math.max(mins[2], maxs[2]), math.max(mins[3], maxs[3]))
+--         return min_mins, max_maxs
+--     end
+
+--     local gravity_convar = GetConVar( "sv_gravity" )
+--     local collision_ignore_flags = bit.bor( COLLISION_GROUP_WORLD, COLLISION_GROUP_WEAPON )
+
+--     hook.Add("SetupMove", "gravityeditor_test", function(ply, mv, cmd)
+--         ply:SetGravity( 1e-10 )
+
+--         local gravity_velocity = physenv.GetGravity()
+
+--         local gravity_direction = gravity_velocity:GetNormalized()
+
+--         -- player on ground?
+--         local mins, maxs = ply:GetHull()
+
+--         local on_ground_table = {
+--             start = mv:GetOrigin(),
+--             endpos = mv:GetOrigin() - gravity_direction,
+--             maxs = maxs * ply:GetModelScale(),
+--             mins = mins * ply:GetModelScale(),
+--             filter = function(e)
+--                 return e ~= ply and bit.band(e:GetCollisionGroup(), collision_ignore_flags) == 0
+--             end
+--         }
+
+--         local ground = util.TraceHull(on_ground_table)
+--         --debugoverlay.Box(mv:GetOrigin(), mins, maxs, 0.1, Color(255, 255, 255, 0))
+
+--         -- movement variables
+--         local buttons = mv:GetButtons()
+--         local jumped = ply:KeyPressed(IN_JUMP)
+--         local crouch = bit.band(buttons, IN_DUCK) > 0
+--         local sprint = bit.band(buttons, IN_SPEED) > 0
+--         local walk = bit.band(buttons, IN_WALK) > 0
+--         local gravity = Vector()
+--         local damping = Vector()
+--         local jump = Vector()
+--         local forward = mv:GetForwardSpeed()
+--         local side = mv:GetSideSpeed()
+--         local rotated_dir = Vector()
+
+--         -- stop crouch, we do our own
+--         mv:SetButtons( bit.band( mv:GetButtons(), bit.bnot( IN_DUCK ) ))
+
+--         -- if ply:KeyPressed(IN_DUCK) and !ply.HULL_CROUCHING then
+--         --     mv:SetOrigin(mv:GetOrigin() + gravity_direction * ply.HULL_DATA[5][3] * 0.5)   --SCARY
+--         --     ply:SetHull(rotate_hull(ply.HULL_DATA[3], ply.HULL_DATA[4], ply.HULL_MATRIX))
+--         -- end
+
+--         -- uncrouch detection code
+--         -- if ply.HULL_CROUCHING and !crouch then
+--         --     on_ground_table.endpos = mv:GetOrigin() + gravity_direction
+--         --     on_ground_table.mins, on_ground_table.maxs = rotate_hull(ply.HULL_DATA[1] * ply:GetModelScale(), ply.HULL_DATA[2] * ply:GetModelScale(), ply.HULL_MATRIX)
+--         --     local ground = util.TraceHull(on_ground_table)
+
+--         --     if !ground.Hit then
+--         --         ply:SetHull(rotate_hull(ply.HULL_DATA[1], ply.HULL_DATA[2], ply.HULL_MATRIX))
+
+--         --         --extrude onto ground
+--         --         on_ground_table.endpos = mv:GetOrigin() - gravity_direction * ply.HULL_DATA[5][3] * 0.5
+--         --         local ground = util.TraceHull(on_ground_table)
+--         --         mv:SetOrigin(ground.HitPos)
+--         --         ply.HULL_CROUCHING = nil
+--         --     else
+--         --         crouch = true
+--         --     end
+--         -- elseif crouch then
+--         --     ply.HULL_CROUCHING = true
+--         -- end
+
+--         -- movement calculations
+--         if forward ~= 0 or side ~= 0 then
+--             rotated_dir = flatten_vector( flatten_vector( ply:EyeAngles():Forward(), gravity_direction ), ground.HitNormal ):GetNormalized() * forward
+--             rotated_dir = rotated_dir + flatten_vector( flatten_vector( ply:EyeAngles():Right(), gravity_direction ), ground.HitNormal ):GetNormalized() * side
+--             rotated_dir = rotated_dir / math.sqrt( forward * forward + side * side )
+--         end
+
+--         if ground.Hit and ground.HitNormal:Dot( gravity_direction ) > 0.5 then  -- cant walk up >45 deg slopes
+--             if crouch then
+--                 rotated_dir = rotated_dir * ply:GetWalkSpeed() * ply:GetCrouchedWalkSpeed() * 10
+--             else
+--                 rotated_dir = rotated_dir * ( sprint and ply:GetRunSpeed() or ( walk and ply:GetSlowWalkSpeed() or ply:GetWalkSpeed() ) ) * 10
+--             end
+
+--             damping = flatten_vector( mv:GetVelocity(), ground.HitNormal ) * 10 -- 10x damping
+
+--             if jumped then
+--                 jump = gravity_direction * ply:GetJumpPower()
+--                 mv:SetVelocity( flatten_vector( mv:GetVelocity(), gravity_direction ) )
+--             end
+--         else
+--             rotated_dir = rotated_dir * 100 -- some arbitrary strafe value
+--             gravity = gravity_velocity
+
+--             -- gravity = --[[ply.HULL_MATRIX *]] Vector(0, 0, -(gravity_convar and gravity_convar:GetFloat() or 600))  -- physenv.GetGravity is a lil weird with gravity arrow so imma use the convar
+--         end
+
+--         -- unfuck player movement
+--         mv:SetVelocity( mv:GetVelocity() + jump + (rotated_dir - damping + gravity ) * FrameTime() )
+
+--         if ply:GetMoveType() ~= MOVETYPE_NOCLIP	then
+--             mv:SetSideSpeed(0)  -- breaks swimming, Too Bad!
+--             mv:SetForwardSpeed(0)
+--         end
+
+--         if ply:OnGround() then
+--             ply:SetGroundEntity( NULL )
+--         end
+--     end, PRE_HOOK )
+
+-- end
+
 include( "voice.lua", ash_player )
+
+--- [SHARED]
+---
+--- Returns the player's camera name.
+---
+---@param pl Player
+---@return string name
+function ash_player.getCamera( pl )
+    return Entity_GetNW2Var( pl, "m_sCamera", "default" )
+end
+
+--- [SHARED]
+---
+--- Sets the player's camera name.
+---
+---@param pl Player
+---@param name string
+function ash_player.setCamera( pl, name )
+    Entity_SetNW2Var( pl, "m_sCamera", name )
+end
 
 return ash_player

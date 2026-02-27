@@ -26,6 +26,105 @@ end, POST_HOOK_RETURN )
 if SERVER then
 
     local entity_isActivityExists = ash_entity.isActivityExists
+
+    -- ash_player.startGestureBySequence( Entity(1), 4, "death_01", 0, true, true )
+
+    -- seq_cower
+    -- sit_zen
+    -- seq_throw
+
+    -- pose_standing_01
+    -- pose_standing_02
+    -- pose_standing_03
+    -- pose_standing_04
+
+    -- death_01
+    -- death_02
+    -- death_03
+    -- death_04
+
+    -- gesture_item_throw
+    -- gesture_item_place
+    -- gesture_item_drop
+    -- gesture_item_give
+
+    --[[
+
+        pose_looking
+
+        pose_againstwall (2 seconds)
+        pose_agitated (5 seconds)
+        pose_sitting0 (0 seconds)
+        pose_sitting1 (0 seconds)
+        pose_sitting2 (0 seconds)
+        pose_sitting3 (0 seconds)
+        pose_sitting4 (0 seconds)
+        pose_sitting5 (0 seconds)
+        pose_sitting6 (0 seconds)
+
+
+        pose_leanback0 (0 seconds)
+        pose_leanback1 (0 seconds)
+        pose_leanback2 (0 seconds)
+        pose_leanback3 (0 seconds)
+        pose_leanleft0 (0 seconds)
+        pose_leanleft1 (0 seconds)
+        pose_leanright0 (0 seconds)
+        pose_leanright1 (0 seconds)
+
+        pose_injured1
+
+
+        pickup_generic (0.67 seconds)
+        pickup_generic_offhand (0.67 seconds)
+
+        gesture_adjust0 (3.8 seconds)
+        gesture_adjust1 (3.93 seconds)
+
+        gesture_awe (9.5 seconds)
+
+        gesture_cold (7.17 seconds)
+
+        melee_buttstock (1.27 seconds)
+
+        melee_slice (1.25 seconds) - хуйня
+
+
+        door_open (1 seconds)
+
+        ladder_up (1.4 seconds)
+        ladder_down (1.4 seconds)
+        ladder_idle (1.4 seconds)
+
+        draw_pistol (1.17 seconds)
+        draw_rifle (1.13 seconds)
+        draw_rpg (1.4 seconds)
+        draw_physgun (1.15 seconds)
+        draw_melee (0.8 seconds)
+        draw_melee2 (1.1 seconds)
+        draw_dual (0.83 seconds)
+
+        reload_ar2_cell (1.63 seconds)
+
+        kick_midair (1.41 seconds)
+        kick_pistol (1.41 seconds)
+
+        curbstomp (0.94 seconds)
+
+
+        melee_2h_left (1 seconds)
+        melee_2h_right (0.97 seconds)
+        melee_2h_stab (0.78 seconds)
+        melee_2h_overhead (0.97 seconds)
+
+
+        melee_1h_left (0.97 seconds)
+        melee_1h_right (0.97 seconds)
+        melee_1h_stab (0.64 seconds)
+        melee_1h_overhead (0.78 seconds)
+
+    ]]
+
     local player_getAngles = ash_player.getAngles
     local math_abs = math.abs
 
