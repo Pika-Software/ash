@@ -67,7 +67,7 @@ do
         local mins = Vector( net.ReadDouble(), net.ReadDouble(), net.ReadDouble() )
         local maxs = Vector( net.ReadDouble(), net.ReadDouble(), net.ReadDouble() )
 
-        timer_Simple( 0, function()
+        timer_Simple( 0.25, function()
             ---@type Player
             ---@diagnostic disable-next-line: assign-type-mismatch
             local pl = Entity( index )
