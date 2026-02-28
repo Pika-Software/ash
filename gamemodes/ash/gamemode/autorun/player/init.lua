@@ -734,34 +734,80 @@ hook.Add( "CanPlayerSuicide", "SuicideHandler", function( arguments, pl )
     return hook_Run( "ash.player.Suicide", pl ) ~= false
 end, POST_HOOK_RETURN )
 
----@param pl Player
----@param vehicle Entity
-hook.Add( "CanPlayerEnterVehicle", "VehicleEnter", function( pl, vehicle )
-    return hook_Run( "ash.player.ShouldEnterVehicle", pl, vehicle )
-end, PRE_HOOK_RETURN )
+do
+
+    local Player_EnterVehicle = Player.EnterVehicle
+    local Player_LeaveVehicle = Player.ExitVehicle
+
+    ---@type table<Player, Vehicle>
+    local enter_override = {}
+    gc.setTableRules( enter_override, true )
+
+    --- [SERVER]
+    ---
+    --- Forces the player to enter the vehicle.
+    ---
+    ---@param pl Player
+    ---@param vehicle Vehicle
+    function ash_player.enterVehicle( pl, vehicle )
+        enter_override[ pl ] = vehicle
+        Player_EnterVehicle( pl, vehicle )
+        enter_override[ pl ] = nil
+    end
+
+    ---@type table<Player, boolean>
+    local leave_override = {}
+    gc.setTableRules( leave_override, true )
+
+    --- [SERVER]
+    ---
+    --- Forces the player to leave the vehicle.
+    ---
+    ---@param pl Player
+    function ash_player.leaveVehicle( pl )
+        leave_override[ pl ] = true
+        Player_LeaveVehicle( pl )
+        leave_override[ pl ] = nil
+    end
+
+    ---@param pl Player
+    ---@param vehicle Entity
+    hook.Add( "CanPlayerEnterVehicle", "ShouldEnterVehicle", function( pl, vehicle )
+        if enter_override[ pl ] == vehicle then
+            return true
+        end
+
+        return hook_Run( "ash.player.ShouldEnterVehicle", pl, vehicle )
+    end, PRE_HOOK_RETURN )
+
+    ---@param pl Player
+    ---@param vehicle Entity
+    hook.Add( "CanExitVehicle", "ShouldLeaveVehicle", function( vehicle, pl )
+        if leave_override[ pl ] then
+            return true
+        end
+
+        return hook_Run( "ash.player.ShouldLeaveVehicle", pl, vehicle )
+    end, PRE_HOOK_RETURN )
+
+end
 
 ---@param pl Player
 ---@param vehicle Entity
-hook.Add( "CanExitVehicle", "VehicleLeave", function( vehicle, pl )
-    return hook_Run( "ash.player.ShouldLeaveVehicle", pl, vehicle )
-end, PRE_HOOK_RETURN )
-
----@param pl Player
----@param vehicle Entity
-hook.Add( "PlayerEnteredVehicle", "VehicleEnter", function( pl, vehicle )
+hook.Add( "PlayerEnteredVehicle", "VehicleEvent", function( pl, vehicle )
     hook_Run( "ash.player.Vehicle", pl, vehicle, true )
 end, PRE_HOOK )
 
 ---@param pl Player
 ---@param vehicle Entity
-hook.Add( "PlayerLeaveVehicle", "VehicleLeave", function( pl, vehicle )
+hook.Add( "PlayerLeaveVehicle", "VehicleEvent", function( pl, vehicle )
     hook_Run( "ash.player.Vehicle", pl, vehicle, false )
 end, PRE_HOOK )
 
 ---@param arguments table
 ---@param pl Player
 ---@param vehicle Entity
-hook.Add( "CanPlayerEnterVehicle", "VehicleEnter", function( arguments, pl, vehicle )
+hook.Add( "CanPlayerEnterVehicle", "EnterVehicle", function( arguments, pl, vehicle )
     if arguments[ 2 ] ~= false then
         hook_Run( "ash.player.EnterVehicle", pl, vehicle )
     end
@@ -770,7 +816,7 @@ end, POST_HOOK )
 ---@param arguments table
 ---@param pl Player
 ---@param vehicle Entity
-hook.Add( "CanExitVehicle", "VehicleLeave", function( arguments, vehicle, pl )
+hook.Add( "CanExitVehicle", "LeaveVehicle", function( arguments, vehicle, pl )
     if arguments[ 2 ] ~= false then
         hook_Run( "ash.player.LeaveVehicle", pl, vehicle )
     end

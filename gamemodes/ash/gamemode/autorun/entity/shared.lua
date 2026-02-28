@@ -17,7 +17,31 @@ local NULL = NULL
 ---@class ash.entity
 local ash_entity = {}
 
-ash_entity.isPlayer = Entity.IsPlayer
+
+do
+
+    local Player_GetRenderAngles = Player.GetRenderAngles
+
+    local Entity_GetAngles = Entity.GetAngles
+    local Entity_IsPlayer = Entity.IsPlayer
+
+    ash_entity.isPlayer = Entity_IsPlayer
+
+    --- [SHARED]
+    ---
+    --- Returns the angles of an entity.
+    ---
+    ---@param entity Entity
+    ---@return Angle
+    function ash_entity.getAngles( entity )
+        if Entity_IsPlayer( entity ) then
+            return Player_GetRenderAngles( entity )
+        else
+            return Entity_GetAngles( entity )
+        end
+    end
+
+end
 
 do
 
@@ -499,6 +523,29 @@ do
     local default_player_color = Vector( 62 / 255, 88 / 255, 106 / 255 )
     local default_weapon_color = Vector( 0.4, 1, 1 )
 
+    ---@type table<Entity, Vector>
+    local player_colors = {}
+
+    setmetatable( player_colors, {
+        __index = function( self, entity )
+            local color_vec3 = default_player_color
+
+            if Entity_IsValid( entity ) and entity:EntIndex() > 0 then
+                color_vec3 = Entity_GetNW2Var( entity, "m_vPlayerColor", default_player_color )
+            end
+
+            self[ entity ] = color_vec3
+            return color_vec3
+        end,
+        __mode = "k"
+    } )
+
+    hook.Add( "ash.entity.NW2Changed", "PlayerColor", function( entity, key, _, value )
+        if key == "m_vPlayerColor" then
+            player_colors[ entity ] = value
+        end
+    end, PRE_HOOK )
+
     --- [SHARED]
     ---
     --- Get player color.
@@ -506,7 +553,7 @@ do
     ---@param entity Entity
     ---@return Vector color_vec3
     function Entity.GetPlayerColor( entity )
-        return Entity_GetNW2Var( entity, "m_vPlayerColor", default_player_color )
+        return player_colors[ entity ]
     end
 
     Player.GetPlayerColor = Entity.GetPlayerColor
@@ -533,7 +580,7 @@ do
                 self.ResultTo = values.resultvar
             end,
             bind = function( self, material, entity )
-                return Material_SetVector( material, self.ResultTo, Entity_GetNW2Var( entity, "m_vPlayerColor", default_player_color ) )
+                return Material_SetVector( material, self.ResultTo, player_colors[ entity ] )
             end
         } )
 
@@ -543,7 +590,7 @@ do
                 self.ResultTo = values.resultvar
             end,
             bind = function( self, material, entity )
-                return Material_SetVector( material, self.ResultTo, Entity_GetNW2Var( entity, "m_vWeaponColor", default_weapon_color ) )
+                return Material_SetVector( material, self.ResultTo, player_colors[ entity ] )
             end
         } )
 
@@ -560,7 +607,7 @@ do
         ---@param entity Entity
         ---@return Color color
         function ash_entity.getPlayerColor( entity )
-            local vector = Entity_GetNW2Var( entity, "m_vPlayerColor", default_player_color )
+            local vector = player_colors[ entity ]
             return Color( math_floor( vector[ 1 ] * 255 ), math_floor( vector[ 2 ] * 255 ), math_floor( vector[ 3 ] * 255 ), 255 )
         end
 

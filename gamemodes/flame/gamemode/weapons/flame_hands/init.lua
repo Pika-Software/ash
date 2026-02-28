@@ -55,6 +55,14 @@ function SWEP:Initialize()
     }
 end
 
+function SWEP:StopHolding()
+	self:SetHoldType( "normal" )
+	self:SetSensitivity( 1 )
+	self.m_pObject = nil
+	self.m_vOffset = nil
+	self.m_aOffset = nil
+end
+
 ---@diagnostic disable-next-line: duplicate-set-field
 function SWEP:SecondaryAttack()
 	local pl = self:GetOwner()
@@ -66,9 +74,7 @@ function SWEP:SecondaryAttack()
 	if phys_object == nil or not phys_object:IsValid() then return end
 
 	self.m_fNextThink = CurTime() + 0.5
-	self.m_pObject = nil
-
-	self:SetSensitivity( 1 )
+	self:StopHolding()
 
 	phys_object:ApplyForceCenter( animator_getVelocity( pl ) + view_getAimVector( pl ) * ( phys_object:GetMass() * 500 ) )
 end
@@ -94,7 +100,7 @@ do
 	end
 
 	function trace.callback()
-		debug.overlay.line( trace.start, trace.endpos, 255, 0, 0, false, 10 )
+		-- debug.overlay.line( trace.start, trace.endpos, 255, 0, 0, false, 10 )
 
 		local entity = trace_result.Entity
 
@@ -121,17 +127,22 @@ do
 		if ash_player.getKeyState( pl, 1 ) then
 			if self.m_fNextThink > CurTime() then return end
 
+			local view_position = pl:EyePos()
+
 			local phys_object = self.m_pObject
 			if phys_object ~= nil and phys_object:IsValid() then
 				if self:GetHoldType() ~= "magic" then
 					self:SetHoldType( "magic" )
 				end
 
+				if view_position:Distance( phys_object:GetPos() ) > 128 then
+					self:StopHolding()
+					return
+				end
+
 				self:ComputePhysics( pl, phys_object )
 				return
 			end
-
-			local view_position = pl:EyePos()
 
 			trace.start = view_position
 			trace.endpos = view_position + view_getAimVector( pl ) * player_getUseDistance( pl )
@@ -142,6 +153,8 @@ do
 			if not trace_result.Hit or trace_result.StartSolid or trace_result.HitWorld then return end
 
             local entity = trace_result.Entity
+
+			---@diagnostic disable-next-line: param-type-mismatch
 			if not is_pickupable( pl, entity ) then return end
 
 			---@cast entity Entity
@@ -172,10 +185,8 @@ do
 		end
 
 		if self.m_pObject ~= nil then
-			self:SetSensitivity( 1 )
-			self.m_pObject = nil
-			self.m_vOffset = nil
-			self.m_aOffset = nil
+			self:StopHolding()
+			return
 		end
 
 		if self:GetHoldType() ~= "normal" then

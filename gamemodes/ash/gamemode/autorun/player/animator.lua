@@ -680,6 +680,7 @@ do
     hook.Add( "ash.player.animator.Activity", "TranslationCacher", cleanup_cache, PRE_HOOK )
     hook.Add( "ash.player.Sequence", "TranslationCacher", cleanup_cache, PRE_HOOK )
     hook.Add( "ash.player.SwitchedWeapon", "TranslationCacher", cleanup_cache, PRE_HOOK )
+    hook.Add( "ash.player.HoldType", "TranslationCacher", cleanup_cache, PRE_HOOK )
 
 end
 

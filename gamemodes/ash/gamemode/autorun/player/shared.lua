@@ -32,6 +32,7 @@ local bit_bor = bit.bor
 
 local tick_interval = engine.TickInterval()
 
+local Entity_IsValid = Entity.IsValid
 local Player_Alive = Player.Alive
 
 ash_player.isAlive = Player_Alive
@@ -698,6 +699,30 @@ do
         return player_angles[ pl ]
     end
 
+    ---@type table<Player, string>
+    local player_holdtypes = {}
+
+    do
+
+        local Weapon_GetHoldType = Weapon.GetHoldType
+
+        setmetatable( player_holdtypes, {
+            __index = function( self, pl )
+                local hold_type = "normal"
+
+                local weapon = ash_player.getActiveWeapon( pl )
+                if weapon ~= nil and Entity_IsValid( weapon ) then
+                    hold_type = Weapon_GetHoldType( weapon ) or "normal"
+                end
+
+                self[ pl ] = hold_type
+                return hold_type
+            end,
+            __mode = "k"
+        } )
+
+    end
+
     ---@param pl Player
     hook.Add( "ash.player.Think", "StateController", function( pl )
         local in_vehicle = Player_InVehicle( pl )
@@ -854,6 +879,15 @@ do
         if rawget( player_angles, pl ) ~= angles then
             hook_Run( "ash.player.Angles", pl, player_angles[ pl ], angles )
             player_angles[ pl ] = angles
+        end
+
+        local weapon = ash_player.getActiveWeapon( pl )
+        if weapon ~= nil and Entity_IsValid( weapon ) then
+            local hold_type = weapon:GetHoldType() or "normal"
+            if rawget( player_holdtypes, pl ) ~= hold_type then
+                hook_Run( "ash.player.HoldType", pl, player_holdtypes[ pl ], hold_type )
+                player_holdtypes[ pl ] = hold_type
+            end
         end
     end, PRE_HOOK )
 
@@ -1141,6 +1175,9 @@ do
             return suppress_engine
         end
 
+        -- TODO: rework noclip
+        if ash_player.isInVehicle( pl ) then return end
+
         local move_type = players_move_type[ pl ]
         local player_speed = 0
 
@@ -1188,6 +1225,9 @@ do
         ---@param wheel number
         hook.Add( "ash.player.MouseWheel", "NoclipSpeed", function( pl, wheel )
             if players_move_type[ pl ] == 8 then
+                -- TODO: rework noclip
+                if ash_player.isInVehicle( pl ) then return end
+
                 local noclip_speed = Entity_GetNW2Var( pl, "m_fNoclipSpeed", 500 )
                 local in_keys = players_keys[ pl ]
 
@@ -1230,6 +1270,8 @@ do
             if name == "CHudWeaponSelection" then
                 local pl = ash_player.Entity
                 if pl ~= nil and players_move_type[ pl ] == 8 then
+                    -- TODO: rework noclip
+                    if ash_player.isInVehicle( pl ) then return end
                     return false
                 end
             end
@@ -1377,7 +1419,6 @@ end
 
 do
 
-    local Entity_IsValid = Entity.IsValid
     local entity_use = ash_entity.use
 
     ---@type table<Player, number>
