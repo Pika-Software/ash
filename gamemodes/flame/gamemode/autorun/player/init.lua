@@ -18,6 +18,10 @@ local ash_phrases = require( "ash.player.phrases" )
 ---@type ash.entity
 local ash_entity = require( "ash.entity" )
 
+---@type ash.trace
+local ash_trace = require( "ash.trace" )
+local trace_cast = ash_trace.cast
+
 --- [SERVER]
 ---
 --- Set the player's speed modifier.
@@ -318,5 +322,45 @@ end )
 --     end, POST_HOOK )
 
 -- end
+
+do
+
+
+    ---@type ash.trace.Output
+    ---@diagnostic disable-next-line: missing-fields
+    local trace_result = {}
+
+    ---@type Entity[]
+    local filter = {}
+
+    ---@type ash.trace.Params
+    local trace = {
+        output = trace_result,
+        mask = MASK_SOLID,
+        filter = filter,
+    }
+
+    ---@param pl Player
+    ---@param point ash.player.SpawnPoint
+    ---@return boolean | nil
+    hook.Add( "ash.player.SpawnPoint", "Spawn", function( pl, point )
+        local origin = point.position
+
+        trace.start = origin
+        trace.endpos = origin
+
+        filter[ 1 ] = pl
+        filter[ 2 ] = point.entity
+
+        trace.mins, trace.maxs = pl:GetCollisionBounds()
+
+        trace_cast( trace )
+
+        if trace_result.Hit then
+            return false
+        end
+    end )
+
+end
 
 return flame_player
