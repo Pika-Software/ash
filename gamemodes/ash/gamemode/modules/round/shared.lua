@@ -27,7 +27,9 @@ local SetGlobal2Float = SetGlobal2Float
 function round.createRoundStack( data )
 	table_Empty( round_map )
 
-	for i = 1, #data do
+	round_stack_count = #data
+
+	for i = 1, round_stack_count do
 		local v = data[ i ]
 		local name = v.name
 		v.id = i
@@ -37,7 +39,6 @@ function round.createRoundStack( data )
 		round_map[ name ] = v
 	end
 
-	round_stack_count = #data
 	round_stack = data
 
 	return data
@@ -101,7 +102,7 @@ if SERVER then
 			id_next = 1
 		end
 
-		round.start( round_stack[ id_next ].name )
+		round.start( hook_Run( "ash.round.nextType", old, next_name ) or round_stack[ id_next ].name )
 
 		return true
 	end
