@@ -1,5 +1,8 @@
+---@type dreamwork
+local dreamwork = _G.dreamwork
+
 ---@type dreamwork.std
-local std = _G.dreamwork.std
+local std = dreamwork.std
 
 local math = std.math
 local math_huge = math.huge
@@ -1273,5 +1276,9 @@ do
     end, PRE_HOOK )
 
 end
+
+dreamwork.engine.hookCatch( "EntityGarbageCollected", function( entity )
+    hook_Run( "ash.entity.GarbageCollected", entity )
+end )
 
 return ash_entity
