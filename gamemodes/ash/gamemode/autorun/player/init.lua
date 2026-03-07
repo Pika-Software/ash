@@ -43,6 +43,10 @@ local hook_Run = hook.Run
 
 local Player_IsBot = Player.IsBot
 
+local player_Iterator = player.Iterator
+
+local table_remove = table.remove
+
 local NULL = NULL
 
 ash_player.isSpeaking = Player.IsSpeaking
@@ -321,6 +325,8 @@ do
 
     local bit_band = bit.band
     local bit_bor = bit.bor
+    local Player_alive = Player.Alive
+
 
     ---@type table<Player, integer>
     local respawn_keys = {}
@@ -358,6 +364,87 @@ do
         respawn_keys[ pl ] = key
     end
 
+    ---@type Player[]
+    local players_alive = {}
+    -- setmetatable( players_alive, {
+    --     __mode = "k"
+    -- } )
+
+    ---@type Player[]
+    local players_dead = {}
+    -- setmetatable( players_dead, {
+    --     __mode = "k"
+    -- } )
+
+
+    for _, pl in player_Iterator() do
+        if Player_alive( pl ) then
+            players_alive[ #players_alive + 1 ] = pl
+        else
+            players_dead[ #players_dead + 1 ] = pl
+        end
+    end
+
+    ---@param pl Player
+    local function removeFromAlive( pl )
+       for i = 1, #players_alive do
+            if players_alive[ i ] == pl then
+                table_remove( players_alive, i )
+
+                break
+            end
+       end
+    end
+
+    ---@param pl Player
+    local function removeFromDead( pl )
+        for i = 1, #players_dead do
+            if players_dead[ i ] == pl then
+                table_remove( players_dead, i )
+
+                break
+            end
+       end
+    end
+
+    --- [SERVER]
+    ---
+    --- Gets alive players.
+    ---
+    ---@return Player[]
+    function ash_player.getAlivePlayers( )
+        return players_alive
+    end
+
+    --- [SERVER]
+    ---
+    --- Gets dead players.
+    ---
+    ---@return Player[]
+    function ash_player.getDeadPlayers( )
+        return players_dead
+    end
+
+    do
+        hook.Add( "EntityRemoved", "Defaults", function ( pl )
+            if IsValid( pl ) and pl:IsPlayer() then
+                if Player_alive( pl ) then
+                    removeFromAlive( pl )
+                else
+                    removeFromDead( pl )
+                end
+            end
+        end, PRE_HOOK )
+    end
+
+    concommand.Add("players_get_alive", function()
+        PrintTable( players_alive )
+    end )
+
+    concommand.Add("players_get_dead", function()
+        PrintTable( players_dead )
+    end )
+
     ---@type table<Player, boolean>
     local awaiting_respawn = {}
 
@@ -392,7 +479,11 @@ do
 
     hook.Add( "PostPlayerDeath", "Death", function( pl )
         awaiting_respawn[ pl ] = true
-        hook_Run( "ash.player.PostDeath", pl )
+
+        players_dead[ #players_dead + 1 ] = pl
+        removeFromAlive( pl )
+
+        hook_Run( "ash.player.PostDeath", pl, players_alive, players_dead )
     end, PRE_HOOK )
 
     do
@@ -414,7 +505,10 @@ do
         hook.Add( "PlayerSpawn", "PreSpawn", function( pl, transition )
             awaiting_respawn[ pl ] = false
 
-            hook_Run( "ash.player.PreSpawn", pl, transition )
+            players_alive[ #players_alive + 1 ] = pl
+            removeFromDead( pl )
+
+            hook_Run( "ash.player.PreSpawn", pl, transition, players_alive, players_dead )
 
             local max_speed = physenv.GetPerformanceSettings().MaxVelocity
 
@@ -440,7 +534,7 @@ do
 
             hook_Run( "ash.player.SetupLoadout", pl, transition )
 
-            hook_Run( "ash.player.Spawn", pl, transition )
+            hook_Run( "ash.player.Spawn", pl, transition, players_alive, players_dead )
         end, PRE_HOOK )
 
         ---@param pl Player
@@ -464,8 +558,6 @@ do
 end
 
 do
-
-    local player_Iterator = player.Iterator
 
     hook.Add( "Tick", "Ticking", function()
         for _, pl in player_Iterator() do
@@ -508,8 +600,6 @@ do
 end
 
 do
-
-    local table_remove = table.remove
 
     ---@class ash.player.SpawnPoint
     ---@field id integer
