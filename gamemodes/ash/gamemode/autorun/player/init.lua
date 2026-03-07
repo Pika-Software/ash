@@ -437,14 +437,6 @@ do
         end, PRE_HOOK )
     end
 
-    concommand.Add("players_get_alive", function()
-        PrintTable( players_alive )
-    end )
-
-    concommand.Add("players_get_dead", function()
-        PrintTable( players_dead )
-    end )
-
     ---@type table<Player, boolean>
     local awaiting_respawn = {}
 
