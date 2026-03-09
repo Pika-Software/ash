@@ -323,10 +323,16 @@ end
 
 do
 
+
+    local Player_Alive = Player.Alive
+
+    local table_removeByValue = table.removeByValue
+
+    local Entity_SetNW2Bool = Entity.SetNWBool
+    local Entity_GetNW2Bool = Entity.GetNWBool
+
     local bit_band = bit.band
     local bit_bor = bit.bor
-    local Player_alive = Player.Alive
-
 
     ---@type table<Player, integer>
     local respawn_keys = {}
@@ -366,45 +372,20 @@ do
 
     ---@type Player[]
     local players_alive = {}
-    -- setmetatable( players_alive, {
-    --     __mode = "k"
-    -- } )
+    local players_alive_count = 0
 
     ---@type Player[]
     local players_dead = {}
-    -- setmetatable( players_dead, {
-    --     __mode = "k"
-    -- } )
-
+    local players_dead_count = 0
 
     for _, pl in player_Iterator() do
-        if Player_alive( pl ) then
-            players_alive[ #players_alive + 1 ] = pl
+        if Player_Alive( pl ) then
+            players_alive_count = players_alive_count + 1
+            players_alive[ players_alive_count ] = pl
         else
-            players_dead[ #players_dead + 1 ] = pl
+            players_dead_count = players_dead_count + 1
+            players_dead[ players_dead_count ] = pl
         end
-    end
-
-    ---@param pl Player
-    local function removeFromAlive( pl )
-       for i = 1, #players_alive do
-            if players_alive[ i ] == pl then
-                table_remove( players_alive, i )
-
-                break
-            end
-       end
-    end
-
-    ---@param pl Player
-    local function removeFromDead( pl )
-        for i = 1, #players_dead do
-            if players_dead[ i ] == pl then
-                table_remove( players_dead, i )
-
-                break
-            end
-       end
     end
 
     --- [SERVER]
@@ -425,17 +406,21 @@ do
         return players_dead
     end
 
-    do
-        hook.Add( "EntityRemoved", "Defaults", function ( pl )
-            if IsValid( pl ) and pl:IsPlayer() then
-                if Player_alive( pl ) then
-                    removeFromAlive( pl )
-                else
-                    removeFromDead( pl )
+    hook.Add( "EntityRemoved", "Defaults", function ( entity )
+        if IsValid( entity ) and entity:IsPlayer() then
+            if Player_Alive( entity ) then
+                if table_removeByValue( players_alive, entity, players_alive_count ) then
+                    players_alive_count = players_alive_count -1
+                end
+            else
+                if table_removeByValue( players_dead, entity, players_dead_count ) then
+                    players_dead_count = players_dead_count -1
                 end
             end
-        end, PRE_HOOK )
-    end
+
+            hook_Run( "ash.player.DeadCountChanged", players_dead_count, players_alive_count )
+        end
+    end, PRE_HOOK )
 
     ---@type table<Player, boolean>
     local awaiting_respawn = {}
@@ -472,10 +457,19 @@ do
     hook.Add( "PostPlayerDeath", "Death", function( pl )
         awaiting_respawn[ pl ] = true
 
-        players_dead[ #players_dead + 1 ] = pl
-        removeFromAlive( pl )
+        if Entity_GetNW2Bool( pl, "ash.alive", false ) then
+            players_dead_count = players_dead_count + 1
+            players_dead[ players_dead_count ] = pl
 
-        hook_Run( "ash.player.PostDeath", pl, players_alive, players_dead )
+            if table_removeByValue( players_alive, pl, players_alive_count ) then
+                players_alive_count = players_alive_count -1
+            end
+        end
+
+        Entity_SetNW2Bool(  pl, "ash.alive", false )
+
+        hook_Run( "ash.player.PostDeath", pl )
+        hook_Run( "ash.player.DeadCountChanged", players_dead_count, players_alive_count )
     end, PRE_HOOK )
 
     do
@@ -497,10 +491,20 @@ do
         hook.Add( "PlayerSpawn", "PreSpawn", function( pl, transition )
             awaiting_respawn[ pl ] = false
 
-            players_alive[ #players_alive + 1 ] = pl
-            removeFromDead( pl )
+            if not Entity_GetNW2Bool( pl, "ash.alive", false ) then
+                players_alive_count = players_alive_count + 1
+                players_alive[ players_alive_count ] = pl
 
-            hook_Run( "ash.player.PreSpawn", pl, transition, players_alive, players_dead )
+                if table_removeByValue( players_dead, pl, players_dead_count ) then
+                    players_dead_count = players_dead_count -1
+                end
+            end
+
+            Entity_SetNW2Bool(  pl, "ash.alive", true )
+
+            hook_Run( "ash.player.DeadCountChanged", players_dead_count, players_alive_count )
+
+            hook_Run( "ash.player.PreSpawn", pl, transition )
 
             local max_speed = physenv.GetPerformanceSettings().MaxVelocity
 
