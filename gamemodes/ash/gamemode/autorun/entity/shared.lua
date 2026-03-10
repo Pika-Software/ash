@@ -742,12 +742,66 @@ do
 
     local Entity_GetModel = Entity.GetModel
 
+    local table_removeByValue = table.removeByValue
+
     ---@type Entity[]
     local queue = {
         [ 0 ] = 0
     }
 
+    local list_ents = {}
+
+    local function addEntityByClass( ent )
+        local class = Entity_GetClass( ent )
+        local list_by_class = list_ents[ class ] or {
+            count = 0,
+            list = {},
+        }
+
+        list_by_class.count = list_by_class.count + 1
+        list_by_class.list[ list_by_class.count ] = ent
+
+
+        list_ents[ class ] = list_by_class
+    end
+
+
+    for _, ent in ents.Iterator() do
+        addEntityByClass( ent )
+    end
+
+    --- [SHARED]
+    ---
+    --- Get entity list by class.
+    ---
+    ---@param class string Entity class to find.
+    ---@param is_copy boolean table copy.
+    ---@return table, integer
+    function ash_entity.getByClass( class, is_copy )
+        local tbl = list_ents[ class ]
+
+        if tbl then
+            if is_copy then
+                local copy_table = {}
+                local list_by_class = tbl.list
+                local count = tbl.count
+
+                for i = 1, count do
+                    copy_table[ i ] = list_by_class[ i ]
+                end
+
+                return copy_table, count
+            else
+                return tbl.list, tbl.count
+            end
+        end
+
+        return {}, 0
+    end
+
     hook.Add( "OnEntityCreated", "Handler", function( entity )
+        addEntityByClass( entity )
+
         if hook_Run( "ash.entity.AllowCreation", entity ) == false then
             if entity ~= nil and entity:IsValid() then
                 entity:Remove()
@@ -799,6 +853,16 @@ do
 
     hook.Add( "EntityRemoved", "Handler", function( entity, is_full_update )
         local class_name = Entity_GetClass( entity )
+
+        if not is_full_update then
+            local ents_by_class = list_ents[ class_name ]
+
+            if ents_by_class then
+                if table_removeByValue( ents_by_class.list, entity, ents_by_class.count ) then
+                    ents_by_class.count = ents_by_class.count - 1
+                end
+            end
+        end
 
         if class_name == "player" then
             hook_Run( "ash.entity.PlayerRemoved", entity, class_name, is_full_update )
@@ -1280,5 +1344,6 @@ end
 dreamwork.engine.hookCatch( "EntityGarbageCollected", function( entity )
     hook_Run( "ash.entity.GarbageCollected", entity )
 end )
+
 
 return ash_entity
