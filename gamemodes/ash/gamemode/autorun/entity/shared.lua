@@ -799,6 +799,38 @@ do
         return {}, 0
     end
 
+    local ents_filter = {}
+    local ents_filter_count = 0
+
+    --- [SHARED]
+    ---
+    --- Get filtered entities.
+    ---
+    ---@param filter function filter function if retunted false skip.
+    ---@return table
+    function ash_entity.filter( filter )
+        local tbl = {}
+        local count = 0
+
+        for _, v in ents.Iterator() do
+            if filter( v ) ~= false then
+                count = count + 1
+                tbl[ count ] = v
+            end
+        end
+
+        local data = {}
+        data.tbl = tbl
+        data.count = count
+        data.filter = filter
+
+        ents_filter_count = ents_filter_count + 1
+
+        ents_filter[ ents_filter_count ] = data
+
+        return data
+    end
+
     hook.Add( "OnEntityCreated", "Handler", function( entity )
         addEntityByClass( entity )
 
@@ -808,6 +840,17 @@ do
             end
 
             return false
+        end
+
+        for i = 1, ents_filter_count do
+            local data = ents_filter[ i ]
+
+            if data.filter( entity ) ~= false then
+                data.count = data.count + 1
+
+                local tbl = data.tbl
+                tbl[ data.count ] = entity
+            end
         end
 
         local queue_size = queue[ 0 ] + 1
@@ -860,6 +903,16 @@ do
             if ents_by_class then
                 if table_removeByValue( ents_by_class.list, entity, ents_by_class.count ) then
                     ents_by_class.count = ents_by_class.count - 1
+                end
+            end
+
+            for i = 1, ents_filter_count do
+                local data = ents_filter[ i ]
+
+                if data.filter( entity ) == false then
+                    if table_removeByValue( data.tbl, entity, data.count ) then
+                        data.count = data.count - 1
+                    end
                 end
             end
         end
