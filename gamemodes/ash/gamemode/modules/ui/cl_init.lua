@@ -428,8 +428,16 @@ do
     local materials = {}
 
     local function image_request( image_url )
-        local response = http.get( image_url )
-        if response.status ~= 200 then return end
+        local success, response = pcall( http.get, image_url )
+        if not success then
+            error( "failed to fetch data from URL (" .. image_url .. ") - " .. response )
+            return
+        end
+
+        if response.status ~= 200 then
+            error( "failed to fetch data from URL (" .. image_url .. ") - " .. response.status )
+            return
+        end
 
         local headers = {}
 
@@ -499,7 +507,7 @@ do
                 if ok then
                     translate( engine_loadMaterial( file_path, image_parameters ), material )
                 else
-                    ash.Logger:error( "failed to fetch data from URL (" .. path .. ")")
+                    ash.Logger:error( "Unable to load web content, %s.", file_path )
                 end
             end, path )
         else
