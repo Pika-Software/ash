@@ -132,8 +132,8 @@ if SERVER then
 		end
 
 		timer_Create( "ash_round", time, 1, function()
-			if data.callback then
-				data.callback( data )
+			if data.finish then
+				data.finish( data )
 			end
 
 			hook_Run( "ash.round.end", data )
