@@ -1701,6 +1701,48 @@ do
 
 end
 
+do
+    local players = _G.player.GetAll()
+    local players_count = #players
+
+    local table_removeByValue = table.removeByValue
+
+    local inext = ipairs( { } )
+
+    --- [SHARED]
+    ---
+    --- Player iterator.
+    ---
+    ---@return function, Player[], integer
+    function ash_player.iterator( )
+        return inext, players, 0
+    end
+
+
+    --- [SHARED]
+    ---
+    --- Get player table and player count.
+    ---
+    ---@return Player[], integer
+    function ash_player.getAll()
+        return players, players_count
+    end
+
+    hook.Add( "ash.entity.PlayerCreated", "Defaults", function( pl )
+        players_count = players_count + 1
+
+        players[ players_count ] = pl
+    end, PRE_HOOK )
+
+    hook.Add( "ash.entity.PlayerRemoved", "Defaults", function( ply, _, full_update )
+        if not full_update then return end
+
+        if table_removeByValue( players, ply, players_count ) then
+            players_count = players_count - 1
+        end
+    end )
+end
+
 include( "voice.lua", ash_player )
 
 return ash_player
