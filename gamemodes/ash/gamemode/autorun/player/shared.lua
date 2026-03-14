@@ -1702,8 +1702,19 @@ do
 end
 
 do
+    local Player_IsBot = Player.IsBot
+
+    ---@type Player[]
     local players = _G.player.GetAll()
     local players_count = #players
+
+    ---@type Player[]
+    local bots = _G.player.GetBots()
+    local bots_count = #bots
+
+    ---@type Player[]
+    local humans = _G.player.GetHumans()
+    local humans_count = #humans
 
     local table_removeByValue = table.removeByValue
 
@@ -1728,17 +1739,61 @@ do
         return players, players_count
     end
 
+    --- [SHARED]
+    ---
+    --- Get player count.
+    ---
+    ---@return integer
+    function ash_player.getCount()
+        return players_count
+    end
+
+    --- [SHARED]
+    ---
+    --- Get bots table and bots count.
+    ---
+    ---@return Player[], integer
+    function ash_player.getBots()
+        return bots, bots_count
+    end
+
+    --- [SHARED]
+    ---
+    --- Get humans table and humans count.
+    ---
+    ---@return Player[], integer
+    function ash_player.getHumans()
+        return humans, humans_count
+    end
+
     hook.Add( "ash.entity.PlayerCreated", "Defaults", function( pl )
         players_count = players_count + 1
-
         players[ players_count ] = pl
+
+        if Player_IsBot( pl ) then
+            bots_count = bots_count + 1
+            bots[ bots_count ] = pl
+        else
+            humans_count = humans_count + 1
+            humans[ bots_count ] = pl
+        end
     end, PRE_HOOK )
 
-    hook.Add( "ash.entity.PlayerRemoved", "Defaults", function( ply, _, full_update )
+    hook.Add( "ash.entity.PlayerRemoved", "Defaults", function( pl, _, full_update )
         if not full_update then return end
 
-        if table_removeByValue( players, ply, players_count ) then
+        if table_removeByValue( players, pl, players_count ) then
             players_count = players_count - 1
+        end
+
+        if Player_IsBot( pl ) then
+            if table_removeByValue( bots, pl, bots_count ) then
+                bots_count = bots_count - 1
+            end
+        else
+            if table_removeByValue( humans, pl, humans_count ) then
+                humans_count = humans_count - 1
+            end
         end
     end )
 end
