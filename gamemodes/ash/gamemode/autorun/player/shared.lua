@@ -1780,7 +1780,7 @@ do
     end, PRE_HOOK )
 
     hook.Add( "ash.entity.PlayerRemoved", "Defaults", function( pl, _, full_update )
-        if not full_update then return end
+        if full_update then return end
 
         if table_removeByValue( players, pl, players_count ) then
             players_count = players_count - 1

@@ -1,6 +1,9 @@
 ---@class ash
 local ash = ash
 
+---@type ash.player
+local ash_player = require( "ash.player" )
+
 local string_match = string.match
 
 local Entity = Entity
@@ -507,6 +510,185 @@ function ash_team.register( team_options )
 	local team_data = team_init( team_name )
 	hook.Run( "ash.TeamRegistered", team_name, team_data )
 	return team_data
+end
+
+if SERVER then
+	local Player_Alive = Player.Alive
+
+	---@type Player[]
+	local alive_team_players = {}
+
+	---@type Player[]
+	local dead_team_players = {}
+
+	local table_removeByValue = table.removeByValue
+
+
+
+	--- [SERVER]
+	---
+	--- Get alive team members.
+	---
+	---@param team_name string
+	---@retrun Player[], integer
+	function ash_team.getAliveMembers( team_name )
+		local data = alive_team_players[ team_name ]
+
+		if data then
+			return data[ 1 ], data[ 0 ]
+		end
+
+		return {}, 0
+	end
+
+	--- [SERVER]
+	---
+	--- Get dead team members.
+	---
+	---@param team_name string
+	---@retrun Player[], integer
+	function ash_team.getDeadMembers( team_name )
+		local data = dead_team_players[ team_name ]
+
+		if data then
+			return data[ 1 ], data[ 0 ]
+		end
+
+		return {}, 0
+	end
+
+	---@param ply Player
+	---@param team_name string
+	local function addToAlive( ply, team_name )
+		local data_alive = alive_team_players[ team_name ]
+
+		if data_alive then
+			local new_count = data_alive[ 0 ] + 1
+			data_alive[ 0 ] = new_count
+
+			data_alive[ 1 ][ new_count ] = ply
+		end
+	end
+
+	---@param ply Player
+	---@param team_name string
+	local function addToDead( ply, team_name )
+		local data_dead = dead_team_players[ team_name ]
+
+		if data_dead then
+			local new_count = data_dead[ 0 ] + 1
+			data_dead[ 0 ] = new_count
+
+			data_dead[ 1 ][ new_count ] = ply
+		end
+	end
+
+	---@param ply Player
+	---@param team_name string
+	local function removeFromAlive( ply, team_name )
+		local data_alive = alive_team_players[ team_name ]
+
+		if data_alive and table_removeByValue( data_alive[ 1 ], ply, data_alive[ 0 ] ) then
+			data_alive[ 0 ] = data_alive[ 0 ] - 1
+		end
+	end
+
+	---@param ply Player
+	---@param team_name string
+	local function removeFromDead( ply, team_name )
+		local data_dead = dead_team_players[ team_name ]
+		if data_dead and table_removeByValue( data_dead[ 1 ], ply, data_dead[ 0 ] ) then
+			data_dead[ 0 ] = data_dead[ 0 ] - 1
+		end
+	end
+
+	for i = 1, team_count do
+		local team_name = team_list[ i ]
+
+		alive_team_players[ team_name ] = {
+			[ 0 ] = 0,
+			[ 1 ] = {},
+		}
+
+		dead_team_players[ team_name ] = {
+			[ 0 ] = 0,
+			[ 1 ] = {},
+		}
+	end
+
+	do
+		local plys, count = ash_player.getAll()
+		local string_byte = string.byte
+
+		for i = 1, count do
+			local ply = plys[ i ]
+			local team_name = ash_team.getTeam( ply )
+
+			if string_byte( team_name, 1, 1 ) ~= 0 then
+				if Player_Alive( ply ) then
+					addToAlive( ply, team_name )
+				else
+					addToDead( ply, team_name )
+				end
+			end
+		end
+	end
+
+	hook.Add( "ash.TeamRegistered", "Defaults", function( team_name )
+		if not alive_team_players[ team_name ] then
+			alive_team_players[ team_name ] = {
+				[ 0 ] = 0,
+				[ 1 ] = {},
+			}
+
+			dead_team_players[ team_name ] = {
+				[ 0 ] = 0,
+				[ 1 ] = {},
+			}
+
+			ash.Logger:debug( "add team %s to alive and dead", team_name )
+		end
+	end )
+
+	hook.Add( "ash.player.ChangeAliveStatus", "Defaults", function( ply, alive )
+		local team_name = ash_team.getTeam( ply )
+		if alive then
+			addToAlive( ply, team_name )
+			removeFromDead( ply, team_name )
+		else
+			addToDead( ply, team_name )
+			removeFromAlive( ply, team_name )
+		end
+	end, PRE_HOOK )
+
+	hook.Add( "ash.PlayerTeamChanged", "Defaults", function( ply, new_value, previous_value )
+		if Player_Alive( ply ) then
+			removeFromAlive( ply, previous_value )
+			addToAlive( ply, new_value )
+		else
+			removeFromDead( ply, previous_value )
+			addToDead( ply, new_value )
+		end
+	end, PRE_HOOK )
+
+	hook.Add( "ash.entity.PlayerRemoved", "Defaults", function( ply, _, full_update )
+		if full_update then return end
+
+		if Player_Alive( ply ) then
+			removeFromAlive( ply, ash_team.getTeam( ply ) )
+		else
+			removeFromDead( ply, ash_team.getTeam( ply ) )
+		end
+	end, PRE_HOOK )
+
+
+	-- concommand.Add( "team_alive_members", function( _, _, args )
+	-- 	PrintTable( ash_team.getAlivePlayers( args[ 1 ] or "" ) )
+	-- end)
+
+	-- concommand.Add( "team_dead_members", function( _, _, args )
+	-- 	PrintTable( ash_team.getDeadPlayers( args[ 1 ] or "" ) )
+	-- end)
 end
 
 return ash_team
