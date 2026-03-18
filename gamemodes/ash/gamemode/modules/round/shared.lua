@@ -19,29 +19,37 @@ local GetGlobal2Float = GetGlobal2Float
 local SetGlobal2Float = SetGlobal2Float
 
 
---- [SHARED]
----
---- Create round stack
----
----@param data table
-function round.createRoundStack( data )
-	table_Empty( round_map )
+do
+	local bits_count = 2
+	--- [SHARED]
+	---
+	--- Create round stack
+	---
+	---@param data table
+	function round.createRoundStack( data )
+		table_Empty( round_map )
 
-	round_stack_count = #data
+		round_stack_count = #data
 
-	for i = 1, round_stack_count do
-		local v = data[ i ]
-		local name = v.name
-		v.id = i
-		---@diagnostic disable-next-line: param-type-mismatch
-		v.convar = CreateConVar( "ash_round_time_" .. name, v.time, v.convar_flags or 0, "", 0 )
+		bits_count = 2
 
-		round_map[ name ] = v
+		for i = 1, round_stack_count do
+			local v = data[ i ]
+			local name = v.name
+			v.id = i
+			v.type = bits_count
+			---@diagnostic disable-next-line: param-type-mismatch
+			v.convar = CreateConVar( "ash_round_time_" .. name, v.time, v.convar_flags or 0, "", 0 )
+
+			round_map[ name ] = v
+
+			bits_count = bits_count * 2
+		end
+
+		round_stack = data
+
+		return data
 	end
-
-	round_stack = data
-
-	return data
 end
 
 --- [SHARED]
@@ -67,6 +75,38 @@ end
 function round.getRoundMap(  )
 	return round_map
 end
+
+do
+	local bit_band = bit.band
+	local bit_bor = bit.bor
+
+	--- [SHARED]
+	---
+	--- Creates a bit mask based on the round type.
+	---
+	---@param ... string
+	---@retrun integer
+	function round.roundMask( ... )
+		local tbl = { ... }
+
+		local integer = 0
+		for i = 1, select( "#", ... ) do
+			integer = bit_bor( integer, ( round_map[ tbl[ i ] ] or {} ).type or 0 )
+		end
+
+		return integer
+	end
+
+	--- [SHARED]
+	---
+	--- Checking round type by mask.
+	---
+	---@param mask integer
+	function round.isRoundType( mask )
+		return bit_band( mask, ( round_map[ round.getRoundType() ] or {} ).type or 0 ) ~= 0
+	end
+end
+
 
 if SERVER then
 
@@ -102,7 +142,7 @@ if SERVER then
 			id_next = 1
 		end
 
-		round.start( hook_Run( "ash.round.nextType", old, next_name ) or round_stack[ id_next ].name )
+		round.start( hook_Run( "ash.round.nextType", old ) or round_stack[ id_next ].name )
 
 		return true
 	end
@@ -132,14 +172,11 @@ if SERVER then
 		end
 
 		timer_Create( "ash_round", time, 1, function()
-			if data.finish then
-				data.finish( data )
-			end
 
 			hook_Run( "ash.round.end", data )
 
-			if data.canStartNext then
-				if data.canStartNext( data ) == false then
+			if data.finish then
+				if data.finish( data ) == false then
 					return
 				end
 			end
