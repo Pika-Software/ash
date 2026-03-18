@@ -802,6 +802,23 @@ do
 
 end
 
+do
+    local Player_Alive = Player.Alive
+
+    --- [ SERVER ]
+    ---
+    --- Spawn if not alive and "fake" spawn if player alive.
+    ---
+    ---@param pl Player
+    function ash_player.spawn( pl )
+        if Player_Alive( pl ) then
+            hook_Run( "PlayerSpawn", pl, false )
+        else
+            pl:Spawn()
+        end
+    end
+end
+
 hook.Add( "PlayerSay", "ChatHandler", function( arguments, sender, message, is_team_chat )
     message = arguments[ 2 ] or message
 
