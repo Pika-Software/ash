@@ -67,6 +67,12 @@ end
 
 do
 	local Player_UnSpectate = Player.UnSpectate
+
+	--- [SERVER]
+	---
+	--- un spectate player.
+	---
+	---@param ply Player
 	function spectator.unSpecate( ply )
 		if spectator.isSpectator( ply ) then
 			removeOldSpecList( ply )
