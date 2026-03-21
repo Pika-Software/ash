@@ -43,26 +43,52 @@ function spectator.getSpectatorsForEntity( ent )
 	return ent.spectators or {}
 end
 
----@param ply Player
----@param target Entity | Player
----@param mode integer | nil
-function spectator.specate( ply, target, mode )
-	if mode ~= nil then
-		Player_Spectate( ply, mode or OBS_MODE_ROAMING )
-	else
-		mode = Player_GetObserverMode( ply )
+do
+	local Player_SetPos = Entity.SetPos
+	local Player_SetEyeAngles = Player.SetEyeAngles
+	local Player_EyeAngles = Player.EyeAngles
+
+
+	local Entity_GetPos = Entity.GetPos
+	local Entity_GetAngles = Entity.GetAngles
+
+	---@param ply Player
+	---@param target Entity | Player
+	---@param mode integer | nil
+	function spectator.specate( ply, target, mode )
+		if mode ~= nil then
+			Player_Spectate( ply, mode or OBS_MODE_ROAMING )
+		else
+			mode = Player_GetObserverMode( ply )
+		end
+
+		removeOldSpecList( ply )
+
+		Player_SpectateEntity( ply, target )
+
+		if mode == OBS_MODE_IN_EYE and target:IsPlayer() then
+			target:SetupHands()
+		end
+
+		if IsValid( target ) then
+			Player_SetPos( ply, Entity_GetPos( target ) )
+
+			local ang = Angle()
+
+			if target:IsPlayer() then
+				ang = Player_EyeAngles( target )
+			else
+				ang = Entity_GetAngles( target )
+			end
+
+			ang = Angle( ang[ 1 ], ang[ 2 ], 0 )
+
+			Player_SetEyeAngles( ply, ang )
+		end
+
+		---@diagnostic disable-next-line: undefined-field
+		target.spectators[ ply ] = true
 	end
-
-	removeOldSpecList( ply )
-
-	Player_SpectateEntity( ply, target )
-
-	if mode == OBS_MODE_IN_EYE and target:IsPlayer() then
-		target:SetupHands()
-	end
-
-	---@diagnostic disable-next-line: undefined-field
-	target.spectators[ ply ] = true
 end
 
 do

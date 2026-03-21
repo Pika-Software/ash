@@ -39,7 +39,6 @@ hook.Add( "KeyRelease", "Defaults", function ( ply, key )
 		if prev_target == nil then
 			prev_target = spectator.lastTarget( ply )
 		end
-		print( "prev_target", prev_target )
 
 		if prev_target ~= nil and IsValid( prev_target ) then
 			net.Start( "select_target" )
