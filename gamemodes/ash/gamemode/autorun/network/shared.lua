@@ -267,30 +267,30 @@ function TableClass:__new( name )
     return tables_by_name[ name ]
 end
 
-local obj = TableClass( "network.Table" )
+-- local obj = TableClass( "network.Table" )
 
-obj.key = "value"
-obj.key = "value2"
+-- obj.key = "value"
+-- obj.key = "value2"
 
-obj.tabl = {
-    a = {
-        b = "value"
-    }
-}
+-- obj.tabl = {
+--     a = {
+--         b = "value"
+--     }
+-- }
 
-obj.tabl.a.b = "value2"
+-- obj.tabl.a.b = "value2"
 
-print( obj.tabl.a.b )
+-- print( obj.tabl.a.b )
 
-if SERVER then
+-- if SERVER then
 
-    ---@param pl Player
-    hook.Add( "ash.player.Initialized", "InitialPayload", function( pl )
-        -- for i = 1, table_count, 1 do
-        --     table_list[ i ]:sync( pl )
-        -- end
-    end )
+--     ---@param pl Player
+--     hook.Add( "ash.player.Initialized", "InitialPayload", function( pl )
+--         -- for i = 1, table_count, 1 do
+--         --     table_list[ i ]:sync( pl )
+--         -- end
+--     end )
 
-end
+-- end
 
 return network
