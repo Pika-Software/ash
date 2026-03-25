@@ -752,6 +752,8 @@ do
 
     local table_removeByValue = table.removeByValue
 
+    local table_remove = table.remove
+
     ---@type Entity[]
     local queue = {
         [ 0 ] = 0
@@ -808,6 +810,7 @@ do
     end
 
     local ents_filter = {}
+    local ents_filter_map = {}
     local ents_filter_count = 0
 
     --- [SHARED]
@@ -815,10 +818,23 @@ do
     --- Get filtered entities.
     ---
     ---@param filter function filter function if retunted false skip.
+    ---@param name? string
     ---@return table
-    function ash_entity.filter( filter )
+    function ash_entity.filter( filter, name )
         local tbl = {}
+        local data = {}
         local count = 0
+
+        local map = ents_filter_map[ name ]
+        if map and name then
+            data = map
+
+            ents_filter_map[ name ] = data
+        else
+            ents_filter_count = ents_filter_count + 1
+
+            ents_filter[ ents_filter_count ] = data
+        end
 
         for _, v in ents.Iterator() do
             if filter( v ) ~= false then
@@ -827,16 +843,39 @@ do
             end
         end
 
-        local data = {}
         data.tbl = tbl
         data.count = count
         data.filter = filter
-
-        ents_filter_count = ents_filter_count + 1
-
-        ents_filter[ ents_filter_count ] = data
+        data.name = name
 
         return data
+    end
+
+
+    ---- [SHARED]
+    ----
+    ---- Remove filter by name or id.
+    ----
+    ---@param id string | integer
+    ---@return boolean
+    function ash_entity.removeFilter( id )
+        local id_type = type( id )
+        if id_type == "string" then
+            for i = ents_filter_count, 1, -1 do
+                if ents_filter[ i ].name == id then
+                    table_remove( ents_filter, i )
+                    return true
+                end
+            end
+        elseif id_type == "int" then
+            if table_removeByValue( ents_filter, id, ents_filter_count ) then
+                ents_filter_count = ents_filter_count - 1
+
+                return true
+            end
+        end
+
+        return false
     end
 
     hook.Add( "OnEntityCreated", "Handler", function( entity )
