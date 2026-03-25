@@ -2,13 +2,13 @@
 local flame_ui = ...
 
 ---@type ash.ui
-local ash_ui = require( "ash.ui" )
+local ash_ui = import "ash.ui"
 
 local Colors = ash_ui.Colors
 local c33 = Colors[ 33 ]
 
 ---@type ash.i18n
-local ash_i18n = require( "ash.i18n" )
+local ash_i18n = import "ash.i18n"
 local i18n_perform = ash_i18n.perform
 
 ash_ui.font( "flame.ui.Tooltip", {

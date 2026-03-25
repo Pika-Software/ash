@@ -5,19 +5,19 @@ local hook_Run = hook.Run
 local flame_player = {}
 
 ---@type ash.entity
-local ash_entity = require( "ash.entity" )
+local ash_entity = import "ash.entity"
 
 ---@type ash.player
-local ash_player = require( "ash.player" )
+local ash_player = import "ash.player"
 local player_startGestureBySequence = ash_player.startGestureBySequence
 local player_startGestureByActivity = ash_player.startGestureByActivity
 
 ---@type ash.trace
-local ash_trace = require( "ash.trace" )
+local ash_trace = import "ash.trace"
 local trace_cast = ash_trace.cast
 
 ---@type ash.view
-local ash_view = require( "ash.view" )
+local ash_view = import "ash.view"
 
 hook.Add( "PhysgunPickup", "Defaults", function( arguments, pl, entity )
     return arguments[ 2 ] ~= false
@@ -122,7 +122,7 @@ do
 end
 
 ---@type ash.debug
-local debug = require( "ash.debug" )
+local debug = import "ash.debug"
 
 do
 
@@ -213,7 +213,7 @@ function flame_player.StoRGB( str )
         255
 end
 
-require( "ash.player.footsteps.dynamic" )
+import "ash.player.footsteps.dynamic"
 
 ---@param pl Player
 hook.Add( "ash.player.CanNoclip", "Defaults", function( pl )

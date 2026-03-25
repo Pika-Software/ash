@@ -3,14 +3,14 @@ local Entity_SetNW2Var = Entity.SetNW2Var
 local CurTime = CurTime
 
 ---@type ash.model
-local ash_model = require( "ash.model" )
+local ash_model = import "ash.model"
 
 ---@type ash.entity
-local ash_entity = require( "ash.entity" )
+local ash_entity = import "ash.entity"
 local entity_getWaterLevel = ash_entity.getWaterLevel
 
 ---@type ash.trace
-local ash_trace = require( "ash.trace" )
+local ash_trace = import "ash.trace"
 local trace_cast = ash_trace.cast
 
 ---@class ash.player
@@ -1004,7 +1004,7 @@ do
     ---@param cmd CUserCmd
     ---@diagnostic disable-next-line: redundant-parameter
     hook.Add( "StartCommand", "MovementControl", function( _, pl, cmd )
-        if hook_Run( "ash.player.CanMove", pl, cmd ) == false then
+        if hook_Run( "ash.player.ShouldMove", pl, cmd ) == false then
             UserCommand_SetImpulse( cmd, 0 )
             UserCommand_ClearMovement( cmd )
             UserCommand_ClearButtons( cmd )

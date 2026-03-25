@@ -24,16 +24,16 @@ local player_BitCount = ash_player.BitCount
 local player_isInitialized = ash_player.isInitialized
 
 ---@type ash.entity
-local ash_entity = require( "ash.entity" )
+local ash_entity = import "ash.entity"
 local entity_getHitbox = ash_entity.getHitbox
 local entity_getHitboxBounds = ash_entity.getHitboxBounds
 
 ---@type ash.trace
-local ash_trace = require( "ash.trace" )
+local ash_trace = import "ash.trace"
 local trace_cast = ash_trace.cast
 
 ---@type ash.level
-local ash_level = require( "ash.level" )
+local ash_level = import "ash.level"
 
 local Entity_GetBoneMatrix = Entity.GetBoneMatrix
 local Entity_IsValid = Entity.IsValid

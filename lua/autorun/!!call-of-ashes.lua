@@ -79,10 +79,10 @@ local hook_Run = glua_hook.Run
 ---@field Author string
 ---@field Loaded boolean
 ash = ash or {
-    Name = "Ash",
+    Name = "ash",
     Loaded = false,
-    Version = "0.4.0",
-    Author = "Unknown Developer & AngoNex",
+    Version = "0.5.0",
+    Author = "p1ka.eu",
     DedicatedServer = game.IsDedicated()
 }
 
@@ -1868,9 +1868,9 @@ do
     ---
     --- Executes lua file with given path.
     ---
-    ---@param file_path string
-    ---@param ... any
-    ---@return any ...
+    ---@param file_path string The path of the file to execute.
+    ---@param ... any The arguments to pass to the file.
+    ---@return any ... The return values from the file.
     function ash.include( file_path, ... )
         local abs_path = path_perform( file_path, 2 )
         local call_environment = getfenv( 2 )
@@ -2245,11 +2245,13 @@ do
 
     --- [SHARED]
     ---
-    --- Includes and sends a module in the server and/or client.
+    --- Imports the module with the given name and returns the result.
+    ---
+    --- Also sends a specified module files to the client.
     ---
     ---@param module_name string The name of the module. e.g. "ash.utils"
-    ---@return ... The result of the module.
-    function ash.require( module_name )
+    ---@return any ... The result of the module.
+    function ash.import( module_name )
         local module_object = module_require( module_name, false, 2 )
 
         if module_object == nil then
@@ -2266,7 +2268,7 @@ do
         return module_object.Result
     end
 
-    environment.require = ash.require
+    environment.import = ash.import
 
     do
 

@@ -6,7 +6,7 @@ local cam_End2D = cam.End2D
 local math_min = math.min
 
 ---@class ash.ui
-local ash_ui = require( "ash.ui" )
+local ash_ui = import "ash.ui"
 
 ash_ui.font( "ash.intro.TextBig", {
     font = "Roboto Mono Medium",

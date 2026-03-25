@@ -1,10 +1,10 @@
 local hook_Run = hook.Run
 
 ---@type ash.ui
-local ash_ui = require( "ash.ui" )
+local ash_ui = import "ash.ui"
 
 ---@type ash.player
-local ash_player = require( "ash.player" )
+local ash_player = import "ash.player"
 
 ---@class ash.view
 ---@field AimVector Vector The aim vector.

@@ -3,7 +3,7 @@
 local std = _G.dreamwork.std
 
 ---@type ash.entity
-local ash_entity = require( "ash.entity" )
+local ash_entity = import "ash.entity"
 
 local entity_isTransparent = ash_entity.isTransparent
 local entity_isBrush = ash_entity.isBrush

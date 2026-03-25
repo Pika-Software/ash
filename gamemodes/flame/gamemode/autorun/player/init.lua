@@ -7,19 +7,19 @@ MODULE.ClientFiles = {
 local flame_player = include( "shared.lua" )
 
 ---@type ash.model
-local ash_model = require( "ash.model" )
+local ash_model = import "ash.model"
 
 ---@type ash.player
-local ash_player = require( "ash.player" )
+local ash_player = import "ash.player"
 
 ---@type ash.player.phrases
-local ash_phrases = require( "ash.player.phrases" )
+local ash_phrases = import "ash.player.phrases"
 
 ---@type ash.entity
-local ash_entity = require( "ash.entity" )
+local ash_entity = import "ash.entity"
 
 ---@type ash.trace
-local ash_trace = require( "ash.trace" )
+local ash_trace = import "ash.trace"
 local trace_cast = ash_trace.cast
 
 --- [SERVER]

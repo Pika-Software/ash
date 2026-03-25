@@ -6,19 +6,19 @@ MODULE.ClientFiles = {
 include( "shared.lua" )
 
 ---@type ash.debug
-local debug = require( "ash.debug" )
+local debug = import "ash.debug"
 
 ---@type ash.player
-local ash_player = require( "ash.player" )
+local ash_player = import "ash.player"
 local player_getUseDistance = ash_player.getUseDistance
 local animator_getVelocity = ash_player.animator.getVelocity
 
 ---@type ash.view
-local ash_view = require( "ash.view" )
+local ash_view = import "ash.view"
 local view_getAimVector = ash_view.getAimVector
 
 ---@type ash.trace
-local ash_trace = require( "ash.trace" )
+local ash_trace = import "ash.trace"
 local trace_cast = ash_trace.cast
 
 local WorldToLocal = WorldToLocal

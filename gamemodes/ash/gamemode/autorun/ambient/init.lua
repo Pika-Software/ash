@@ -1,6 +1,6 @@
 
 ---@type ash.sound
-local ash_sound = require( "ash.sound" )
+local ash_sound = import "ash.sound"
 
 ---@class ash.ambient
 local ash_ambient = {}
