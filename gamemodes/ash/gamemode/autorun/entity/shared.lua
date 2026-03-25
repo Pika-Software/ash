@@ -24,11 +24,23 @@ local ash_entity = {}
 do
 
     local Player_GetRenderAngles = Player.GetRenderAngles
-
+    local debug_getmetatable = debug.getmetatable
     local Entity_GetAngles = Entity.GetAngles
-    local Entity_IsPlayer = Entity.IsPlayer
 
-    ash_entity.isPlayer = Entity_IsPlayer
+    ---@class Player
+    local PLAYER = debug.findmetatable( "Player" )
+
+    --- [SHARED]
+    ---
+    --- Checks if an entity is a player.
+    ---
+    ---@param entity Entity | any
+    ---@return boolean is_player
+    local function entity_isPlayer( entity )
+        return debug_getmetatable( entity ) == PLAYER
+    end
+
+    ash_entity.isPlayer = entity_isPlayer
 
     --- [SHARED]
     ---
@@ -37,7 +49,7 @@ do
     ---@param entity Entity
     ---@return Angle
     function ash_entity.getAngles( entity )
-        if Entity_IsPlayer( entity ) then
+        if entity_isPlayer( entity ) then
             return Player_GetRenderAngles( entity )
         else
             return Entity_GetAngles( entity )
