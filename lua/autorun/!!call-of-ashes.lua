@@ -2270,6 +2270,17 @@ do
 
     environment.import = ash.import
 
+    --- [SHARED]
+    ---
+    --- Loads the given module.
+    ---
+    ---@param name string The name of the module.
+    ---@param ... any The arguments to pass to the module.
+    ---@return any ... The result of the module.
+    function environment.require( name, ... )
+
+    end
+
     do
 
         local raw_tonumber = raw.tonumber
