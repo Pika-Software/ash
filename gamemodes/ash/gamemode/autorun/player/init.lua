@@ -463,14 +463,16 @@ do
             players_dead[ players_dead_count ] = pl
 
             if table_removeByValue( players_alive, pl, players_alive_count ) then
-                players_alive_count = players_alive_count -1
+                players_alive_count = players_alive_count - 1
             end
+
+            hook_Run( "ash.player.DeadCountChanged", players_dead_count, players_alive_count )
+            hook_Run( "ash.player.ChangeAliveStatus", pl, false )
         end
 
         Entity_SetNW2Bool(  pl, "ash.alive", false )
 
         hook_Run( "ash.player.PostDeath", pl )
-        hook_Run( "ash.player.DeadCountChanged", players_dead_count, players_alive_count )
     end, PRE_HOOK )
 
     do
@@ -497,13 +499,15 @@ do
                 players_alive[ players_alive_count ] = pl
 
                 if table_removeByValue( players_dead, pl, players_dead_count ) then
-                    players_dead_count = players_dead_count -1
+                    players_dead_count = players_dead_count - 1
                 end
+
+                hook_Run( "ash.player.DeadCountChanged", players_dead_count, players_alive_count )
+                hook_Run( "ash.player.ChangeAliveStatus", pl, true )
             end
 
             Entity_SetNW2Bool(  pl, "ash.alive", true )
 
-            hook_Run( "ash.player.DeadCountChanged", players_dead_count, players_alive_count )
 
             hook_Run( "ash.player.PreSpawn", pl, transition )
 
@@ -797,6 +801,23 @@ do
         end
     end, PRE_HOOK )
 
+end
+
+do
+    local Player_Alive = Player.Alive
+
+    --- [ SERVER ]
+    ---
+    --- Spawn if not alive and "fake" spawn if player alive.
+    ---
+    ---@param pl Player
+    function ash_player.spawn( pl )
+        if Player_Alive( pl ) then
+            hook_Run( "PlayerSpawn", pl, false )
+        else
+            pl:Spawn()
+        end
+    end
 end
 
 hook.Add( "PlayerSay", "ChatHandler", function( arguments, sender, message, is_team_chat )

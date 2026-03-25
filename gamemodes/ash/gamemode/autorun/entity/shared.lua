@@ -942,6 +942,51 @@ do
         hook_Run( "ash.entity.Removed", entity, class_name, is_full_update )
     end, PRE_HOOK )
 
+
+    local table_clearIndexes = table.clearIndexes
+
+    local function rebuildListEntities()
+        for _, data in pairs( list_ents ) do
+            table_clearIndexes( data.list )
+            data.count = 0
+        end
+
+        for i = 1, ents_filter_count do
+            local data = ents_filter[ i ]
+
+            table_clearIndexes( data.tbl )
+            data.count = 0
+        end
+
+        for _, ent in ents.Iterator() do
+            addEntityByClass( ent )
+
+            for i = 1, ents_filter_count do
+                local data = ents_filter[ i ]
+                local count = data.count
+
+                if data.filter( ent ) ~= false then
+                    count = count + 1
+                    data.tbl[ count ] = ent
+                end
+
+                data.count = count
+            end
+        end
+    end
+
+    hook.Add( "InitPostEntity", "Handler", function()
+        rebuildListEntities()
+
+        hook_Run( "ash.entity.PostSpawnEntities" )
+    end )
+
+    hook.Add( "PostCleanupMap", "Handler", function()
+        rebuildListEntities()
+
+        hook_Run( "ash.entity.PostCleanupMap" )
+    end )
+
 end
 
 do
