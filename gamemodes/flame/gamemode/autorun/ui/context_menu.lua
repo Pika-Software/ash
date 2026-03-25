@@ -591,9 +591,14 @@ do
 
 	local Entity_GetNoDraw = Entity.GetNoDraw
 	local Entity_GetSolid = Entity.GetSolid
+	local Entity_GetClass = Entity.GetClass
 	local Entity_IsValid = Entity.IsValid
 
 	local util_TraceLine = util.TraceLine
+
+	local blacklist = {
+		func_reflective_glass = true
+	}
 
 	hook.Add( "ContextMenuThink", "Properties", function( self )
 		local view_entity = ash_view.Entity
@@ -613,7 +618,7 @@ do
 		entity = trace_result.Entity
 		---@cast entity Entity
 
-		if not Entity_IsValid( entity ) or Entity_GetNoDraw( entity ) or Entity_GetSolid( entity ) == 0 then
+		if not Entity_IsValid( entity ) or Entity_GetNoDraw( entity ) or Entity_GetSolid( entity ) == 0 or blacklist[ Entity_GetClass( entity ) ] then
 			entity = nil
 		end
 	end )

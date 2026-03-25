@@ -122,6 +122,8 @@ end
 ---@field name string
 ---@field position Vector
 ---@field angles Angle
+---@field children ash.model.Bone[]
+---@field child_count integer
 ---@field flags integer
 ---@field surface_material string
 ---@field phys_id integer
@@ -194,6 +196,20 @@ local fallback_info
 ---@return ash.model.Info model_info
 function ash_model.get( model_name )
     return models_map[ model_name ] or fallback_info
+end
+
+---@param bone ash.model.Bone
+local function calc_position( bone )
+    local children = bone.children
+    local position = bone.position
+
+    for i = 1, bone.child_count, 1 do
+        local child = children[ i ]
+        child.position = child.position + position
+        calc_position( child )
+    end
+
+    -- print( bone.id .. ". " .. bone.name )
 end
 
 --- [SHARED]
@@ -307,6 +323,8 @@ function ash_model.set( model_name, model_path, hands_path )
             if bone ~= nil then
                 bones[ i ] = {
                     id = i - 1,
+                    children = {},
+                    child_count = 0,
                     name = bone.Name,
                     position = bone.Position,
                     angles = bone.Angle,
@@ -317,6 +335,8 @@ function ash_model.set( model_name, model_path, hands_path )
             end
         end
 
+        local root_bone = bones[ 1 ]
+
         for i = 1, bone_count, 1 do
             local bone = bones[ i ]
             if bone ~= nil then
@@ -324,12 +344,24 @@ function ash_model.set( model_name, model_path, hands_path )
                     model_info.has_wings = true
                 end
 
+                if bone.id == 0 then
+                    root_bone = bone
+                end
+
                 local parent_id = engine_bones[ i ].Parent
                 if parent_id >= 0 then
-                    bone.parent = bones[ parent_id + 1 ]
+                    local parent = bones[ parent_id + 1 ]
+                    if parent ~= nil then
+                        local child_count = parent.child_count + 1
+                        parent.children[ child_count ] = bone
+                        parent.child_count = child_count
+                        bone.parent = parent
+                    end
                 end
             end
         end
+
+        calc_position( root_bone )
     end
 
     local attachments = model_info.attachments
@@ -464,5 +496,22 @@ function ash_model.set( model_name, model_path, hands_path )
 end
 
 fallback_info = ash_model.set( "default", "models/player/infoplayerstart.mdl", "models/weapons/c_arms_infoplayerstart.mdl" )
+
+-- if CLIENT then
+
+--     ---@type ash.debug
+--     local debug = require( "ash.debug" )
+
+--     local pos = MainEyePos()
+
+--     for i = 1, fallback_info.bone_count, 1 do
+--         local bone = fallback_info.bones[ i ]
+--         if bone ~= nil then
+--             debug.overlay.cross( pos + bone.position, 4, 255, 0, 0, false, 30 )
+--         end
+--     end
+
+
+-- end
 
 return ash_model
