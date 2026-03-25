@@ -2,7 +2,7 @@
 local ash = ash
 
 ---@type ash.player
-local ash_player = require( "ash.player" )
+local ash_player = import "ash.player"
 
 local string_match = string.match
 

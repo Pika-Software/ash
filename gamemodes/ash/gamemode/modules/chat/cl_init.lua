@@ -6,11 +6,11 @@ local bit_band = bit.band
 local ash_chat = include( "shared.lua" )
 
 ---@type ash.i18n
-local ash_i18n = require( "ash.i18n" )
+local ash_i18n = import "ash.i18n"
 local i18n_perform = ash_i18n.perform
 
 ---@type ash.entity
-local ash_entity = require( "ash.entity" )
+local ash_entity = import "ash.entity"
 
 ---@class ash.player.chat.Message : dreamwork.Object
 local Message = class.base( "ash.player.chat.Message", false )
@@ -43,7 +43,7 @@ ash_chat.Message = MessageClass
 local cl_chatfilters = console.Variable.get( "cl_chatfilters", "integer" )
 
 ---@type ash.ui
-local ash_ui = require( "ash.ui" )
+local ash_ui = import "ash.ui"
 
 local ui_Colors = ash_ui.Colors
 

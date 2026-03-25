@@ -4,7 +4,7 @@ local Entity_IsValid = Entity.IsValid
 local tostring = tostring
 
 ---@type ash.sound.bass
-local bass = require( "ash.sound.bass" )
+local bass = import "ash.sound.bass"
 
 
 ---@class ash.sound.bass.Controller : dreamwork.Object

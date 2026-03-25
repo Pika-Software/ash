@@ -1,7 +1,7 @@
 local Entity_GetClass = Entity.GetClass
 
 ---@type ash.entity
-local ash_entity = require( "entity" )
+local ash_entity = import "entity"
 
 ---@class ash.spectator
 local spectator = {}

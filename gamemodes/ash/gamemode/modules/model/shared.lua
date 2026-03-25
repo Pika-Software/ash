@@ -500,7 +500,7 @@ fallback_info = ash_model.set( "default", "models/player/infoplayerstart.mdl", "
 -- if CLIENT then
 
 --     ---@type ash.debug
---     local debug = require( "ash.debug" )
+--     local debug = import "ash.debug"
 
 --     local pos = MainEyePos()
 

@@ -1,5 +1,5 @@
 ---@class ash.player
-local ash_player = require( "ash.player" )
+local ash_player = import "ash.player"
 
 ---@class flame.camera.body
 local camera = {}
