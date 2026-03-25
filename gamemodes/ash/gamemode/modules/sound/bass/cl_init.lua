@@ -11,7 +11,7 @@ local sound_PlayURL = sound.PlayURL
 local sound_PlayFile = sound.PlayFile
 
 ---@type ash.sound
-local ash_sound = require( "ash.sound" )
+local ash_sound = import "ash.sound"
 local sound_get = ash_sound.get
 
 local AudioChannel = AudioChannel

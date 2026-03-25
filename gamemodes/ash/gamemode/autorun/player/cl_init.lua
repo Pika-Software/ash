@@ -596,4 +596,6 @@ do
 
 end
 
+include( "camera.lua", ash_player )
+
 return ash_player

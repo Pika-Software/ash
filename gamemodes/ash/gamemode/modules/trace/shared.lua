@@ -3,7 +3,7 @@
 local std = _G.dreamwork.std
 
 ---@type ash.entity
-local ash_entity = require( "ash.entity" )
+local ash_entity = import "ash.entity"
 
 local entity_isTransparent = ash_entity.isTransparent
 local entity_isBrush = ash_entity.isBrush
@@ -111,5 +111,124 @@ local function cast( params )
 end
 
 ash_trace.cast = cast
+
+---@alias ash.trace.Filter.ShouldHit fun( entity: Entity, content_masks: CONTENTS ): boolean
+
+---@class ash.trace.Filter : dreamwork.Object
+---@field __class ash.trace.FilterClass
+---@field PassEntity Entity | nil
+---@field CollisionGroup integer | nil
+---@field ShouldHit ash.trace.Filter.ShouldHit | nil
+local Filter = std.class.base( "ash.trace.Filter", false )
+
+---@class ash.trace.FilterClass : ash.trace.Filter
+---@field __base ash.trace.Filter
+---@overload fun( pass_entity: Entity, collision_group: integer, should_hit: ash.trace.Filter.ShouldHit ): ash.trace.Filter
+local FilterClass = std.class.create( Filter )
+ash_trace.Filter = FilterClass
+
+---@param pass_entity Entity
+---@param collision_group integer
+---@param should_hit ash.trace.Filter.ShouldHit
+---@protected
+function Filter:__init( pass_entity, collision_group, should_hit )
+    self.PassEntity = pass_entity
+    self.CollisionGroup = collision_group
+    self.ShouldHit = should_hit
+end
+
+local Entity_GetMoveType = Entity.GetMoveType
+local Entity_GetSolid = Entity.GetSolid
+local Entity_GetOwner = Entity.GetOwner
+
+local bit_band = bit.band
+local NULL = NULL
+
+---@param entity Entity
+---@param content_masks integer
+---@return boolean
+local function StandardFilterRules( entity, content_masks )
+    if entity == nil or entity == NULL then
+        return false
+    end
+
+    local solid = Entity_GetSolid( entity )
+
+    if not entity_isBrush( entity ) or not ( solid == SOLID_BSP or solid == SOLID_VPHYSICS ) and bit_band( content_masks, CONTENTS_MONSTER ) == 0 then
+        return false
+    end
+
+    -- This code is used to cull out tests against see-thru entities
+    if bit_band( content_masks, CONTENTS_WINDOW ) == 0 and entity_isTransparent( entity ) then
+        return false
+    end
+
+    -- FIXME: this is to skip BSP models that are entities that can be potentially moved/deleted, similar to a monster but doors don't seem to be flagged as monsters
+    -- FIXME: the FL_WORLDBRUSH looked promising, but it needs to be set on everything that's actually a worldbrush and it currently isn't
+    -- !(touch->flags & FL_WORLDBRUSH) )
+
+    return not ( bit_band( content_masks, CONTENTS_MOVEABLE ) == 0 or Entity_GetMoveType( entity ) == MOVETYPE_PUSH )
+end
+
+---@param entity Entity
+---@param pass_entity Entity
+---@return boolean
+local function PassServerEntityFilter( entity, pass_entity )
+    if entity == nil or entity == NULL or pass_entity == nil or pass_entity == NULL then
+        return true
+    end
+
+    -- don't clip against own missiles
+    if Entity_GetOwner( entity ) == pass_entity then
+        return false
+    end
+
+    -- don't clip against owner
+    if Entity_GetOwner( pass_entity ) == entity then
+        return false
+    end
+
+    return true
+end
+
+--- [SHARED]
+---
+--- Checks if the entity should be hit.
+---
+---@param entity Entity
+---@param content_masks CONTENTS
+---@return boolean
+function Filter:ShouldHitEntity( entity, content_masks )
+    if not StandardFilterRules( entity, content_masks ) then
+        return false
+    end
+
+    local pass_entity = self.PassEntity
+    if pass_entity ~= nil and not PassServerEntityFilter( entity, pass_entity ) then
+        return false
+    end
+
+    if entity == nil or entity == NULL then
+        return false
+    end
+
+    -- if not pEntity->ShouldCollide( m_collisionGroup, contentsMask ) then
+    --     return false
+    -- end
+
+    -- if pEntity and not g_pGameRules->ShouldCollide( m_collisionGroup, pEntity->GetCollisionGroup() ) then
+    --     return false
+    -- end
+
+    local should_hit = self.ShouldHit
+    if should_hit ~= nil and not should_hit( entity, content_masks ) then
+        return false
+    end
+
+    return true
+end
+
+-- traceFilter = CTraceFilterNoCombatCharacters( pass_entity, COLLISION_GROUP_NONE )
+-- traceFilter = CTraceFilterSkipTwoEntities( this, pass_entity, COLLISION_GROUP_NONE )
 
 return ash_trace

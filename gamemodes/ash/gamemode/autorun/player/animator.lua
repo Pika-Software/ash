@@ -2,7 +2,7 @@
 local ash_player = ...
 
 ---@type ash.entity
-local ash_entity = require( "ash.entity" )
+local ash_entity = import "ash.entity"
 local entity_getWaterLevel = ash_entity.getWaterLevel
 
 local ACT_MP_CROUCH_IDLE = ACT_MP_CROUCH_IDLE

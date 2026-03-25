@@ -1,11 +1,11 @@
 include( "shared.lua" )
 
 ---@type ash.player
-local ash_player = require( "ash.player" )
+local ash_player = import "ash.player"
 local player_getMoveState = ash_player.getMoveState
 
 ---@type ash.player.footsteps
-local ash_footsteps = require( "ash.player.footsteps" )
+local ash_footsteps = import "ash.player.footsteps"
 local footsteps_getShoesType = ash_footsteps.getShoesType
 
 local util_GetSurfaceData = util.GetSurfaceData

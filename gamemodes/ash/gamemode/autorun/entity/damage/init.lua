@@ -5,7 +5,7 @@ local util = util
 local ash_damage = include( "shared.lua" )
 
 ---@type ash.entity
-local ash_entity = require( "ash.entity" )
+local ash_entity = import "ash.entity"
 
 do
 

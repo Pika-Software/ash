@@ -6,7 +6,7 @@ local cam_End2D = cam.End2D
 local math_min = math.min
 
 ---@class ash.ui
-local ash_ui = require( "ash.ui" )
+local ash_ui = import "ash.ui"
 
 ash_ui.font( "ash.intro.TextBig", {
     font = "Roboto Mono Medium",
@@ -129,8 +129,8 @@ hook.Add( "ash.Loaded", "Welcome", function()
     local hash = util.SHA1( game.GetIPAddress() )
     ash.Logger:debug( "Generated hash '%s' for IP '%s'.", hash, game.GetIPAddress() )
 
-    if ash_intro.value == hash then return end
-    ash_intro.value = hash
+    -- if ash_intro.value == hash then return end
+    -- ash_intro.value = hash
 
     WriteTextToRT( "</Powered by Ash>", "ash.intro.Text" )
     BuildDotMatrixFromRT()
@@ -253,3 +253,5 @@ hook.Add( "ash.Loaded", "Welcome", function()
         cam_End2D()
     end )
 end )
+
+hook.Run( "ash.Loaded" )

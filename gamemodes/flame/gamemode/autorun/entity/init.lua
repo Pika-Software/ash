@@ -5,19 +5,19 @@ MODULE.ClientFiles = {
 }
 
 ---@type ash.entity
-local ash_entity = require( "ash.entity" )
+local ash_entity = import "ash.entity"
 
 ---@type ash.entity.door
-local ash_door = require( "ash.entity.door" )
+local ash_door = import "ash.entity.door"
 
 ---@type ash.view
-local ash_view = require( "ash.view" )
+local ash_view = import "ash.view"
 
 ---@type ash.player
-local ash_player = require( "ash.player" )
+local ash_player = import "ash.player"
 
 ---@type ash.trace
-local ash_trace = require( "ash.trace" )
+local ash_trace = import "ash.trace"
 local trace_cast = ash_trace.cast
 
 include( "shared.lua" )
@@ -118,3 +118,10 @@ do
     end )
 
 end
+
+hook.Add( "ash.entity.WaterLevel", "WaterWash", function( entity, old, new )
+    if new == 3 and old < new then
+        entity:EmitSound( "ambient/water/water_splash" .. math.random( 1, 3 ) .. ".wav" )
+        entity:RemoveAllDecals()
+    end
+end )

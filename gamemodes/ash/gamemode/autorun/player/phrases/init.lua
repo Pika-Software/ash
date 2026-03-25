@@ -16,11 +16,11 @@ MODULE.Networks = {
 }
 
 ---@type ash.sound
-local ash_sound = require( "ash.sound" )
+local ash_sound = import "ash.sound"
 local sound_get = ash_sound.get
 
 ---@type ash.player
-local ash_player = require( "ash.player" )
+local ash_player = import "ash.player"
 local player_isSpeaking = ash_player.isSpeaking
 
 ---@class ash.player.phrases

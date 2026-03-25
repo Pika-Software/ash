@@ -3,14 +3,14 @@ local Entity_IsValid = Entity.IsValid
 local hook_Run = hook.Run
 
 ---@type ash.player
-local ash_player = require( "ash.player" )
+local ash_player = import "ash.player"
 local player_isSpeaking = ash_player.isSpeaking
 
 ---@type ash.sound.bass
-local ash_bass = require( "ash.sound.bass" )
+local ash_bass = import "ash.sound.bass"
 
 -- ---@type ash.player.voice
--- local ash_voice = require( "ash.player.voice" )
+-- local ash_voice = import "ash.player.voice"
 
 ---@type table<Player, ash.sound.bass.Channel>
 local channels = {}

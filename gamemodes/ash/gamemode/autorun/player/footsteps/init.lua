@@ -1,5 +1,5 @@
 ---@type ash.sound
-local ash_sound = require( "ash.sound" )
+local ash_sound = import "ash.sound"
 local sound_exists = ash_sound.exists
 local sound_merge = ash_sound.merge
 

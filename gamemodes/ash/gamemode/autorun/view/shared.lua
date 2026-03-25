@@ -10,7 +10,7 @@ local Player_GetAimVector = Player.GetAimVector
 local Entity_GetNW2Var = Entity.GetNW2Var
 
 ---@type ash.trace
-local ash_trace = require( "ash.trace" )
+local ash_trace = import "ash.trace"
 local trace_cast = ash_trace.cast
 
 ---@class ash.view

@@ -5,7 +5,7 @@ local Entity_IsFlagSet, Entity_AddFlags, Entity_RemoveFlags = Entity.IsFlagSet, 
 local hook_Run = hook.Run
 
 ---@type ash.entity
-local ash_entity = require( "ash.entity" )
+local ash_entity = import "ash.entity"
 
 local entity_getEngineValue, entity_setEngineValue = ash_entity.getEngineValue, ash_entity.setEngineValue
 local entity_getClassName = ash_entity.getClassName

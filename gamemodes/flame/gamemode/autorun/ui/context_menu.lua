@@ -2,20 +2,20 @@
 local flame_ui = ...
 
 ---@type ash.ui
-local ash_ui = require( "ash.ui" )
+local ash_ui = import "ash.ui"
 
 ---@type ash.view
-local ash_view = require( "ash.view" )
+local ash_view = import "ash.view"
 local view_Data = ash_view.Data
 
 ---@type ash.entity
-local ash_entity = require( "ash.entity" )
+local ash_entity = import "ash.entity"
 
 ---@type ash.player
-local ash_player = require( "ash.player" )
+local ash_player = import "ash.player"
 
 ---@type ash.entity.door
-local ash_door = require( "ash.entity.door" )
+local ash_door = import "ash.entity.door"
 
 local colors = ash_ui.Colors
 local light_grey = colors[ 180 ]
@@ -591,9 +591,14 @@ do
 
 	local Entity_GetNoDraw = Entity.GetNoDraw
 	local Entity_GetSolid = Entity.GetSolid
+	local Entity_GetClass = Entity.GetClass
 	local Entity_IsValid = Entity.IsValid
 
 	local util_TraceLine = util.TraceLine
+
+	local blacklist = {
+		func_reflective_glass = true
+	}
 
 	hook.Add( "ContextMenuThink", "Properties", function( self )
 		local view_entity = ash_view.Entity
@@ -613,7 +618,7 @@ do
 		entity = trace_result.Entity
 		---@cast entity Entity
 
-		if not Entity_IsValid( entity ) or Entity_GetNoDraw( entity ) or Entity_GetSolid( entity ) == 0 then
+		if not Entity_IsValid( entity ) or Entity_GetNoDraw( entity ) or Entity_GetSolid( entity ) == 0 or blacklist[ Entity_GetClass( entity ) ] then
 			entity = nil
 		end
 	end )

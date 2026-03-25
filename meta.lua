@@ -1,3 +1,4 @@
+---@diagnostic disable: lowercase-global
 local std = _G.dreamwork.std
 
 --- [SHARED]
@@ -19,7 +20,6 @@ MODULE = {}
 --- The name of the current file.
 ---
 ---@type string
----@diagnostic disable-next-line: lowercase-global
 __file = ""
 
 --- [SHARED]
@@ -27,7 +27,6 @@ __file = ""
 --- The directory of the current file.
 ---
 ---@type string
----@diagnostic disable-next-line: lowercase-global
 __dir = ""
 
 ---@class ash.Angle : Angle
@@ -281,17 +280,9 @@ do
 
 end
 
---- [SHARED]
----
---- Includes a file.
----
----@param file_path string
----@param ... any
----@return any ...
-function include( file_path, ...  )
-end
-
-dofile = include
+include = ash.include
+dofile = ash.include
+import = ash.import
 
 -- https://github.com/Srlion/Hook-Library/tree/master
 PRE_HOOK = {-4}
@@ -319,44 +310,23 @@ POST_HOOK = {4}
 function hook.Add( event_name, identifier, func, priority )
 end
 
-Color = std.Color
-
----@diagnostic disable-next-line: lowercase-global
-printf = std.printf
-
----@diagnostic disable-next-line: lowercase-global
+futures = std.futures
 debug = std.debug
-
----@diagnostic disable-next-line: lowercase-global
 class = std.class
 
----@diagnostic disable-next-line: lowercase-global
+string = std.string
+table = std.table
 math = std.math
 
----@diagnostic disable-next-line: lowercase-global
-string = std.string
-
----@diagnostic disable-next-line: lowercase-global
-table = std.table
-
----@diagnostic disable-next-line: lowercase-global
+console = std.console
 path = std.path
-
----@diagnostic disable-next-line: lowercase-global
-futures = std.futures
-
----@diagnostic disable-next-line: lowercase-global
+http = std.http
 gc = std.gc
 
----@diagnostic disable-next-line: lowercase-global
-console = std.console
-
----@diagnostic disable-next-line: lowercase-global
-http = std.http
-
----@diagnostic disable-next-line: lowercase-global
 setTimeout = std.setTimeout
+printf = std.printf
+
+Color = std.Color
 
 ---@class flame : ash.Gamemode
----@diagnostic disable-next-line: lowercase-global
 flame = flame or {}
