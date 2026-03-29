@@ -78,7 +78,7 @@ if CLIENT then
         Entity_SetNW2Float( pl, "m_fVoiceVolumeScale", scale )
     end
 
-    hook.Add( "ash.player.Think", "VolumeController", function( pl, is_local )
+    hook.Add( "ash.player.Tick", "VolumeController", function( pl, is_local )
         if is_local then return end
 
         local scale = getVolumeScale( pl )

@@ -407,20 +407,16 @@ do
         return players_dead
     end
 
-    hook.Add( "EntityRemoved", "Defaults", function ( entity )
-        if IsValid( entity ) and entity:IsPlayer() then
-            if Player_Alive( entity ) then
-                if table_removeByValue( players_alive, entity, players_alive_count ) then
-                    players_alive_count = players_alive_count -1
-                end
-            else
-                if table_removeByValue( players_dead, entity, players_dead_count ) then
-                    players_dead_count = players_dead_count -1
-                end
+    hook.Add( "ash.entity.PlayerRemoved", "Defaults", function( entity )
+        if Player_Alive( entity ) then
+            if table_removeByValue( players_alive, entity, players_alive_count ) then
+                players_alive_count = players_alive_count -1
             end
-
-            hook_Run( "ash.player.DeadCountChanged", players_dead_count, players_alive_count )
+        elseif table_removeByValue( players_dead, entity, players_dead_count ) then
+            players_dead_count = players_dead_count -1
         end
+
+        hook_Run( "ash.player.DeadCountChanged", players_dead_count, players_alive_count )
     end, PRE_HOOK )
 
     ---@type table<Player, boolean>
@@ -562,7 +558,7 @@ do
 
     hook.Add( "Tick", "Ticking", function()
         for _, pl in player_Iterator() do
-            hook_Run( "ash.player.Think", pl )
+            hook_Run( "ash.player.Tick", pl )
         end
     end )
 
@@ -793,7 +789,7 @@ do
     } )
 
     ---@param pl Player
-    hook.Add( "ash.player.Think", "VoiceChatStateController", function( pl )
+    hook.Add( "ash.player.Tick", "VoiceChatStateController", function( pl )
         local is_speaking = Player_IsSpeaking( pl )
         if players_speaking[ pl ] ~= is_speaking then
             players_speaking[ pl ] = is_speaking

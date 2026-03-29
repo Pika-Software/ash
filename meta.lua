@@ -321,6 +321,7 @@ math = std.math
 console = std.console
 path = std.path
 http = std.http
+raw = std.raw
 gc = std.gc
 
 setTimeout = std.setTimeout

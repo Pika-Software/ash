@@ -425,7 +425,7 @@ end
 -- 	self.m_dDrownDamageTime = 0
 -- end, PRE_HOOK)
 
--- hook.Add("ash.player.Think", addonName, function(self)
+-- hook.Add("ash.player.Tick", addonName, function(self)
 -- 	if player_isAlive(self) and WaterLevel(self) == 3 and self.m_dDrownDamageTime < CurTime() then
 -- 		self.m_dDrownDamageTime = CurTime() + mp_player_drown_damage_delay
 -- 		local damageInfo = DamageInfo()

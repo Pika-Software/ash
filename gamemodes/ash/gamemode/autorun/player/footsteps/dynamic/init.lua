@@ -49,7 +49,7 @@ setmetatable( foot_states, {
 } )
 
 ---@param pl Player
-hook.Add( "ash.player.Think", "FootstepsThink", function( pl )
+hook.Add( "ash.player.Tick", "FootstepsThink", function( pl )
     if Entity_GetMoveType( pl ) ~= 2 --[[ MOVETYPE_WALK ]] then return end
 
     local move_state = player_getMoveState( pl )

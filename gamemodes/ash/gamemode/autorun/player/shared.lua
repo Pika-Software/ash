@@ -724,7 +724,7 @@ do
     end
 
     ---@param pl Player
-    hook.Add( "ash.player.Think", "StateController", function( pl )
+    hook.Add( "ash.player.Tick", "StateController", function( pl )
         local in_vehicle = Player_InVehicle( pl )
         if rawget( players_in_vehicle, pl ) ~= in_vehicle then
             players_in_vehicle[ pl ] = in_vehicle
@@ -1720,18 +1720,16 @@ do
     local humans_count = #humans
 
     local table_removeByValue = table.removeByValue
-
-    local inext = ipairs( { } )
+    local inext = raw.inext
 
     --- [SHARED]
     ---
     --- Player iterator.
     ---
     ---@return function, Player[], integer
-    function ash_player.iterator( )
+    function ash_player.iterator()
         return inext, players, 0
     end
-
 
     --- [SHARED]
     ---
@@ -1769,7 +1767,7 @@ do
         return humans, humans_count
     end
 
-    hook.Add( "ash.entity.PlayerCreated", "Defaults", function( pl )
+    hook.Add( "ash.entity.PlayerCreated", "IteratorsAndCounters", function( pl )
         players_count = players_count + 1
         players[ players_count ] = pl
 
@@ -1782,7 +1780,7 @@ do
         end
     end, PRE_HOOK )
 
-    hook.Add( "ash.entity.PlayerRemoved", "Defaults", function( pl, _, full_update )
+    hook.Add( "ash.entity.PlayerRemoved", "IteratorsAndCounters", function( pl, _, full_update )
         if full_update then return end
 
         if table_removeByValue( players, pl, players_count ) then

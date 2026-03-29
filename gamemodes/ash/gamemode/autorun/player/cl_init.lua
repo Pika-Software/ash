@@ -195,7 +195,7 @@ do
 
         hook.Add( "Tick", "Ticking", function()
             for _, pl in player_Iterator() do
-                hook_Run( "ash.player.Think", pl, pl == player_entity )
+                hook_Run( "ash.player.Tick", pl, pl == player_entity )
             end
         end )
 
@@ -318,7 +318,7 @@ do
         return active_weapons[ pl ]
     end
 
-    hook.Add( "ash.player.Think", "WeaponLookup", function( pl, is_local )
+    hook.Add( "ash.player.Tick", "WeaponLookup", function( pl, is_local )
         local active_weapon = Player_GetActiveWeapon( pl ) or NULL
         if rawget( active_weapons, pl ) ~= active_weapon then
             if hook_Run( "ash.player.SwitchedWeapon", pl, active_weapons[ pl ], active_weapon, is_local ) == false then

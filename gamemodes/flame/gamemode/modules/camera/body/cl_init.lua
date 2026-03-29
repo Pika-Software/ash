@@ -75,7 +75,7 @@ local yaw_jump = 0.01
 
 local yaw_last = nil
 
-hook.Add( "ash.player.Think", "AimYawReset", function( pl, is_local )
+hook.Add( "ash.player.Tick", "AimYawReset", function( pl, is_local )
     if not is_local then return end
 
     local id = pl:LookupPoseParameter( "aim_yaw" )
@@ -109,7 +109,7 @@ hook.Add( "ash.player.AimYawReset", "Camera", function( pl )
 end )
 
 ---@param pl Player
-hook.Add( "ash.player.Think", "Camera", function( pl, is_local )
+hook.Add( "ash.player.Tick", "Camera", function( pl, is_local )
     if not is_local then return end
 
     local eyes_position = getEyePos( pl )

@@ -891,6 +891,7 @@ environment.class = class
 environment.debug = debug
 environment.path = path
 environment.gc = std.gc
+environment.raw = raw
 
 environment.printf = std.printf
 environment.Color = Color
