@@ -193,7 +193,7 @@ do
 
         local player_Iterator = player.Iterator
 
-        hook.Add( "Tick", "Ticking", function()
+        hook.Add( "Tick", "Tick", function()
             for _, pl in player_Iterator() do
                 hook_Run( "ash.player.Tick", pl, pl == player_entity )
             end
@@ -281,12 +281,12 @@ do
         return voice_statuses[ pl ]
     end
 
-    hook.Add( "PlayerStartVoice", "Voice", function( pl, index )
+    hook.Add( "PlayerStartVoice", "VoiceHandler", function( pl, index )
         voice_statuses[ pl ] = true
         hook_Run( "ash.player.Speaking", pl, true, player_isLocal( pl ) )
     end, PRE_HOOK )
 
-    hook.Add( "PlayerEndVoice", "Voice", function( pl )
+    hook.Add( "PlayerEndVoice", "VoiceHandler", function( pl )
         voice_statuses[ pl ] = false
         hook_Run( "ash.player.Speaking", pl, false, player_isLocal( pl ) )
     end, PRE_HOOK )
@@ -415,15 +415,15 @@ do
 
 end
 
-hook.Add( "PlayerButtonDown", "InputCapture", function( pl, key_id )
+hook.Add( "PlayerButtonDown", "InputHandler", function( pl, key_id )
     hook_Run( "ash.player.Input", pl, key_id, true, player_isLocal( pl ) )
 end, PRE_HOOK )
 
-hook.Add( "PlayerButtonUp", "InputCapture", function( pl, key_id )
+hook.Add( "PlayerButtonUp", "InputHandler", function( pl, key_id )
     hook_Run( "ash.player.Input", pl, key_id, false, player_isLocal( pl ) )
 end, PRE_HOOK )
 
-hook.Add( "AdjustMouseSensitivity", "InputCapture", function( arguments, default_sensitivity, fov, default_fov )
+hook.Add( "AdjustMouseSensitivity", "InputHandler", function( arguments, default_sensitivity, fov, default_fov )
     local fraction = arguments[ 2 ]
     if fraction ~= nil then
         return fraction
