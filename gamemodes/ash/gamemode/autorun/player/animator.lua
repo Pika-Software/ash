@@ -582,47 +582,11 @@ do
     local player_getSequence = ash_player.getSequence
     local player_getAll = ash_player.getAll
 
-    local coroutine_resume = coroutine.resume
-    local coroutine_yield = coroutine.yield
-
     local math_sqrt = math.sqrt
     local math_huge = math.huge
     local math_min = math.min
 
-    local playback_thread = coroutine.create( function( pl )
-        ::thread_loop::
-
-        local rate = 1.00
-
-        local move_type = player_getMoveType( pl )
-        if move_type == 2 then
-            local max_speed = Entity_GetSequenceGroundSpeed( pl, player_getSequence( pl ) )
-            if max_speed ~= 0 then
-                rate = math_sqrt( Vector_LengthSqr( velocities[ pl ] ) ) / max_speed
-
-                if player_isOnGround( pl ) then
-                    rate = math_min( 2, rate )
-                else
-                    rate = math_min( 1, rate )
-                end
-            end
-        elseif flight_move_types[ move_type ] then
-            if Vector_LengthSqr( velocities[ pl ] ) > 22500 then
-                rate = 0.00
-            else
-                rate = 0.25
-            end
-        elseif move_type == 9 then
-            rate = 0.25
-        end
-
-        coroutine_yield( rate )
-        goto thread_loop
-    end )
-
-    local success = false
     local rate = math_huge
-
     local index = 0
 
     -- TODO: rewrite with PVS usage, to reduce cpu/network load
@@ -642,8 +606,29 @@ do
         rate = hook_Run( "ash.player.animator.PlaybackRate", pl ) or math_huge
 
         if rate == math_huge then
-            success, rate = coroutine_resume( playback_thread, pl )
-            if not success then return end
+            rate = 1.00
+
+            local move_type = player_getMoveType( pl )
+            if move_type == 2 then
+                local max_speed = Entity_GetSequenceGroundSpeed( pl, player_getSequence( pl ) )
+                if max_speed ~= 0 then
+                    rate = math_sqrt( Vector_LengthSqr( velocities[ pl ] ) ) / max_speed
+
+                    if player_isOnGround( pl ) then
+                        rate = math_min( 2, rate )
+                    else
+                        rate = math_min( 1, rate )
+                    end
+                end
+            elseif flight_move_types[ move_type ] then
+                if Vector_LengthSqr( velocities[ pl ] ) > 22500 then
+                    rate = 0.00
+                else
+                    rate = 0.25
+                end
+            elseif move_type == 9 then
+                rate = 0.25
+            end
         end
 
         Entity_SetPlaybackRate( pl, rate )
