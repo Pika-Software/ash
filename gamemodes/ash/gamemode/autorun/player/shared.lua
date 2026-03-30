@@ -13,6 +13,8 @@ local entity_getWaterLevel = ash_entity.getWaterLevel
 local ash_trace = import "ash.trace"
 local trace_cast = ash_trace.cast
 
+local CLIENT = CLIENT
+
 ---@class ash.player
 local ash_player = {
     BitCount = math.ceil( math.log( 1 + game.MaxPlayers() ) / math.log( 2 ) )
@@ -85,96 +87,137 @@ end
 
 do
 
-    local Player_IsBot = Player.IsBot
-
-    ---@type Player[]
-    local players = _G.player.GetAll()
-    local players_count = #players
-
-    ---@type Player[]
-    local bots = _G.player.GetBots()
-    local bots_count = #bots
-
-    ---@type Player[]
-    local humans = _G.player.GetHumans()
-    local humans_count = #humans
-
     local table_removeByValue = table.removeByValue
     local inext = raw.inext
 
-    --- [SHARED]
-    ---
-    --- Player iterator.
-    ---
-    ---@return function, Player[], integer
-    function ash_player.iterator()
-        return inext, players, 0
-    end
+    do
 
-    --- [SHARED]
-    ---
-    --- Get player table and player count.
-    ---
-    ---@return Player[], integer
-    function ash_player.getAll()
-        return players, players_count
-    end
+        local Player_IsBot = Player.IsBot
 
-    --- [SHARED]
-    ---
-    --- Get player count.
-    ---
-    ---@return integer
-    function ash_player.getCount()
-        return players_count
-    end
+        ---@type Player[]
+        local players = _G.player.GetAll()
+        local players_count = #players
 
-    --- [SHARED]
-    ---
-    --- Get bots table and bots count.
-    ---
-    ---@return Player[], integer
-    function ash_player.getBots()
-        return bots, bots_count
-    end
+        ---@type Player[]
+        local bots = _G.player.GetBots()
+        local bots_count = #bots
 
-    --- [SHARED]
-    ---
-    --- Get humans table and humans count.
-    ---
-    ---@return Player[], integer
-    function ash_player.getHumans()
-        return humans, humans_count
-    end
+        ---@type Player[]
+        local humans = _G.player.GetHumans()
+        local humans_count = #humans
 
-    hook.Add( "ash.entity.PlayerCreated", "IteratorsAndCounters", function( pl )
-        players_count = players_count + 1
-        players[ players_count ] = pl
-
-        if Player_IsBot( pl ) then
-            bots_count = bots_count + 1
-            bots[ bots_count ] = pl
-        else
-            humans_count = humans_count + 1
-            humans[ bots_count ] = pl
-        end
-    end, PRE_HOOK )
-
-    hook.Add( "ash.entity.PlayerRemoved", "IteratorsAndCounters", function( pl, _, full_update )
-        if full_update then return end
-
-        if table_removeByValue( players, pl, players_count ) ~= nil then
-            players_count = players_count - 1
+        --- [SHARED]
+        ---
+        --- Player iterator.
+        ---
+        ---@return function, Player[], integer
+        function ash_player.iterator()
+            return inext, players, 0
         end
 
-        if Player_IsBot( pl ) then
-            if table_removeByValue( bots, pl, bots_count ) ~= nil then
-                bots_count = bots_count - 1
+        --- [SHARED]
+        ---
+        --- Get player table and player count.
+        ---
+        ---@return Player[], integer
+        function ash_player.getAll()
+            return players, players_count
+        end
+
+        --- [SHARED]
+        ---
+        --- Get player count.
+        ---
+        ---@return integer
+        function ash_player.getCount()
+            return players_count
+        end
+
+        --- [SHARED]
+        ---
+        --- Get bots table and bots count.
+        ---
+        ---@return Player[], integer
+        function ash_player.getBots()
+            return bots, bots_count
+        end
+
+        --- [SHARED]
+        ---
+        --- Get humans table and humans count.
+        ---
+        ---@return Player[], integer
+        function ash_player.getHumans()
+            return humans, humans_count
+        end
+
+        hook.Add( "ash.entity.PlayerCreated", "IteratorsAndCounters", function( pl )
+            players_count = players_count + 1
+            players[ players_count ] = pl
+
+            if Player_IsBot( pl ) then
+                bots_count = bots_count + 1
+                bots[ bots_count ] = pl
+            else
+                humans_count = humans_count + 1
+                humans[ bots_count ] = pl
             end
-        elseif table_removeByValue( humans, pl, humans_count ) ~= nil then
-            humans_count = humans_count - 1
+        end, PRE_HOOK )
+
+        hook.Add( "ash.entity.PlayerRemoved", "IteratorsAndCounters", function( pl, _, full_update )
+            if full_update then return end
+
+            if table_removeByValue( players, pl, players_count ) ~= nil then
+                players_count = players_count - 1
+            end
+
+            if Player_IsBot( pl ) then
+                if table_removeByValue( bots, pl, bots_count ) ~= nil then
+                    bots_count = bots_count - 1
+                end
+            elseif table_removeByValue( humans, pl, humans_count ) ~= nil then
+                humans_count = humans_count - 1
+            end
+        end )
+
+    end
+
+    if CLIENT then
+
+        ---@type Player[]
+        local players = {}
+
+        ---@type integer
+        local player_count = 0
+
+        for _, pl in ash_player.iterator() do
+            if ash_entity.isInPVS( pl ) then
+                player_count = player_count + 1
+                players[ player_count ] = pl
+            end
         end
-    end )
+
+        --- [CLIENT]
+        ---
+        --- Get player table and player count that are in client's PVS.
+        ---
+        ---@return Player[], integer
+        function ash_player.getInPVS()
+            return players, player_count
+        end
+
+        ---@param pl Player
+        ---@param isInPVS boolean
+        hook.Add( "ash.player.PVS", "PVS", function( pl, isInPVS )
+            if isInPVS then
+                player_count = player_count + 1
+                players[ player_count ] = pl
+            elseif table_removeByValue( players, pl, player_count ) ~= nil then
+                player_count = player_count - 1
+            end
+        end, PRE_HOOK )
+
+    end
 
 end
 

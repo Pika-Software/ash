@@ -185,16 +185,22 @@ do
         end )
     end
 
+    --- [CLIENT]
+    ---
+    --- Checks if the player is local.
+    ---
+    ---@param pl Player
+    ---@return boolean is_local
     function ash_player.isLocal( pl )
         return pl == player_entity
     end
 
     do
 
-        local player_Iterator = player.Iterator
+        local player_iterator = ash_player.iterator
 
         hook.Add( "Tick", "Tick", function()
-            for _, pl in player_Iterator() do
+            for _, pl in player_iterator() do
                 hook_Run( "ash.player.Tick", pl, pl == player_entity )
             end
         end )

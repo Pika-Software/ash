@@ -3,7 +3,11 @@ local ash_player = ...
 
 ---@type ash.entity
 local ash_entity = import "ash.entity"
+local entity_isInPVS = ash_entity.isInPVS
 local entity_getWaterLevel = ash_entity.getWaterLevel
+
+local CLIENT = CLIENT
+local SERVER = SERVER
 
 local ACT_MP_CROUCH_IDLE = ACT_MP_CROUCH_IDLE
 local ACT_MP_STAND_IDLE = ACT_MP_STAND_IDLE
@@ -456,6 +460,7 @@ do
         local IN_WALK = IN_WALK
 
         local is_crouching, move_type = false, 0
+        local activity, sequence_id = 0, 0
 
         ---@param arguments integer[]
         ---@param pl Player
@@ -464,11 +469,16 @@ do
         hook.Add( "CalcMainActivity", "AnimationController", function( arguments, pl, velocity )
             velocities[ pl ] = velocity
 
-            local activity = arguments[ 2 ]
-            local sequence_id = -1
-
-            if activity ~= nil then
-                sequence_id = arguments[ 3 ]
+            if SERVER or entity_isInPVS( pl ) then
+                activity = arguments[ 2 ]
+                if activity == nil then
+                    sequence_id = -1
+                else
+                    sequence_id = arguments[ 3 ]
+                    goto activity_selected
+                end
+            else
+                activity, sequence_id = 1, -1
                 goto activity_selected
             end
 
@@ -579,8 +589,8 @@ do
     local Entity_GetSequenceGroundSpeed = Entity.GetSequenceGroundSpeed
     local Entity_SetPlaybackRate = Entity.SetPlaybackRate
 
+    local player_getInPVS = CLIENT and ash_player.getInPVS or ash_player.getAll
     local player_getSequence = ash_player.getSequence
-    local player_getAll = ash_player.getAll
 
     local math_sqrt = math.sqrt
     local math_huge = math.huge
@@ -589,10 +599,8 @@ do
     local rate = math_huge
     local index = 0
 
-    -- TODO: rewrite with PVS usage, to reduce cpu/network load
-
     hook.Add( "Tick", "PlaybackController", function()
-        local players, player_count = player_getAll()
+        local players, player_count = player_getInPVS()
         if player_count == 0 then return end
 
         if player_count == 1 then
