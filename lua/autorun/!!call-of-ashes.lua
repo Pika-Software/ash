@@ -842,24 +842,6 @@ if _G[ active_gamemode ] == nil then
             interpolation = false
         } )
     }
-
-    hook_Add( "PostGamemodeLoaded", "ash.gamemode", function()
-        ---@type GM
-        local GM = GM or GAMEMODE
-
-        local folder_name = GM.FolderName
-        local folder = GM.Folder
-
-        table.clearKeys( GM )
-
-        GM.Name = active_title
-        GM.Author = active_author
-
-        GM.FolderName = folder_name
-        GM.Folder = folder
-
-        ---@diagnostic disable-next-line: undefined-field, redundant-parameter
-    end, _G.PRE_HOOK )
 end
 
 ---@class ash.Environment

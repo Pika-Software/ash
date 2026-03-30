@@ -1,3 +1,8 @@
+MODULE.ClientFiles = {
+    "cl_init.lua",
+    "shared.lua"
+}
+
 ---@class ash.level
 ---@field mins Vector The minimum bounds of the current loaded level.
 ---@field maxs Vector The maximum bounds of the current loaded level.

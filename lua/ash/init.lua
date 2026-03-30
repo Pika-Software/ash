@@ -4,8 +4,10 @@ local ash = ash
 if ash.Loaded then return end
 ash.Loaded = true
 
-AddCSLuaFile( "ash/cl_init.lua" )
 AddCSLuaFile( ash.ChainFile )
+AddCSLuaFile( "ash/shared.lua" )
+AddCSLuaFile( "ash/cl_init.lua" )
+
 ash.resend()
 
 ash.reload()
@@ -29,5 +31,31 @@ ash.rebuild( true )
 
 AddCSLuaFile( ash.ChecksumFile )
 AddCSLuaFile( ash.WorkshopFile )
+
+include( "shared.lua" )
+
+do
+
+    local timer_Remove = _G.timer.Remove
+    local hook_Remove = _G.hook.Remove
+
+    -- garrysmod/gamemodes/sandbox/gamemode/persistence.lua
+    hook_Remove( "InitPostEntity", "PersistenceInit" )
+    hook_Remove( "ShutDown", "SavePersistenceOnShutdown" )
+
+    hook_Remove( "PersistenceSave", "PersistenceSave" )
+
+    hook_Remove( "PersistenceLoad", "PersistenceLoad" )
+    hook_Remove( "PostCleanupMap", "GMod_Sandbox_PersistanceLoad" )
+
+    timer_Remove( "sbox_persist_change_timer" )
+
+    -- garrysmod/lua/includes/extensions/player_auth.lua
+    hook_Remove( "PlayerInitialSpawn", "PlayerAuthSpawn" ) -- purified piece of crap
+
+    -- garrysmod/lua/includes/extensions/util/worldpicker.lua
+    hook_Remove( "VGUIMousePressAllowed", "WorldPickerMouseDisable" )
+
+end
 
 logger:info( "Ashes calls you, %s. %s awaits.", cvars.String( "hostname", "unknown" ), ash.Chain[ 1 ].title )

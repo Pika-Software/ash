@@ -561,14 +561,6 @@ do
         end
     end, PRE_HOOK )
 
-    if CLIENT then
-        ---@diagnostic disable-next-line: duplicate-set-field
-        function GM:GetTeamColor( entity )
-            local vec3 = player_colors[ entity ]
-            return Color( vec3[ 1 ] * 255, vec3[ 2 ] * 255, vec3[ 3 ] * 255, 255 )
-        end
-    end
-
     --- [SHARED]
     ---
     --- Get player color.

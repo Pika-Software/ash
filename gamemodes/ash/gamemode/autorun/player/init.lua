@@ -11,11 +11,13 @@ MODULE.ClientFiles = {
 }
 
 do
-
     local mp_show_voice_icons = console.Variable.get( "mp_show_voice_icons", "boolean" )
-    mp_show_voice_icons.value = false
-
+    if mp_show_voice_icons ~= nil then
+        mp_show_voice_icons.value = false
+    end
 end
+
+resource.AddWorkshop( "129739986" )
 
 ---@class ash.player
 ---@field SpawnPoints ash.player.SpawnPoint[]

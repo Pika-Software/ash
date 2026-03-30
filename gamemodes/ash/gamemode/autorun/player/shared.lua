@@ -15,6 +15,12 @@ local trace_cast = ash_trace.cast
 
 local CLIENT = CLIENT
 
+do
+    -- i hope in one day rubat just khs
+    local variables = debug.getupvalues( Player.ConCommand )
+    Player.ConCommand = variables.SendConCommand or Player.ConCommand
+end
+
 ---@class ash.player
 local ash_player = {
     BitCount = math.ceil( math.log( 1 + game.MaxPlayers() ) / math.log( 2 ) )
@@ -178,7 +184,7 @@ do
             elseif table_removeByValue( humans, pl, humans_count ) ~= nil then
                 humans_count = humans_count - 1
             end
-        end )
+        end, PRE_HOOK )
 
     end
 
@@ -213,6 +219,12 @@ do
                 player_count = player_count + 1
                 players[ player_count ] = pl
             elseif table_removeByValue( players, pl, player_count ) ~= nil then
+                player_count = player_count - 1
+            end
+        end, PRE_HOOK )
+
+        hook.Add( "ash.entity.PlayerRemoved", "IteratorsAndCounters", function( pl, _, full_update )
+            if not full_update and table_removeByValue( players, pl, player_count ) ~= nil then
                 player_count = player_count - 1
             end
         end, PRE_HOOK )
