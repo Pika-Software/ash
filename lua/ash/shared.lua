@@ -48,7 +48,7 @@ do
 end
 
 dreamwork.engine.hookCatch( "GamemodeSelected", function( name, t )
-    if name == "base" then
+    if name == "base" and t ~= nil then
         std.table.clearKeys( t )
     end
 end )
