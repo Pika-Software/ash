@@ -58,7 +58,7 @@ if SERVER then
     local RunConsoleCommand = _G.RunConsoleCommand
 
     local convars = {
-        { "sv_gamename_override", gamemode_description },
+        -- { "sv_gamename_override", gamemode_description },
         { "sv_defaultdeployspeed", "1" },
         { "mp_show_voice_icons", "0" },
         { "sv_gravity", "800" }
