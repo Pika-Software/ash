@@ -46,7 +46,7 @@ local hook_Run = hook.Run
 
 local Player_IsBot = Player.IsBot
 
-local player_Iterator = player.Iterator
+local player_iterator = ash_player.iterator
 
 local table_remove = table.remove
 
@@ -59,6 +59,12 @@ hook.Add( "ash.player.Initialized", "HullSync", function( pl )
     if not Player_IsBot( pl ) then
         ash_player.setHull( pl, true, pl:GetHullDuck() )
         ash_player.setHull( pl, false, pl:GetHull() )
+    end
+end )
+
+hook.Add( "Tick", "Ticking", function()
+    for _, pl in player_iterator() do
+        hook_Run( "ash.player.Tick", pl )
     end
 end )
 
@@ -381,7 +387,7 @@ do
     local players_dead = {}
     local players_dead_count = 0
 
-    for _, pl in player_Iterator() do
+    for _, pl in player_iterator() do
         if Player_Alive( pl ) then
             players_alive_count = players_alive_count + 1
             players_alive[ players_alive_count ] = pl
@@ -395,21 +401,21 @@ do
     ---
     --- Gets alive players.
     ---
-    ---@return Player[]
-    function ash_player.getAlivePlayers( )
-        return players_alive
+    ---@return Player[], integer
+    function ash_player.getAlivePlayers()
+        return players_alive, players_alive_count
     end
 
     --- [SERVER]
     ---
     --- Gets dead players.
     ---
-    ---@return Player[]
-    function ash_player.getDeadPlayers( )
-        return players_dead
+    ---@return Player[], integer
+    function ash_player.getDeadPlayers()
+        return players_dead, players_dead_count
     end
 
-    hook.Add( "ash.entity.PlayerRemoved", "Defaults", function( entity )
+    hook.Add( "ash.player.Removed", "AliveAndDead", function( entity )
         if Player_Alive( entity ) then
             if table_removeByValue( players_alive, entity, players_alive_count ) then
                 players_alive_count = players_alive_count -1
@@ -553,16 +559,6 @@ do
         end, POST_HOOK )
 
     end
-
-end
-
-do
-
-    hook.Add( "Tick", "Ticking", function()
-        for _, pl in player_Iterator() do
-            hook_Run( "ash.player.Tick", pl )
-        end
-    end )
 
 end
 

@@ -671,7 +671,7 @@ if SERVER then
 		end
 	end, PRE_HOOK )
 
-	hook.Add( "ash.entity.PlayerRemoved", "Defaults", function( ply, _, full_update )
+	hook.Add( "ash.player.Removed", "Defaults", function( ply, full_update )
 		if full_update then return end
 
 		if Player_Alive( ply ) then

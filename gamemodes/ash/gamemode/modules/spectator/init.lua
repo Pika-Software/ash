@@ -142,7 +142,7 @@ hook.Add( "OnEntityCreated", "Defaults", function( ent )
 	ent.spectators = {}
 end, PRE_HOOK )
 
-hook.Add( "ash.entity.PlayerRemoved", "Defaults", function( ent )
+hook.Add( "ash.player.Removed", "Defaults", function( ent )
 	removeOldSpecList( ent )
 end )
 

@@ -127,7 +127,13 @@ do
         ---
         ---@return Player[], integer
         function ash_player.getAll()
-            return players, players_count
+            local copy = {}
+
+            for i = 1, players_count, 1 do
+                copy[ i ] = players[ i ]
+            end
+
+            return copy, players_count
         end
 
         --- [SHARED]
@@ -145,7 +151,13 @@ do
         ---
         ---@return Player[], integer
         function ash_player.getBots()
-            return bots, bots_count
+            local copy = {}
+
+            for i = 1, bots_count, 1 do
+                copy[ i ] = bots[ i ]
+            end
+
+            return copy, bots_count
         end
 
         --- [SHARED]
@@ -154,7 +166,13 @@ do
         ---
         ---@return Player[], integer
         function ash_player.getHumans()
-            return humans, humans_count
+            local copy = {}
+
+            for i = 1, humans_count, 1 do
+                copy[ i ] = humans[ i ]
+            end
+
+            return copy, humans_count
         end
 
         hook.Add( "ash.entity.PlayerCreated", "IteratorsAndCounters", function( pl )
@@ -170,7 +188,7 @@ do
             end
         end, PRE_HOOK )
 
-        hook.Add( "ash.entity.PlayerRemoved", "IteratorsAndCounters", function( pl, _, full_update )
+        hook.Add( "ash.player.Removed", "IteratorsAndCounters", function( pl, full_update )
             if full_update then return end
 
             if table_removeByValue( players, pl, players_count ) ~= nil then
@@ -223,7 +241,7 @@ do
             end
         end, PRE_HOOK )
 
-        hook.Add( "ash.entity.PlayerRemoved", "IteratorsAndCounters", function( pl, _, full_update )
+        hook.Add( "ash.player.Removed", "PVS", function( pl, full_update )
             if not full_update and table_removeByValue( players, pl, player_count ) ~= nil then
                 player_count = player_count - 1
             end

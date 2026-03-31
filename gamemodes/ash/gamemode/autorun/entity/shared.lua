@@ -968,8 +968,8 @@ do
             end
         end
 
-        if class_name == "player" then
-            hook_Run( "ash.entity.PlayerRemoved", entity, class_name, is_full_update )
+        if entity:IsPlayer() then
+            hook_Run( "ash.player.Removed", entity, is_full_update )
         elseif utils_isPropClass( class_name ) then
             hook_Run( "ash.entity.PropRemoved", entity, class_name, is_full_update )
         elseif utils_isDoorClass( class_name ) then
