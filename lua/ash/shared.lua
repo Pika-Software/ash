@@ -1,6 +1,3 @@
----@type dreamwork
-local dreamwork = _G.dreamwork
-
 ---@type dreamwork.std
 local std = dreamwork.std
 

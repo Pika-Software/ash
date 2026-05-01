@@ -1,5 +1,5 @@
 ---@type dreamwork.std
-local std = _G.dreamwork.std
+local std = dreamwork.std
 local fs = std.fs
 
 ---@class ash.level

@@ -1,4 +1,4 @@
-local std = _G.dreamwork.std
+local std = dreamwork.std
 local angle_zero = angle_zero
 
 local system_HasFocus = system.HasFocus
@@ -177,10 +177,12 @@ function overlay.text( str, origin, size, r, g, b, write_depth, lifetime )
 
     return gen( lifetime, function()
         cam_Start3D2D( origin, angle_zero, 0.25 )
-            surface.SetFont( "DermaLarge" )
-            surface.SetDrawColor( color )
-            surface.SetTextPos( text_x, text_y )
-            surface.DrawText( str )
+
+        surface.SetFont( "DermaLarge" )
+        surface.SetDrawColor( color )
+        surface.SetTextPos( text_x, text_y )
+        surface.DrawText( str )
+
         cam_End3D2D()
     end )
 end

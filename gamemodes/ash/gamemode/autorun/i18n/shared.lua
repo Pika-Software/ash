@@ -5,7 +5,7 @@ local string_gsub = string.gsub
 local string_len = string.len
 
 ---@type dreamwork.std
-local std = _G.dreamwork.std
+local std = dreamwork.std
 local raw_get = std.raw.get
 
 local encoding = std.encoding

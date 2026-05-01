@@ -1,5 +1,5 @@
 ---@diagnostic disable: lowercase-global
-local std = _G.dreamwork.std
+local std = dreamwork.std
 
 --- [SHARED]
 ---
@@ -285,11 +285,11 @@ dofile = ash.include
 import = ash.import
 
 -- https://github.com/Srlion/Hook-Library/tree/master
-PRE_HOOK = {-4}
-PRE_HOOK_RETURN = {-3}
-NORMAL_HOOK = {0}
-POST_HOOK_RETURN = {3}
-POST_HOOK = {4}
+PRE_HOOK = { -4 }
+PRE_HOOK_RETURN = { -3 }
+NORMAL_HOOK = { 0 }
+POST_HOOK_RETURN = { 3 }
+POST_HOOK = { 4 }
 
 ---@alias hook.Type
 ---| `PRE_HOOK`

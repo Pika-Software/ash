@@ -377,7 +377,7 @@ do
     local string_lower = string.lower
     local string_isURL = string.isURL
 
-    local engine_loadMaterial = _G.dreamwork.engine.loadMaterial
+    local engine_loadMaterial = dreamwork.engine.loadMaterial
     local CreateMaterial = CreateMaterial
     local string_gsub = string.gsub
     local futures_run = futures.run
@@ -445,7 +445,7 @@ do
             headers[ string_lower( key ) ] = value
         end
 
-        local content_type = headers["content-type"]
+        local content_type = headers[ "content-type" ]
         if content_type == nil then
             error( "failed to fetch data from URL (" .. image_url .. ") - no content-type" )
         end
@@ -491,10 +491,10 @@ do
         local shader = shader_parameters.name or "UnlitGeneric"
         shader_parameters.name = nil
 
-        shader_parameters["$basetexture"] = shader_parameters["$basetexture"] or ash.LoadingTextureName or "color/white"
-        shader_parameters["$translucent"] = shader_parameters["$translucent"] or 1
-        shader_parameters["$vertexalpha"] = shader_parameters["$vertexalpha"] or 1
-        shader_parameters["$vertexcolor"] = shader_parameters["$vertexcolor"] or 1
+        shader_parameters[ "$basetexture" ] = shader_parameters[ "$basetexture" ] or ash.LoadingTextureName or "color/white"
+        shader_parameters[ "$translucent" ] = shader_parameters[ "$translucent" ] or 1
+        shader_parameters[ "$vertexalpha" ] = shader_parameters[ "$vertexalpha" ] or 1
+        shader_parameters[ "$vertexcolor" ] = shader_parameters[ "$vertexcolor" ] or 1
 
         local material = materials[ name ]
         if material == nil then

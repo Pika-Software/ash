@@ -5,7 +5,7 @@ if ash.Loaded then return end
 ash.Loaded = true
 
 ---@type dreamwork.std
-local std = _G.dreamwork.std
+local std = dreamwork.std
 
 local string = std.string
 
@@ -100,19 +100,19 @@ do
         positions = {
             [ 0 ] = { x, -square_size },
 
-            { x, y },
-            { x + borders + square_size, y },
-            { x + ( borders + square_size ) * 2, y },
+            { x,                                 y },
+            { x + borders + square_size,         y },
+            { x + (borders + square_size) * 2,   y },
 
-            { x + ( borders + square_size ) * 2, y + borders + square_size },
-            { x + borders + square_size, y + borders + square_size },
-            { x, y + borders + square_size },
+            { x + (borders + square_size) * 2,   y + borders + square_size },
+            { x + borders + square_size,         y + borders + square_size },
+            { x,                                 y + borders + square_size },
 
-            { x, y + ( borders + square_size ) * 2 },
-            { x + borders + square_size, y + ( borders + square_size ) * 2 },
-            { x + ( borders + square_size ) * 2, y + ( borders + square_size ) * 2 },
+            { x,                                 y + (borders + square_size) * 2 },
+            { x + borders + square_size,         y + (borders + square_size) * 2 },
+            { x + (borders + square_size) * 2,   y + (borders + square_size) * 2 },
 
-            { x + ( borders + square_size ) * 2, loader_size }
+            { x + (borders + square_size) * 2,   loader_size }
         }
 
         for i = 1, 9, 1 do

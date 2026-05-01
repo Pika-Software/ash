@@ -11,7 +11,7 @@ MODULE.ClientFiles = {
 local ash_entity = include( "shared.lua" )
 
 ---@type dreamwork.std
-local std = _G.dreamwork.std
+local std = dreamwork.std
 local math = std.math
 
 do

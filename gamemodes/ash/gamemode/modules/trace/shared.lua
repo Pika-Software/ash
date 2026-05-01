@@ -1,6 +1,5 @@
-
 ---@type dreamwork.std
-local std = _G.dreamwork.std
+local std = dreamwork.std
 
 ---@type ash.entity
 local ash_entity = import "ash.entity"

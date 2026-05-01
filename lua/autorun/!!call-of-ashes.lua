@@ -1,13 +1,7 @@
+assert( not ash, "'ash' won't support realtime reload." )
+assert( dreamwork, "Failed to load 'ash', dreamwork is missing!" )
+
 local _G = _G
-if _G.ash then return end
-
----@type dreamwork
-local dreamwork = _G.dreamwork
-
-if dreamwork == nil then
-    error( "dreamwork is missing!" )
-    return
-end
 
 ---@type dreamwork.std
 local std = dreamwork.std
@@ -134,7 +128,6 @@ function ash.printTable( t )
 
     print( "}" )
 end
-
 
 local active_gamemode = engine.ActiveGamemode()
 ash.GamemodeName = active_gamemode
@@ -379,13 +372,12 @@ function ash.pack( name, description )
         injection_handler:WriteULong( 1 )
 
         -- Start of file list
-
         for i = 1, file_count, 1 do
             local file_info = file_list[ i ]
             local info_path = file_info.path
 
-            injection_handler:WriteULong( i ) -- index
-            injection_handler:Write( info_path .."\0" ) -- file_path
+            injection_handler:WriteULong( i )            -- index
+            injection_handler:Write( info_path .. "\0" ) -- file_path
 
             local info_content = file_info.content
 
@@ -1955,6 +1947,7 @@ do
         if module_object == nil or not module_object:isAvailable() then
             module_object = ModuleClass( module_name, location )
             if not module_object:isExecutable() then return end
+
             modules[ module_name ] = module_object
         else
             module_object:unload()
@@ -2030,6 +2023,7 @@ do
             if module_object == nil or not module_object:isAvailable() then
                 module_object = EntityModuleClass( module_name, location )
                 if not module_object:isExecutable() then return end
+
                 modules[ module_name ] = module_object
             else
                 module_object:unload()
@@ -2093,6 +2087,7 @@ do
             if module_object == nil or not module_object:isAvailable() then
                 module_object = WeaponModuleClass( module_name, location )
                 if not module_object:isExecutable() then return end
+
                 modules[ module_name ] = module_object
             else
                 module_object:unload()

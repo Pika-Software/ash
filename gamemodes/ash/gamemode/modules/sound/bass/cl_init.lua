@@ -1,6 +1,5 @@
-
 ---@type dreamwork.std
-local std = _G.dreamwork.std
+local std = dreamwork.std
 
 local string = std.string
 local string_isURL = string.isURL
@@ -410,6 +409,7 @@ do
     ---
     function Channel:play()
         if self:isPlaying() or self:isPaused() then return end
+
         AudioChannel_Play( channels[ self ] )
     end
 
@@ -507,7 +507,6 @@ end
 function Channel:__tostring()
     return string_format( "bass.Channel: %p [%s/%s]", self, self:getTime(), self:getLength() )
 end
-
 
 ---@type table<ash.sound.bass.Channel, number | `0`>
 local lengths = {}

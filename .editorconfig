@@ -1,4 +1,3 @@
-
 # see https://github.com/CppCXY/EmmyLuaCodeStyle
 [*.lua]
 # [basic]
@@ -153,7 +152,7 @@ line_space_after_function_statement = fixed(2)
 
 line_space_after_expression_statement = keep
 
-line_space_after_comment = fixed(1)
+line_space_after_comment = keep
 
 line_space_around_block = max(2)
 

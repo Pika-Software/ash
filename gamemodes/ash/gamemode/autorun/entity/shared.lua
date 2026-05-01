@@ -1,6 +1,3 @@
----@type dreamwork
-local dreamwork = _G.dreamwork
-
 ---@type dreamwork.std
 local std = dreamwork.std
 
@@ -721,7 +718,7 @@ do
         [ RENDERMODE_TRANSALPHA ] = false,
         [ RENDERMODE_TRANSADD ] = true,
         [ RENDERMODE_ENVIROMENTAL ] = false,
-        [ RENDERMODE_TRANSADDFRAMEBLEND	] = true,
+        [ RENDERMODE_TRANSADDFRAMEBLEND ] = true,
         [ RENDERMODE_TRANSALPHADD ] = true,
         [ RENDERMODE_WORLDGLOW ] = true,
         [ RENDERMODE_NONE ] = false
@@ -854,7 +851,6 @@ do
 
         return data
     end
-
 
     ---- [SHARED]
     ----
@@ -1252,6 +1248,7 @@ end
 
 hook.Add( "EntityNetworkedVarChanged", "NW2Handler", function( entity, key, old_value, value )
     if old_value == value then return end
+
     hook_Run( "ash.entity.NW2Changed", entity, key, old_value, value )
 end, PRE_HOOK )
 
