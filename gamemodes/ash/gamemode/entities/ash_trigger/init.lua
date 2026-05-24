@@ -6,6 +6,8 @@ local ENT = ENT
 ENT.Type = "brush"
 ENT.Base = "base_brush"
 
+local hook_Run = hook.Run
+
 function ENT:Initialize()
     self:SetTrigger( true )
     self:SetSolid( SOLID_BBOX )
@@ -49,9 +51,12 @@ function ENT:Touch( entity )
         entity_list[ new_count ] = entity
 
         self:startTouch( entity )
+
+        hook_Run( "ash.trigger.StartTouch", entity )
     end
 
     self:touch( entity )
+    hook_Run( "ash.trigger.Touch", entity )
 end
 
 do
@@ -64,6 +69,7 @@ do
         entity_map[ entity ] = nil
 
         self:endTouch( entity )
+        hook_Run( "ash.trigger.EndTouch", entity )
 
         if table_removeByValue( entity_list, entity, entity_list[ 0 ] ) ~= nil then
             local new_count = entity_list[ 0 ] - 1
