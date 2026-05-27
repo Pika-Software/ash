@@ -106,7 +106,7 @@ do
 
             pl:SetStepSize( height * 0.5 )
 
-            local scale = 1 + math.round( ( 1 - ( 1 / ( model_info.volume / 100 ) ) ) * 0.5, 2 )
+            local scale = 1 + math.round( (1 - (1 / (model_info.volume / 100))) * 0.5, 2 )
 
             pl:SetJumpPower( 250 * scale )
             flame_player.setSpeedModifier( pl, scale )
@@ -153,7 +153,7 @@ hook.Add( "PlayerSwitchFlashlight", "Defaults", function( arguments, pl, request
 end )
 
 hook.Add( "PlayerCanSeePlayersChat", "Defaults", function( text, team_only, listener, speaker )
-    if not ( listener and listener:IsValid() ) or not ( speaker and speaker:IsValid() ) then
+    if not (listener and listener:IsValid()) or not (speaker and speaker:IsValid()) then
         return true
     end
 
@@ -200,7 +200,7 @@ do
 
             for j = 1, #pas_players, 1 do
                 local listener = pas_players[ j ]
-                listeners[ listener ] = speaker_is_alive == listener:Alive() and ( not speaker_is_alive or speaker_origin:Distance( listener:EyePos() ) <= 1500 )
+                listeners[ listener ] = speaker_is_alive == listener:Alive() and (not speaker_is_alive or speaker_origin:Distance( listener:EyePos() ) <= 1500)
             end
         end
     end )
@@ -230,6 +230,7 @@ do
 
     hook.Add( "ash.player.Landed", "Defaults", function( pl, fall_speed, in_water, trace_result )
         if player_isDead( pl ) then return end
+
         fall_speed = -fall_speed
 
         local damage_amount = hook_Run( "PlayerLandedDamage", pl, fall_speed, in_water, trace_result ) or 0
@@ -265,7 +266,7 @@ do
         if in_water then
             return math_max( 0, math_ceil( 0.15 * fall_speed - 180 ) )
         else
-        	return math_max( 0, math_ceil( 0.25 * fall_speed - 140 ) )
+            return math_max( 0, math_ceil( 0.25 * fall_speed - 140 ) )
         end
     end )
 
@@ -291,7 +292,8 @@ do
     gc.setTableRules( death_times, true )
 
     hook.Add( "ash.player.ShouldSpawn", "Defaults", function( pl )
-        if ( CurTime() - ( death_times[ pl ] or 0 ) ) > 3 then return end
+        if (CurTime() - (death_times[ pl ] or 0)) > 3 then return end
+
         return false
     end )
 
@@ -366,7 +368,7 @@ do
     ---@param point ash.player.SpawnPoint
     ---@return boolean | nil
     hook.Add( "ash.player.SpawnPoint", "Spawn", function( pl, point )
-        local origin = point.position
+        local origin = point.origin
 
         trace.start = origin
         trace.endpos = origin

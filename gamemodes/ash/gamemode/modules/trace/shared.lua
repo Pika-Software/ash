@@ -31,7 +31,7 @@ local ash_trace = {}
 ---@field callback ash.trace.Callback | nil The callback function to call when the trace is complete.
 
 ---@class ash.trace.Output : TraceResult
----@field Distance number The distance from the start position to the end position.
+---@field Distance? number The distance from the start position to the end position.
 
 --- [SHARED]
 ---
@@ -40,7 +40,7 @@ local ash_trace = {}
 ---@param params ash.trace.Params
 ---@return ash.trace.Output output
 local function cast( params )
-    ---@type ash.trace.Output
+    ---@type TraceResult
     local output = params.output
 
     if output == nil then
@@ -56,8 +56,10 @@ local function cast( params )
         util_TraceHull( params )
     end
 
+    ---@cast output ash.trace.Output
+
     output.Distance = Vector_Distance( params.start, params.endpos )
-    params.count = math.max( 0, ( params.count or 1 ) - 1 )
+    params.count = math.max( 0, (params.count or 1) - 1 )
 
     local callback = params.callback
     local hit_pos = output.HitPos
@@ -113,7 +115,7 @@ ash_trace.cast = cast
 
 ---@alias ash.trace.Filter.ShouldHit fun( entity: Entity, content_masks: CONTENTS ): boolean
 
----@class ash.trace.Filter : dreamwork.Object
+---@class ash.trace.Filter : dreamwork.std.Object
 ---@field __class ash.trace.FilterClass
 ---@field PassEntity Entity | nil
 ---@field CollisionGroup integer | nil
@@ -153,7 +155,7 @@ local function StandardFilterRules( entity, content_masks )
 
     local solid = Entity_GetSolid( entity )
 
-    if not entity_isBrush( entity ) or not ( solid == SOLID_BSP or solid == SOLID_VPHYSICS ) and bit_band( content_masks, CONTENTS_MONSTER ) == 0 then
+    if not entity_isBrush( entity ) or not (solid == SOLID_BSP or solid == SOLID_VPHYSICS) and bit_band( content_masks, CONTENTS_MONSTER ) == 0 then
         return false
     end
 
@@ -166,7 +168,7 @@ local function StandardFilterRules( entity, content_masks )
     -- FIXME: the FL_WORLDBRUSH looked promising, but it needs to be set on everything that's actually a worldbrush and it currently isn't
     -- !(touch->flags & FL_WORLDBRUSH) )
 
-    return not ( bit_band( content_masks, CONTENTS_MOVEABLE ) == 0 or Entity_GetMoveType( entity ) == MOVETYPE_PUSH )
+    return not (bit_band( content_masks, CONTENTS_MOVEABLE ) == 0 or Entity_GetMoveType( entity ) == MOVETYPE_PUSH)
 end
 
 ---@param entity Entity

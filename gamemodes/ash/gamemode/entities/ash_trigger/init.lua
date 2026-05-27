@@ -1,18 +1,35 @@
+local OrderVectors = OrderVectors
+
 ---@class ash.trigger : ENT
 ---@field EntityList table
 ---@field EntityMap table
+---@field Mins Vector
+---@field Maxs Vector
 local ENT = ENT
 
 ENT.Type = "brush"
-ENT.Base = "base_brush"
+-- ENT.Base = "base_brush"
 
 local hook_Run = hook.Run
 
-function ENT:Initialize()
-    self:SetTrigger( true )
-    self:SetSolid( SOLID_BBOX )
+function ENT:setup( mins, maxs )
+    OrderVectors( mins, maxs )
+    self:SetCollisionBounds( mins, maxs )
+    self.Mins = mins
+    self.Maxs = maxs
+end
 
-    self.EntityList = { [0] = 0 }
+function ENT:Initialize()
+    self:SetCollisionGroup( COLLISION_GROUP_IN_VEHICLE )
+    self:SetMoveType( MOVETYPE_NONE )
+    self:SetSolid( SOLID_BBOX )
+    self:DrawShadow( false )
+    self:SetNoDraw( true )
+
+    self:SetTrigger( true )
+    self:setup( self.Mins, self.Maxs )
+
+    self.EntityList = { [ 0 ] = 0 }
     self.EntityMap = {}
 end
 
