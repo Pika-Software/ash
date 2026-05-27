@@ -34,7 +34,9 @@ gc.setTableRules( config_requested, true )
 
 net.Receive( "request", function( _, pl )
     local path = net.ReadString()
-    if not config.isAllowedReceive( path ) then return end
+    if not config.isAllowedReceive( path ) then
+        return
+    end
 
     local crc = net.ReadUInt( 32 )
     local _, data = config.get( path, false )

@@ -19,7 +19,6 @@ function config.receive( path, callback )
 
     config_queue_count = config_queue_count + 1
     config_queue[ config_queue_count ] = { path, data[ 0 ] }
-
 end
 
 net.Receive( "request", function()
@@ -53,8 +52,7 @@ net.Receive( "request", function()
 
         file.Write( "ash_config/" .. path .. ".json", json )
 
-        local _, data = config.get( path, false )
-
+        local _, data = config.get( path, false, true )
 
         local callback = config_callbacks[ path ]
         if callback then

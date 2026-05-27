@@ -7,7 +7,6 @@ local config = {}
 
 local config_data = {}
 
-
 ---@param path string path to the config file.
 ---@param only_static boolean whether to only load static config.
 local function read( path, only_static )
@@ -55,7 +54,11 @@ config.read = read
 ---@param only_static boolean whether to only load static config.
 ---@return table config data.
 ---@return table raw data.
-function config.get( path, only_static )
+function config.get( path, only_static, clear_cache )
+    if clear_cache then
+        config_data[ path ] = nil
+    end
+
     local data = config_data[ path ]
     if data then
         return data[ 2 ], data
