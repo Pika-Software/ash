@@ -617,12 +617,16 @@ do
     --- Returns a spawnpoint for the player or nil if there are no spawnpoints.
     ---
     ---@param pl Player
+    ---@param shuffle boolean | nil
     ---@return ash.player.SpawnPoint | nil spawnpoint
-    function ash_player.getSpawnPoint( pl )
+    function ash_player.getSpawnPoint( pl, shuffle )
         for i = 1, spawnpoint_count, 1 do
             local spawnpoint = spawnpoints[ i ]
             if hook_Run( "ash.player.SpawnPoint", pl, spawnpoint ) ~= false then
-                table.shuffle( spawnpoints, spawnpoint_count )
+                if shuffle == nil or shuffle then
+                    table.shuffle( spawnpoints, spawnpoint_count )
+                end
+
                 return spawnpoint
             end
         end

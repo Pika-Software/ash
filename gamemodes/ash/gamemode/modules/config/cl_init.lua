@@ -2,7 +2,7 @@
 local config = include( "shared.lua" )
 
 local config_queue, config_queue_count = {}, 0
-local config_callbacks = {}
+local config_callbacks, config_callback_count = {}, 0
 
 --- [CLIENT]
 ---
@@ -20,6 +20,8 @@ function config.receive( path, callback )
     config_queue_count = config_queue_count + 1
     config_queue[ config_queue_count ] = { path, data[ 0 ] }
 end
+
+file.CreateDir( "ash_config" )
 
 net.Receive( "request", function()
     local path = net.ReadString()
@@ -39,15 +41,14 @@ net.Receive( "request", function()
     local json = util.Decompress( net.ReadData( net.ReadUInt( 16 ) ) )
 
     if json ~= nil then
-        file.CreateDir( "ash_config" )
-
         local split = string.split( path, "/" )
 
         local path_folder = "ash_config/"
         for i = 1, #split - 1 do
-            path_folder = path_folder .. split[ i ] .. "/"
+            path_folder = path_folder .. split[ i ]
             ash.Logger:debug( "Creating directory: " .. path_folder )
-            file.CreateDir( path )
+            file.CreateDir( path_folder )
+            path_folder = path_folder .. "/"
         end
 
         file.Write( "ash_config/" .. path .. ".json", json )
