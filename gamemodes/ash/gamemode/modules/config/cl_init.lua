@@ -2,7 +2,7 @@
 local config = include( "shared.lua" )
 
 local config_queue, config_queue_count = {}, 0
-local config_callbacks, config_callback_count = {}, 0
+local config_callbacks = {}
 
 --- [CLIENT]
 ---
@@ -14,7 +14,10 @@ function config.receive( path, callback )
     local _, data = config.get( path, false )
 
     if callback then
-        config_callbacks[ path ] = callback
+        config_callbacks[ path ] = config_callbacks[ path ] or {}
+
+        local callbacks = config_callbacks[ path ]
+        callbacks[ #callbacks + 1 ] = callback
     end
 
     config_queue_count = config_queue_count + 1
@@ -31,7 +34,9 @@ net.Receive( "request", function()
         local callback = config_callbacks[ path ]
         if callback then
             local _, data = config.get( path, false )
-            callback( data[ 2 ], data )
+            for i = 1, #callback do
+                callback[ i ]( data[ 2 ], data )
+            end
         end
 
         config_callbacks[ path ] = nil
@@ -57,7 +62,9 @@ net.Receive( "request", function()
 
         local callback = config_callbacks[ path ]
         if callback then
-            callback( data[ 2 ], data )
+            for i = 1, #callback do
+                callback[ i ]( data[ 2 ], data )
+            end
         end
 
         config_callbacks[ path ] = nil
