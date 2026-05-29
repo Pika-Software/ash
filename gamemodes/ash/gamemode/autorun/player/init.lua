@@ -225,6 +225,7 @@ do
         local owner = ragdoll_owners[ ragdoll ]
 
         if owner == nil then return end
+
         ragdoll_owners[ ragdoll ] = nil
 
         hook_Run( "ash.player.ragdoll.Removed", owner, ragdoll )
@@ -332,7 +333,6 @@ end
 
 do
 
-
     local Player_Alive = Player.Alive
 
     local table_removeByValue = table.removeByValue
@@ -418,10 +418,10 @@ do
     hook.Add( "ash.player.Removed", "AliveAndDead", function( entity )
         if Player_Alive( entity ) then
             if table_removeByValue( players_alive, entity, players_alive_count ) then
-                players_alive_count = players_alive_count -1
+                players_alive_count = players_alive_count - 1
             end
         elseif table_removeByValue( players_dead, entity, players_dead_count ) then
-            players_dead_count = players_dead_count -1
+            players_dead_count = players_dead_count - 1
         end
 
         hook_Run( "ash.player.DeadCountChanged", players_dead_count, players_alive_count )
@@ -474,7 +474,7 @@ do
             hook_Run( "ash.player.ChangeAliveStatus", pl, false )
         end
 
-        Entity_SetNW2Bool(  pl, "ash.alive", false )
+        Entity_SetNW2Bool( pl, "ash.alive", false )
 
         hook_Run( "ash.player.PostDeath", pl )
     end, PRE_HOOK )
@@ -510,7 +510,7 @@ do
                 hook_Run( "ash.player.ChangeAliveStatus", pl, true )
             end
 
-            Entity_SetNW2Bool(  pl, "ash.alive", true )
+            Entity_SetNW2Bool( pl, "ash.alive", true )
 
 
             hook_Run( "ash.player.PreSpawn", pl, transition )
@@ -598,7 +598,7 @@ do
 
     ---@class ash.player.SpawnPoint
     ---@field id integer
-    ---@field position Vector
+    ---@field origin Vector
     ---@field angles Angle
     ---@field entity Entity
 
@@ -617,12 +617,16 @@ do
     --- Returns a spawnpoint for the player or nil if there are no spawnpoints.
     ---
     ---@param pl Player
+    ---@param shuffle boolean | nil
     ---@return ash.player.SpawnPoint | nil spawnpoint
-    function ash_player.getSpawnPoint( pl )
+    function ash_player.getSpawnPoint( pl, shuffle )
         for i = 1, spawnpoint_count, 1 do
             local spawnpoint = spawnpoints[ i ]
             if hook_Run( "ash.player.SpawnPoint", pl, spawnpoint ) ~= false then
-                table.shuffle( spawnpoints, spawnpoint_count )
+                if shuffle == nil or shuffle then
+                    table.shuffle( spawnpoints, spawnpoint_count )
+                end
+
                 return spawnpoint
             end
         end
@@ -645,13 +649,13 @@ do
     --- Adds a spawnpoint.
     ---
     ---@param entity Entity | nil
-    ---@param position Vector | nil
+    ---@param origin Vector | nil
     ---@param angles Angle | nil
     ---@return ash.player.SpawnPoint spawnpoint
-    function ash_player.addSpawnPoint( entity, position, angles )
+    function ash_player.addSpawnPoint( entity, origin, angles )
         if entity ~= nil and Entity_IsValid( entity ) then
-            if position == nil then
-                position = entity:GetPos()
+            if origin == nil then
+                origin = entity:GetPos()
             end
 
             if angles == nil then
@@ -659,8 +663,8 @@ do
             end
         end
 
-        if position == nil then
-            error( "spawnpoint has no position or entity", 2 )
+        if origin == nil then
+            error( "spawnpoint has no origin or entity", 2 )
         end
 
         spawnpoint_count = spawnpoint_count + 1
@@ -672,7 +676,7 @@ do
 
         local spawnpoint = {
             id = spawnpoint_count,
-            position = position,
+            origin = origin,
             angles = angles or Angle( 0, 0, 0 ),
             entity = entity or NULL
         }
@@ -717,10 +721,10 @@ do
         if spawnpoint ~= nil then
             local entity = spawnpoint.entity
             if entity ~= nil and Entity_IsValid( entity ) then
-                return entity:GetPos(), entity:GetAngles()
+                return entity:WorldSpaceCenter(), entity:GetAngles()
             end
 
-            return spawnpoint.position, spawnpoint.angles
+            return spawnpoint.origin, spawnpoint.angles
         end
     end )
 
@@ -739,7 +743,7 @@ do
                 if point_entity ~= nil and Entity_IsValid( point_entity ) then
                     point_position = point_entity:GetPos()
                 else
-                    point_position = spawnpoint.position
+                    point_position = spawnpoint.origin
                 end
 
                 if Vector_DistToSqr( point_position, position ) < 16384 then

@@ -878,6 +878,9 @@ do
         return false
     end
 
+    ---@type table<Entity, boolean>
+    local created_map = {}
+
     hook.Add( "OnEntityCreated", "Handler", function( entity )
         addEntityByClass( entity )
 
@@ -889,15 +892,26 @@ do
             return false
         end
 
-        for i = 1, ents_filter_count do
-            local data = ents_filter[ i ]
+        if not created_map[ entity ] then
+            created_map[ entity ] = true
 
-            if data.filter( entity ) ~= false then
-                data.count = data.count + 1
+            timer.Simple( CLIENT and 1 or 0, function()
+                if not IsValid( entity ) then
+                    return
+                end
 
-                local tbl = data.tbl
-                tbl[ data.count ] = entity
-            end
+                for i = 1, ents_filter_count do
+                    local data = ents_filter[ i ]
+
+
+                    if data.filter( entity ) ~= false then
+                        data.count = data.count + 1
+
+                        local tbl = data.tbl
+                        tbl[ data.count ] = entity
+                    end
+                end
+            end )
         end
 
         local queue_size = queue[ 0 ] + 1
@@ -943,6 +957,8 @@ do
 
     hook.Add( "EntityRemoved", "Handler", function( entity, is_full_update )
         local class_name = Entity_GetClass( entity )
+
+        created_map[ entity ] = nil
 
         if not is_full_update then
             local ents_by_class = list_ents[ class_name ]

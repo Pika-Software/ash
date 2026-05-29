@@ -31,7 +31,7 @@ local ash_trace = {}
 ---@field callback ash.trace.Callback | nil The callback function to call when the trace is complete.
 
 ---@class ash.trace.Output : TraceResult
----@field Distance number The distance from the start position to the end position.
+---@field Distance? number The distance from the start position to the end position.
 
 --- [SHARED]
 ---
@@ -40,7 +40,7 @@ local ash_trace = {}
 ---@param params ash.trace.Params
 ---@return ash.trace.Output output
 local function cast( params )
-    ---@type ash.trace.Output
+    ---@type TraceResult
     local output = params.output
 
     if output == nil then
@@ -55,6 +55,8 @@ local function cast( params )
         ---@diagnostic disable-next-line: return-type-mismatch
         util_TraceHull( params )
     end
+
+    ---@cast output ash.trace.Output
 
     output.Distance = Vector_Distance( params.start, params.endpos )
     params.count = math.max( 0, (params.count or 1) - 1 )
