@@ -75,7 +75,7 @@ end
 ---@param table_name string
 local function cleanupExpired( table_name )
     sqlite.query(
-        "DELETE FROM `?` WHERE `expires_at` != 0 AND `expires_at` <= ?;",
+        "DELETE FROM ? WHERE `expires_at` != 0 AND `expires_at` <= ?;",
         table_name,
         os_time()
     )
