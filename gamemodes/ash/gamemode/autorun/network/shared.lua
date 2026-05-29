@@ -138,7 +138,7 @@ local function sync_with_players( node, key, value )
     print( "sync", node, key, value )
 end
 
----@class ash.network.Table.Node : dreamwork.Object
+---@class ash.network.Table.Node : dreamwork.std.Object
 local Node = class.base( "network.Table.Node", true )
 
 ---@return string
@@ -181,7 +181,7 @@ end
 local NodeClass = class.create( Node )
 
 
----@class ash.network.Table : dreamwork.Object
+---@class ash.network.Table : dreamwork.std.Object
 ---@field __class ash.network.TableClass
 local Table = class.base( "network.Table", true )
 

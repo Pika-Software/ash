@@ -84,13 +84,13 @@ do
     local net_WriteFloat = net.WriteFloat
     local net_SendToServer = net.SendToServer
 
-    hook.Add( "ash.view.AimVector", "Sync", function( _, aim )
-        net_Start( "sync", true )
-        net_WriteFloat( aim[ 1 ] )
-        net_WriteFloat( aim[ 2 ] )
-        net_WriteFloat( aim[ 3 ] )
-        net_SendToServer()
-    end )
+    -- hook.Add( "ash.view.AimVector", "Sync", function( _, aim )
+    --     net_Start( "sync", true )
+    --     net_WriteFloat( aim[ 1 ] )
+    --     net_WriteFloat( aim[ 2 ] )
+    --     net_WriteFloat( aim[ 3 ] )
+    --     net_SendToServer()
+    -- end )
 
     ash_view.AimVector = Vector( 0, 0, 0 )
 

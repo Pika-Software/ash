@@ -54,7 +54,7 @@ local math_random = math.random
 ---@class ash.sound.bass
 local ash_bass = {}
 
----@class ash.sound.bass.Channel : dreamwork.Object
+---@class ash.sound.bass.Channel : dreamwork.std.Object
 ---@field __class ash.sound.bass.ChannelClass
 local Channel = class.base( "bass.Channel", true )
 
@@ -254,7 +254,7 @@ do
     ---@return number volume
     function Channel:getVolumeLevel()
         local left_volume, right_volume = self:getVolumeLevels()
-        return ( left_volume + right_volume ) * 0.5
+        return (left_volume + right_volume) * 0.5
     end
 
 end
@@ -664,7 +664,7 @@ end
 ---
 ---@return number balance
 function Channel:getBalance()
-    return ( AudioChannel_GetPan( channels[ self ] ) + 1 ) * 0.5
+    return (AudioChannel_GetPan( channels[ self ] ) + 1) * 0.5
 end
 
 --- [CLIENT]

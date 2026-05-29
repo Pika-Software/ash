@@ -203,7 +203,7 @@ do
             end
 
             size = size + 1
-            strings[ size ] = table_concat( { string.rep( " ", size ), ( size - 1 ), ". ", info.name or "unknown", " - ", info.short_src or "unknown", ":", info.currentline or -1 } )
+            strings[ size ] = table_concat( { string.rep( " ", size ), (size - 1), ". ", info.name or "unknown", " - ", info.short_src or "unknown", ":", info.currentline or -1 } )
         end
 
         size = size + 1
@@ -908,7 +908,7 @@ do
 
 end
 
----@class ash.Module : dreamwork.Object
+---@class ash.Module : dreamwork.std.Object
 ---@field __class ash.ModuleClass
 ---@field Name string The name of the module.
 ---@field Prefix string The prefix of the module.
@@ -2274,7 +2274,7 @@ do
                 local gamemode_name = gamemode_info.name
 
                 local workshopid = gamemode_info.workshopid
-                if workshopid ~= nil and ( raw_tonumber( workshopid, 10 ) or 0 ) > 0 then
+                if workshopid ~= nil and (raw_tonumber( workshopid, 10 ) or 0) > 0 then
                     ash.setWorkshopDL( workshopid, true )
                 end
 
@@ -2358,7 +2358,7 @@ do
 
         concommand.Add( "ash.reload", function( pl )
             local is_player = pl and pl:IsValid()
-            if is_player and not ( pl:IsSuperAdmin() or pl:IsListenServerHost() ) then
+            if is_player and not (pl:IsSuperAdmin() or pl:IsListenServerHost()) then
                 pl:PrintMessage( 2, "You don't have permission to use this command!" )
             end
 
@@ -2430,7 +2430,7 @@ do
 
     end
 
-    concommand.Add( "ash.info." .. ( LUA_SERVER and "server" or "client" ), function()
+    concommand.Add( "ash.info." .. (LUA_SERVER and "server" or "client"), function()
         print( string_format( "%s by %s\n\nModules:", ash.Tag, ash.Author ) )
 
         ---@type ash.Module[]

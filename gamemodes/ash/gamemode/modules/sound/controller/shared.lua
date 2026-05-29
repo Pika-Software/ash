@@ -7,7 +7,7 @@ local tostring = tostring
 local bass = import "ash.sound.bass"
 
 
----@class ash.sound.bass.Controller : dreamwork.Object
+---@class ash.sound.bass.Controller : dreamwork.std.Object
 ---@field __class ash.sound.bass.ControllerClass
 ---@field private m_sName string The name of the controller object.
 local Controller = class.base( "ash.sound.bass.Controller", false )
@@ -57,8 +57,6 @@ end
 
 if CLIENT then
 
-
 end
-
 
 return ControllerClass
