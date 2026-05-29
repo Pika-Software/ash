@@ -857,6 +857,7 @@ setmetatable( environment, {
 environment.setTimeout = std.setTimeout
 environment.console = std.console
 environment.futures = std.futures
+environment.sqlite = std.sqlite
 environment.http = std.http
 environment.string = string
 environment.math = std.math

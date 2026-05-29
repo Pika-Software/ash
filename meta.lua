@@ -311,6 +311,7 @@ function hook.Add( event_name, identifier, func, priority )
 end
 
 futures = std.futures
+sqlite = std.sqlite
 debug = std.debug
 class = std.class
 
