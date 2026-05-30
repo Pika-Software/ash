@@ -138,7 +138,11 @@ do
         --     return copy, players_count
         -- end
 
-        ash_player.getAll = _G.player.GetAll
+        ---@return Player[], integer
+        function ash_player.getAll()
+            local pls = player.getAll()
+            return pls, #pls
+        end
 
         -- --- [SHARED]
         -- ---
@@ -166,7 +170,11 @@ do
         --     return copy, bots_count
         -- end
 
-        ash_player.getBots = _G.player.GetBots
+        ---@return Player[], integer
+        function ash_player.getBots()
+            local pls = player.getBots()
+            return pls, #pls
+        end
 
         --- [SHARED]
         ---
@@ -183,7 +191,11 @@ do
         --     return copy, humans_count
         -- end
 
-        ash_player.getHumans = _G.player.GetHumans
+        ---@return Player[], integer
+        function ash_player.getHumans()
+            local pls = player.getHumans()
+            return pls, #pls
+        end
 
         -- hook.Add( "ash.entity.PlayerCreated", "IteratorsAndCounters", function( pl )
         --     players_count = players_count + 1
