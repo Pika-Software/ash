@@ -100,109 +100,119 @@ do
 
         local Player_IsBot = Player.IsBot
 
-        ---@type Player[]
-        local players = _G.player.GetAll()
-        local players_count = #players
+        -- ---@type Player[]
+        -- local players = _G.player.GetAll()
+        -- local players_count = #players
 
-        ---@type Player[]
-        local bots = _G.player.GetBots()
-        local bots_count = #bots
+        -- ---@type Player[]
+        -- local bots = _G.player.GetBots()
+        -- local bots_count = #bots
 
-        ---@type Player[]
-        local humans = _G.player.GetHumans()
-        local humans_count = #humans
+        -- ---@type Player[]
+        -- local humans = _G.player.GetHumans()
+        -- local humans_count = #humans
 
         --- [SHARED]
         ---
         --- Player iterator.
         ---
         ---@return function, Player[], integer
-        function ash_player.iterator()
-            return raw_inext, players, 0
-        end
+        -- function ash_player.iterator()
+        --     return raw_inext, players, 0
+        -- end
+
+        ash_player.iterator = _G.player.Iterator
 
         --- [SHARED]
         ---
         --- Get player table and player count.
         ---
         ---@return Player[], integer
-        function ash_player.getAll()
-            local copy = {}
+        -- function ash_player.getAll()
+        --     local copy = {}
 
-            for i = 1, players_count, 1 do
-                copy[ i ] = players[ i ]
-            end
+        --     for i = 1, players_count, 1 do
+        --         copy[ i ] = players[ i ]
+        --     end
 
-            return copy, players_count
-        end
+        --     return copy, players_count
+        -- end
 
-        --- [SHARED]
-        ---
-        --- Get player count.
-        ---
-        ---@return integer
-        function ash_player.getCount()
-            return players_count
-        end
+        ash_player.getAll = _G.player.GetAll
+
+        -- --- [SHARED]
+        -- ---
+        -- --- Get player count.
+        -- ---
+        -- ---@return integer
+        -- function ash_player.getCount()
+        --     return players_count
+        -- end
+
+        ash_player.getCount = _G.player.GetCount
 
         --- [SHARED]
         ---
         --- Get bots table and bots count.
         ---
         ---@return Player[], integer
-        function ash_player.getBots()
-            local copy = {}
+        -- function ash_player.getBots()
+        --     local copy = {}
 
-            for i = 1, bots_count, 1 do
-                copy[ i ] = bots[ i ]
-            end
+        --     for i = 1, bots_count, 1 do
+        --         copy[ i ] = bots[ i ]
+        --     end
 
-            return copy, bots_count
-        end
+        --     return copy, bots_count
+        -- end
+
+        ash_player.getBots = _G.player.GetBots
 
         --- [SHARED]
         ---
         --- Get humans table and humans count.
         ---
         ---@return Player[], integer
-        function ash_player.getHumans()
-            local copy = {}
+        -- function ash_player.getHumans()
+        --     local copy = {}
 
-            for i = 1, humans_count, 1 do
-                copy[ i ] = humans[ i ]
-            end
+        --     for i = 1, humans_count, 1 do
+        --         copy[ i ] = humans[ i ]
+        --     end
 
-            return copy, humans_count
-        end
+        --     return copy, humans_count
+        -- end
 
-        hook.Add( "ash.entity.PlayerCreated", "IteratorsAndCounters", function( pl )
-            players_count = players_count + 1
-            players[ players_count ] = pl
+        ash_player.getHumans = _G.player.GetHumans
 
-            if Player_IsBot( pl ) then
-                bots_count = bots_count + 1
-                bots[ bots_count ] = pl
-            else
-                humans_count = humans_count + 1
-                humans[ bots_count ] = pl
-            end
-        end, PRE_HOOK )
+        -- hook.Add( "ash.entity.PlayerCreated", "IteratorsAndCounters", function( pl )
+        --     players_count = players_count + 1
+        --     players[ players_count ] = pl
 
-        hook.Add( "ash.entity.PlayerRemoved", "IteratorsAndCounters", function( pl, full_update )
-            if full_update then return end
+        --     if Player_IsBot( pl ) then
+        --         bots_count = bots_count + 1
+        --         bots[ bots_count ] = pl
+        --     else
+        --         humans_count = humans_count + 1
+        --         humans[ bots_count ] = pl
+        --     end
+        -- end, PRE_HOOK )
 
-            if table_removeByValue( players, pl, players_count ) ~= nil then
-                players_count = players_count - 1
-            end
+        -- hook.Add( "ash.entity.PlayerRemoved", "IteratorsAndCounters", function( pl, full_update )
+        --     if full_update then return end
 
-            if Player_IsBot( pl ) then
-                if table_removeByValue( bots, pl, bots_count ) ~= nil then
-                    bots_count = bots_count - 1
-                end
-            elseif table_removeByValue( humans, pl, humans_count ) ~= nil then
-                humans_count = humans_count - 1
-            end
-        end, PRE_HOOK )
+        --     if table_removeByValue( players, pl, players_count ) ~= nil then
+        --         players_count = players_count - 1
+        --     end
+
+        --     if Player_IsBot( pl ) then
+        --         if table_removeByValue( bots, pl, bots_count ) ~= nil then
+        --             bots_count = bots_count - 1
+        --         end
+        --     elseif table_removeByValue( humans, pl, humans_count ) ~= nil then
+        --         humans_count = humans_count - 1
+        --     end
+        -- end, PRE_HOOK )
 
     end
 

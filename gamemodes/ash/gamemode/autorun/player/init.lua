@@ -760,7 +760,7 @@ do
         return nil
     end
 
-    -- TODO: Must be moved into flame!!!1
+    -- TODO: Must be moved into flat
 
     ---@param pl Player
     hook.Add( "ash.player.SetupPosition", "SpawnControl", function( pl )
