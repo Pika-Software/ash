@@ -716,15 +716,84 @@ do
         spawnpoint_count = 0
     end
 
+    ---@param origin Vector
+    ---@param mins Vector
+    ---@param maxs Vector
+    ---@param radius number
+    ---@param step number
+    ---@param heightSteps number
+    local function find_free_spawn_pos( origin, mins, maxs, radius, step, heightSteps )
+        ---@type TraceResult
+        local trOut = {}
+
+        ---@type HullTrace
+        local trData = {
+            output = trOut,
+            mins = mins,
+            maxs = maxs,
+            mask = MASK_PLAYERSOLID
+        }
+
+        for h = 0, heightSteps do
+            local zOffset = h * (maxs.z - mins.z)
+
+            for ang = 0, 360 - step, step do
+                local rad = math.rad( ang )
+
+                local startPos = origin + Vector(
+                    math.cos( rad ) * radius,
+                    math.sin( rad ) * radius,
+                    zOffset
+                )
+
+                trData.start = startPos
+                trData.endpos = startPos
+
+                util.TraceHull( trData )
+
+                if not trOut.Hit then
+                    return startPos
+                end
+            end
+        end
+
+        return nil
+    end
+
+    -- TODO: Must be moved into flame!!!1
+
+    ---@param pl Player
     hook.Add( "ash.player.SetupPosition", "SpawnControl", function( pl )
-        local spawnpoint = ash_player.getSpawnPoint( pl )
-        if spawnpoint ~= nil then
+        do
+            local spawnpoint = ash_player.getSpawnPoint( pl )
+            if spawnpoint ~= nil then
+                local entity = spawnpoint.entity
+                if entity ~= nil and Entity_IsValid( entity ) then
+                    return entity:GetPos(), entity:GetAngles()
+                end
+
+                return spawnpoint.origin, spawnpoint.angles
+            end
+        end
+
+        for i = 1, spawnpoint_count, 1 do
+            local spawnpoint = spawnpoints[ i ]
+
+            local origin
+
             local entity = spawnpoint.entity
             if entity ~= nil and Entity_IsValid( entity ) then
-                return entity:WorldSpaceCenter(), entity:GetAngles()
+                origin = entity:GetPos()
+            else
+                origin = spawnpoint.origin
             end
 
-            return spawnpoint.origin, spawnpoint.angles
+            local mins, maxs = pl:GetCollisionBounds()
+            local spawn_position = find_free_spawn_pos( origin, mins, maxs, 1024, 30, 3 )
+            if spawn_position ~= nil then
+                table.shuffle( spawnpoints, spawnpoint_count )
+                return spawn_position, spawnpoint.angles
+            end
         end
     end )
 
