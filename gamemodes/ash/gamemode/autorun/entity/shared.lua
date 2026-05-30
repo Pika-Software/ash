@@ -994,7 +994,7 @@ do
                 return filter_counts[ self ]
             end
 
-            return raw_index( self, key )
+            return raw_index( Filter, key )
         end
 
         --- [SHARED]
