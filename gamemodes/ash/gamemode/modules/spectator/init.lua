@@ -16,144 +16,144 @@ local hook_Run = hook.Run
 local spectator = include( "shared.lua" )
 
 MODULE.Networks = {
-	"select_target",
+    "select_target",
 }
 MODULE.ClientFiles = {
     "cl_init.lua",
 }
 
 local function removeOldSpecList( ent )
-	if not IsValid( ent ) then
-		return
-	end
+    if not IsValid( ent ) then
+        return
+    end
 
-	local old_ent = Player_GetObserverTarget( ent )
+    local old_ent = Player_GetObserverTarget( ent )
 
-	if old_ent ~= nil and IsValid( old_ent ) then
-		local specs = spectator.getSpectatorsForEntity( old_ent )
+    if old_ent ~= nil and IsValid( old_ent ) then
+        local specs = spectator.getSpectatorsForEntity( old_ent )
 
-		specs[ ent ] = nil
-	end
+        specs[ ent ] = nil
+    end
 end
 
 ---@param ent Entity
 ---@return table<Player, boolean>
 function spectator.getSpectatorsForEntity( ent )
-	---@diagnostic disable-next-line: undefined-field
-	return ent.spectators or {}
+    ---@diagnostic disable-next-line: undefined-field
+    return ent.spectators or {}
 end
 
 do
-	local Player_SetPos = Entity.SetPos
-	local Player_SetEyeAngles = Player.SetEyeAngles
-	local Player_EyeAngles = Player.EyeAngles
+    local Player_SetPos = Entity.SetPos
+    local Player_SetEyeAngles = Player.SetEyeAngles
+    local Player_EyeAngles = Player.EyeAngles
 
 
-	local Entity_GetPos = Entity.GetPos
-	local Entity_GetAngles = Entity.GetAngles
+    local Entity_GetPos = Entity.GetPos
+    local Entity_GetAngles = Entity.GetAngles
 
-	---@param ply Player
-	---@param target Entity | Player
-	---@param mode integer | nil
-	function spectator.specate( ply, target, mode )
-		if mode ~= nil then
-			Player_Spectate( ply, mode or OBS_MODE_ROAMING )
-		else
-			mode = Player_GetObserverMode( ply )
-		end
+    ---@param ply Player
+    ---@param target Entity | Player
+    ---@param mode integer | nil
+    function spectator.specate( ply, target, mode )
+        if mode ~= nil then
+            Player_Spectate( ply, mode or OBS_MODE_ROAMING )
+        else
+            mode = Player_GetObserverMode( ply )
+        end
 
-		removeOldSpecList( ply )
+        removeOldSpecList( ply )
 
-		Player_SpectateEntity( ply, target )
+        Player_SpectateEntity( ply, target )
 
-		if mode == OBS_MODE_IN_EYE and target:IsPlayer() then
-			target:SetupHands()
-		end
+        if mode == OBS_MODE_IN_EYE and target:IsPlayer() then
+            target:SetupHands()
+        end
 
-		if IsValid( target ) then
-			Player_SetPos( ply, Entity_GetPos( target ) )
+        if IsValid( target ) then
+            Player_SetPos( ply, Entity_GetPos( target ) )
 
-			local ang = Angle()
+            local ang = Angle()
 
-			if target:IsPlayer() then
-				ang = Player_EyeAngles( target )
-			else
-				ang = Entity_GetAngles( target )
-			end
+            if target:IsPlayer() then
+                ang = Player_EyeAngles( target )
+            else
+                ang = Entity_GetAngles( target )
+            end
 
-			ang = Angle( ang[ 1 ], ang[ 2 ], 0 )
+            ang = Angle( ang[ 1 ], ang[ 2 ], 0 )
 
-			Player_SetEyeAngles( ply, ang )
-		end
+            Player_SetEyeAngles( ply, ang )
+        end
 
-		---@diagnostic disable-next-line: undefined-field
-		target.spectators[ ply ] = true
-	end
+        ---@diagnostic disable-next-line: undefined-field
+        target.spectators[ ply ] = true
+    end
 end
 
 do
-	local Player_UnSpectate = Player.UnSpectate
+    local Player_UnSpectate = Player.UnSpectate
 
-	--- [SERVER]
-	---
-	--- un spectate player.
-	---
-	---@param ply Player
-	function spectator.unSpecate( ply )
-		if spectator.isSpectator( ply ) then
-			removeOldSpecList( ply )
-			Player_UnSpectate( ply )
-		end
-	end
+    --- [SERVER]
+    ---
+    --- un spectate player.
+    ---
+    ---@param ply Player
+    function spectator.unSpecate( ply )
+        if spectator.isSpectator( ply ) then
+            removeOldSpecList( ply )
+            Player_UnSpectate( ply )
+        end
+    end
 
 end
 
 net.Receive( "select_target", function( _, ply )
-	if Player_Alive( ply ) then
-		return
-	end
+    if Player_Alive( ply ) then
+        return
+    end
 
-	local ct = CurTime()
+    local ct = CurTime()
 
-	if ct < Entity_GetNW2Float( ply, "ash.spectator.kd", 0 ) then
-		return
-	end
+    if ct < Entity_GetNW2Float( ply, "ash.spectator.kd", 0 ) then
+        return
+    end
 
-	if not spectator.isSpectator( ply ) then
-		return
-	end
+    if not spectator.isSpectator( ply ) then
+        return
+    end
 
-	local target = net.ReadEntity()
+    local target = net.ReadEntity()
 
-	if hook_Run( "ash.spectator.CanPlayerSelectTarget", ply, target ) == false then
-		return
-	end
+    if hook_Run( "ash.spectator.CanPlayerSelectTarget", ply, target ) == false then
+        return
+    end
 
-	if not spectator.isAllowedEntity( ply, target ) then
-		return
-	end
+    if not spectator.isAllowedEntity( ply, target ) then
+        return
+    end
 
-	spectator.specate( ply, target )
+    spectator.specate( ply, target )
 
-	Entity_SetNW2Float( ply, "ash.specatator.kd", ct + 0.3 )
+    Entity_SetNW2Float( ply, "ash.specatator.kd", ct + 0.3 )
 end )
 
 hook.Add( "OnEntityCreated", "Defaults", function( ent )
-	ent.spectators = {}
+    ent.spectators = {}
 end, PRE_HOOK )
 
-hook.Add( "ash.player.Removed", "Defaults", function( ent )
-	removeOldSpecList( ent )
+hook.Add( "ash.entity.PlayerRemoved", "Defaults", function( ent )
+    removeOldSpecList( ent )
 end )
 
 hook.Add( "ash.player.ragdoll.PostCreate", "Defaults", function( ply )
-	for obs, _ in pairs( spectator.getSpectatorsForEntity( ply ) ) do
-		if obs ~= ply then
-			net.Start( "select_target" )
-				net.WriteFloat( 5 )
-			net.Send( obs )
-		end
-	end
+    for obs, _ in pairs( spectator.getSpectatorsForEntity( ply ) ) do
+        if obs ~= ply then
+            net.Start( "select_target" )
+            net.WriteFloat( 5 )
+            net.Send( obs )
+        end
+    end
 end )
 
 return spectator

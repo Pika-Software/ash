@@ -28,7 +28,7 @@ end
 
 ---@param name string
 ---@param entity Entity
-hook.Add( "LevelLoaded", "Bounds", function( name, entity )
+hook.Add( "ash.level.Loaded", "Bounds", function( name, entity )
     local mins, maxs = entity:GetInternalVariable( "m_WorldMins" ), entity:GetInternalVariable( "m_WorldMaxs" )
     ash_level.mins, ash_level.maxs = mins, maxs
 

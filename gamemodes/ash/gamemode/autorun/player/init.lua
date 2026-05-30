@@ -415,7 +415,7 @@ do
         return players_dead, players_dead_count
     end
 
-    hook.Add( "ash.player.Removed", "AliveAndDead", function( entity )
+    hook.Add( "ash.entity.PlayerRemoved", "AliveAndDead", function( entity )
         if Player_Alive( entity ) then
             if table_removeByValue( players_alive, entity, players_alive_count ) then
                 players_alive_count = players_alive_count - 1

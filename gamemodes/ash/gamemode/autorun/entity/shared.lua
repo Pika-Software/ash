@@ -11,12 +11,13 @@ local Entity_IsValid = Entity.IsValid
 local Variable = std.console.Variable
 local hook_Run = hook.Run
 local isnumber = isnumber
+local SERVER = SERVER
 
 local NULL = NULL
 
 ---@class ash.entity
+---@field count integer
 local ash_entity = {}
-
 
 do
 
@@ -60,13 +61,13 @@ do
     local prop_class_names = list.GetForEdit( "ash.prop.classnames" )
 
     prop_class_names.prop_physics_multiplayer = true
-	prop_class_names.prop_physics_override = true
-	prop_class_names.prop_dynamic_override = true
-	prop_class_names.prop_dynamic = true
-	prop_class_names.prop_ragdoll = true
-	prop_class_names.prop_physics = true
-	prop_class_names.prop_detail = true
-	prop_class_names.prop_static = true
+    prop_class_names.prop_physics_override = true
+    prop_class_names.prop_dynamic_override = true
+    prop_class_names.prop_dynamic = true
+    prop_class_names.prop_ragdoll = true
+    prop_class_names.prop_physics = true
+    prop_class_names.prop_detail = true
+    prop_class_names.prop_static = true
 
     --- [SHARED]
     ---
@@ -273,7 +274,7 @@ do
     ---@param hitbox_group integer
     ---@return integer
     function ash_entity.getHitboxCount( entity, hitbox_group )
-        return Entity_GetHitBoxCount( entity, ( hitbox_group or 0 ) - 1 )
+        return Entity_GetHitBoxCount( entity, (hitbox_group or 0) - 1 )
     end
 
     --- [SHARED]
@@ -699,7 +700,7 @@ do
     ---@param entity Entity
     ---@return boolean is_brush
     function ash_entity.isBrush( entity )
-       return Entity_GetBrushPlaneCount( entity ) ~= 0
+        return Entity_GetBrushPlaneCount( entity ) ~= 0
     end
 
 end
@@ -749,191 +750,49 @@ do
     local utils_isPropClass = ash_entity.isPropClass
     local utils_isDoorClass = ash_entity.isDoorClass
 
-    local Entity_GetModel = Entity.GetModel
-
     local table_removeByValue = table.removeByValue
 
-    local table_remove = table.remove
+    local Entity_GetModel = Entity.GetModel
+
+    local entity_list, entity_count = dreamwork.engine.getEntities()
+    ash_entity.count = entity_count
+
+    dreamwork.engine.hookCatch( "dreamwork.engine.EntityCountChanged", function( _, _, new_entities, new_count )
+        entity_list, entity_count = new_entities, new_count
+        ash_entity.count = entity_count
+    end )
+
+    ---@type table<string, Entity[]>
+    local entity_classes = {}
+
+    setmetatable( entity_classes, {
+        __index = function( self, class_name )
+            local class_entities = { [ 0 ] = 0 }
+            self[ class_name ] = class_entities
+            return class_entities
+        end
+    } )
 
     ---@type Entity[]
-    local queue = {
-        [ 0 ] = 0
-    }
+    local init_queue = { [ 0 ] = 0 }
 
-    local list_ents = {}
-
-    local function addEntityByClass( ent )
-        local class = Entity_GetClass( ent )
-        local list_by_class = list_ents[ class ] or {
-            count = 0,
-            list = {},
-        }
-
-        list_by_class.count = list_by_class.count + 1
-        list_by_class.list[ list_by_class.count ] = ent
-
-
-        list_ents[ class ] = list_by_class
-    end
-
-
-    for _, ent in ents.Iterator() do
-        addEntityByClass( ent )
-    end
-
-    --- [SHARED]
-    ---
-    --- Get entity list by class.
-    ---
-    ---@param class string Entity class to find.
-    ---@param is_copy boolean table copy.
-    ---@return table, integer
-    function ash_entity.getByClass( class, is_copy )
-        local tbl = list_ents[ class ]
-
-        if tbl then
-            if is_copy then
-                local copy_table = {}
-                local list_by_class = tbl.list
-                local count = tbl.count
-
-                for i = 1, count do
-                    copy_table[ i ] = list_by_class[ i ]
-                end
-
-                return copy_table, count
-            else
-                return tbl.list, tbl.count
-            end
-        end
-
-        return {}, 0
-    end
-
-    local ents_filter = {}
-    local ents_filter_map = {}
-    local ents_filter_count = 0
-
-    --- [SHARED]
-    ---
-    --- Get filtered entities.
-    ---
-    ---@param filter function filter function if retunted false skip.
-    ---@param name? string
-    ---@return table
-    function ash_entity.filter( filter, name )
-        local tbl = {}
-        local data = {}
-        local count = 0
-
-        local map = ents_filter_map[ name ]
-        if map and name then
-            data = map
-
-            ents_filter_map[ name ] = data
-        else
-            ents_filter_count = ents_filter_count + 1
-
-            ents_filter[ ents_filter_count ] = data
-        end
-
-        for _, v in ents.Iterator() do
-            if filter( v ) ~= false then
-                count = count + 1
-                tbl[ count ] = v
-            end
-        end
-
-        data.tbl = tbl
-        data.count = count
-        data.filter = filter
-        data.name = name
-
-        return data
-    end
-
-    ---- [SHARED]
-    ----
-    ---- Remove filter by name or id.
-    ----
-    ---@param id string | integer
-    ---@return boolean
-    function ash_entity.removeFilter( id )
-        local id_type = type( id )
-        if id_type == "string" then
-            for i = ents_filter_count, 1, -1 do
-                if ents_filter[ i ].name == id then
-                    table_remove( ents_filter, i )
-                    return true
-                end
-            end
-        elseif id_type == "int" then
-            if table_removeByValue( ents_filter, id, ents_filter_count ) then
-                ents_filter_count = ents_filter_count - 1
-
-                return true
-            end
-        end
-
-        return false
-    end
-
-    ---@type table<Entity, boolean>
-    local created_map = {}
-
-    hook.Add( "OnEntityCreated", "Handler", function( entity )
-        addEntityByClass( entity )
-
-        if hook_Run( "ash.entity.AllowCreation", entity ) == false then
-            if entity ~= nil and entity:IsValid() then
-                entity:Remove()
-            end
-
-            return false
-        end
-
-        if not created_map[ entity ] then
-            created_map[ entity ] = true
-
-            timer.Simple( CLIENT and 1 or 0, function()
-                if not IsValid( entity ) then
-                    return
-                end
-
-                for i = 1, ents_filter_count do
-                    local data = ents_filter[ i ]
-
-
-                    if data.filter( entity ) ~= false then
-                        data.count = data.count + 1
-
-                        local tbl = data.tbl
-                        tbl[ data.count ] = entity
-                    end
-                end
-            end )
-        end
-
-        local queue_size = queue[ 0 ] + 1
-        queue[ queue_size ] = entity
-        queue[ 0 ] = queue_size
+    hook.Add( "PreCleanupMap", "InitQueue", function()
+        init_queue = { [ 0 ] = 0 }
     end, PRE_HOOK )
 
-    hook.Add( "Think", "Processor", function()
-        for i = queue[ 0 ], 1, -1 do
+    hook.Add( "Tick", "InitQueue", function()
+        for i = init_queue[ 0 ], 1, -1 do
             ---@type Entity
             ---@diagnostic disable-next-line: assign-type-mismatch
-            local entity = queue[ i ]
-            queue[ i ] = nil
-
+            local entity = init_queue[ i ]
             if entity ~= nil and Entity_IsValid( entity ) then
                 local class_name = Entity_GetClass( entity )
                 hook_Run( "ash.entity.Created", entity, class_name )
 
                 if class_name == "player" then
                     hook_Run( "ash.entity.PlayerCreated", entity )
-                -- elseif class_name == "world" then
-                --     hook_Run( "ash.level.Created", entity )
+                    -- elseif class_name == "world" then
+                    --     hook_Run( "ash.level.Created", entity )
                 elseif utils_isPropClass( class_name ) then
                     Entity_SetNW2Var( entity, "m_bProp", true )
                     hook_Run( "ash.entity.PropCreated", entity, class_name, Entity_GetModel( entity ) )
@@ -952,93 +811,279 @@ do
             end
         end
 
-        queue[ 0 ] = 0
+        init_queue = { [ 0 ] = 0 }
     end, PRE_HOOK )
 
-    hook.Add( "EntityRemoved", "Handler", function( entity, is_full_update )
-        local class_name = Entity_GetClass( entity )
+    ---@type ash.entity.Filter[]
+    local entity_filters = {}
+    gc.setTableRules( entity_filters, false, true )
 
-        created_map[ entity ] = nil
+    ---@type integer
+    local entity_filter_count = 0
 
-        if not is_full_update then
-            local ents_by_class = list_ents[ class_name ]
+    ---@param entity Entity
+    ---@param is_player boolean
+    dreamwork.engine.hookCatch( "dreamwork.engine.EntityCreated", function( entity, is_player )
+        if hook_Run( "ash.entity.AllowCreation", entity ) == false then
+            if entity ~= nil and entity:IsValid() then
+                entity:Remove()
+            end
 
-            if ents_by_class then
-                if table_removeByValue( ents_by_class.list, entity, ents_by_class.count ) then
-                    ents_by_class.count = ents_by_class.count - 1
+            return
+        end
+
+        local entities = entity_classes[ Entity_GetClass( entity ) ]
+        local count = entities[ 0 ] + 1
+
+        entities[ count ] = entity
+        entities[ 0 ] = count
+
+        if SERVER then
+            for i = 1, entity_filter_count, 1 do
+                local filter = entity_filters[ i ]
+                if filter ~= nil then
+                    filter:created( entity )
                 end
             end
 
-            for i = 1, ents_filter_count do
-                local data = ents_filter[ i ]
+            local queue_size = init_queue[ 0 ] + 1
+            init_queue[ queue_size ] = entity
+            init_queue[ 0 ] = queue_size
+        end
+    end )
 
-                if data.filter( entity ) == false then
-                    if table_removeByValue( data.tbl, entity, data.count ) then
-                        data.count = data.count - 1
-                    end
+    if CLIENT then
+
+        hook.Add( "NetworkEntityCreated", "InitializeCapture", function( entity )
+            for i = 1, entity_filter_count, 1 do
+                local filter = entity_filters[ i ]
+                if filter ~= nil then
+                    filter:created( entity )
                 end
             end
-        end
 
-        if entity:IsPlayer() then
-            hook_Run( "ash.player.Removed", entity, is_full_update )
-        elseif utils_isPropClass( class_name ) then
-            hook_Run( "ash.entity.PropRemoved", entity, class_name, is_full_update )
-        elseif utils_isDoorClass( class_name ) then
-            hook_Run( "ash.entity.DoorRemoved", entity, class_name, is_full_update )
-        elseif utils_isButtonClass( class_name ) then
-            hook_Run( "ash.entity.ButtonRemoved", entity, class_name, is_full_update )
-        elseif utils_isRagdollClass( class_name ) then
-            hook_Run( "ash.entity.RagdollRemoved", entity, class_name, is_full_update )
-        elseif entity:IsWeapon() then
-            hook_Run( "ash.entity.WeaponRemoved", entity, class_name, is_full_update )
-        end
+            local queue_size = init_queue[ 0 ] + 1
+            init_queue[ queue_size ] = entity
+            init_queue[ 0 ] = queue_size
+        end )
 
-        hook_Run( "ash.entity.Removed", entity, class_name, is_full_update )
-    end, PRE_HOOK )
-
-
-    local table_clearIndexes = table.clearIndexes
-
-    local function rebuildListEntities()
-        for _, data in pairs( list_ents ) do
-            table_clearIndexes( data.list )
-            data.count = 0
-        end
-
-        for i = 1, ents_filter_count do
-            local data = ents_filter[ i ]
-
-            table_clearIndexes( data.tbl )
-            data.count = 0
-        end
-
-        for _, ent in ents.Iterator() do
-            addEntityByClass( ent )
-
-            for i = 1, ents_filter_count do
-                local data = ents_filter[ i ]
-                local count = data.count
-
-                if data.filter( ent ) ~= false then
-                    count = count + 1
-                    data.tbl[ count ] = ent
-                end
-
-                data.count = count
-            end
-        end
     end
 
-    hook.Add( "InitPostEntity", "Handler", function()
-        rebuildListEntities()
+    ---@param entity Entity
+    ---@param is_player boolean
+    dreamwork.engine.hookCatch( "dreamwork.engine.EntityRemoved", function( entity, is_player )
+        local class_name = Entity_GetClass( entity )
 
+        local entities = entity_classes[ class_name ]
+        local count = entities[ 0 ]
+
+        if table_removeByValue( entities, entity, count ) ~= nil then
+            count = count - 1
+
+            if count == 0 then
+                entity_classes[ class_name ] = nil
+            else
+                entities[ 0 ] = count
+            end
+        end
+
+        for i = 1, entity_filter_count, 1 do
+            local filter = entity_filters[ i ]
+            if filter ~= nil then
+                filter:removed( entity )
+            end
+        end
+
+        if is_player --[[or entity:IsPlayer()]] then
+            hook_Run( "ash.entity.PlayerRemoved", entity )
+        elseif utils_isPropClass( class_name ) then
+            hook_Run( "ash.entity.PropRemoved", entity, class_name )
+        elseif utils_isDoorClass( class_name ) then
+            hook_Run( "ash.entity.DoorRemoved", entity, class_name )
+        elseif utils_isButtonClass( class_name ) then
+            hook_Run( "ash.entity.ButtonRemoved", entity, class_name )
+        elseif utils_isRagdollClass( class_name ) then
+            hook_Run( "ash.entity.RagdollRemoved", entity, class_name )
+        elseif entity:IsWeapon() then
+            hook_Run( "ash.entity.WeaponRemoved", entity, class_name )
+        end
+
+        hook_Run( "ash.entity.Removed", entity, class_name )
+    end )
+
+    local raw_inext = raw.inext
+
+    --- [SHARED]
+    ---
+    ---  Iterates over all entities.
+    ---
+    ---@return ( fun(table: Entity[], i: (integer | nil)): (integer, Entity) ), Entity[], integer
+    function ash_entity.iterator()
+        return raw_inext, entity_list, 0
+    end
+
+    --- [SHARED]
+    ---
+    --- Returns a list of all entities.
+    ---
+    ---@return Entity[], integer
+    function ash_entity.getAll()
+        local copy = {}
+
+        for i = 1, entity_count, 1 do
+            copy[ i ] = entity_list[ i ]
+        end
+
+        return copy, entity_count
+    end
+
+    --- [SHARED]
+    ---
+    --- Get entities by class.
+    ---
+    ---@param class_name string
+    ---@return Entity[]
+    ---@return integer
+    function ash_entity.findByClass( class_name )
+        local entities = entity_classes[ class_name ]
+        if entities == nil then
+            return {}, 0
+        end
+
+        local count = entities[ 0 ]
+        local copy = {}
+
+        for i = 1, count, 1 do
+            copy[ i ] = entities[ i ]
+        end
+
+        return copy, count
+    end
+
+    ---@deprecated
+    ash_entity.getByClass = ash_entity.findByClass
+
+    do
+
+        ---@alias ash.entity.FilterFunc fun( entity: Entity): boolean
+
+        ---@type table<ash.entity.Filter, ash.entity.FilterFunc>
+        local filter_functions = {}
+
+        ---@type table<ash.entity.Filter, Entity[]>
+        local filter_lists = {}
+
+        ---@type table<ash.entity.Filter, integer>
+        local filter_counts = {}
+
+        ---@class ash.entity.Filter : dreamwork.std.Object
+        ---@field fn ash.entity.FilterFunc
+        ---@field list Entity[]
+        ---@field count integer
+        local Filter = class.base( "ash.entity.Filter", true )
+
+        local raw_index = raw.index
+
+        ---@protected
+        function Filter:__index( key )
+            if key == "fn" then
+                return filter_functions[ self ]
+            elseif key == "list" then
+                return filter_lists[ self ]
+            elseif key == "count" then
+                return filter_counts[ self ]
+            end
+
+            return raw_index( self, key )
+        end
+
+        --- [SHARED]
+        ---
+        --- Inserts an entity into the filter if it passes the filter function.
+        ---
+        ---@param entity Entity
+        ---@return boolean
+        function Filter:created( entity )
+            if filter_functions[ self ]( entity ) then
+                local filter_count = filter_counts[ self ] + 1
+                filter_lists[ self ][ filter_count ] = entity
+                filter_counts[ self ] = filter_count
+                return true
+            end
+
+            return false
+        end
+
+        --- [SHARED]
+        ---
+        --- Removes an entity from the filter.
+        ---
+        ---@param entity Entity
+        ---@return boolean
+        function Filter:removed( entity )
+            if table_removeByValue( filter_lists[ self ], entity, filter_counts[ self ] ) ~= nil then
+                filter_counts[ self ] = filter_counts[ self ] - 1
+                return true
+            end
+
+            return false
+        end
+
+        --- [SHARED]
+        ---
+        --- Updates the filter, re-evaluating all entities.
+        ---
+        function Filter:update()
+            filter_counts[ self ] = 0
+            filter_lists[ self ] = {}
+
+            for i = 1, entity_count, 1 do
+                self:created( entity_list[ i ] )
+            end
+        end
+
+        ---@param fn ash.entity.FilterFunc
+        ---@protected
+        function Filter:__init( fn )
+            entity_filter_count = entity_filter_count + 1
+            entity_filters[ entity_filter_count ] = self
+
+            filter_functions[ self ] = fn
+            filter_counts[ self ] = 0
+            filter_lists[ self ] = {}
+        end
+
+        ---@protected
+        function Filter:__gc()
+            if table_removeByValue( entity_filters, self ) then
+                entity_filter_count = entity_filter_count - 1
+            end
+        end
+
+        ---@class ash.entity.FilterClass : ash.entity.Filter
+        ---@overload fun(fn: ash.entity.FilterFunc): ash.entity.Filter
+        local FilterClass = class.create( Filter )
+
+        --- [SHARED]
+        ---
+        --- Get filtered entities.
+        ---
+        ---@param filter_fn ash.entity.FilterFunc
+        ---@return ash.entity.Filter
+        ---@deprecated
+        function ash_entity.filter( filter_fn )
+            return FilterClass( filter_fn )
+        end
+
+    end
+
+    -- TODO: possibly deprecated
+    hook.Add( "InitPostEntity", "Handler", function()
         hook_Run( "ash.entity.PostSpawnEntities" )
     end )
 
+    -- TODO: possibly deprecated
     hook.Add( "PostCleanupMap", "Handler", function()
-        rebuildListEntities()
-
         hook_Run( "ash.entity.PostCleanupMap" )
     end )
 
@@ -1046,10 +1091,10 @@ end
 
 do
 
-	local sv_cheats, host_timescale = Variable.get( "sv_cheats", "boolean" ), Variable.get( "host_timescale", "float" )
-	local engine_GetDemoPlaybackTimeScale = engine.GetDemoPlaybackTimeScale
-	local game_GetTimeScale = game.GetTimeScale
-	local math_clamp = math.clamp
+    local sv_cheats, host_timescale = Variable.get( "sv_cheats", "boolean" ), Variable.get( "host_timescale", "float" )
+    local engine_GetDemoPlaybackTimeScale = engine.GetDemoPlaybackTimeScale
+    local game_GetTimeScale = game.GetTimeScale
+    local math_clamp = math.clamp
 
     hook.Add( "EntityEmitSound", "SoundHandler", function( arguments, data )
         local result = arguments[ 2 ]
@@ -1057,7 +1102,7 @@ do
             return result
         end
 
-		local time_scale = game_GetTimeScale()
+        local time_scale = game_GetTimeScale()
 
         if sv_cheats ~= nil and sv_cheats.value and host_timescale ~= nil then
             time_scale = time_scale * host_timescale.value
@@ -1065,30 +1110,30 @@ do
 
         if CLIENT then
             time_scale = time_scale * engine_GetDemoPlaybackTimeScale()
-		end
+        end
 
         local start_pitch = data.Pitch
 
         data.Pitch = math_clamp( start_pitch * time_scale, 0, 255 )
 
-		local entity = data.Entity
-		if entity ~= nil and entity:IsValid() then
-			if entity:IsPlayer() then
+        local entity = data.Entity
+        if entity ~= nil and entity:IsValid() then
+            if entity:IsPlayer() then
                 result = hook_Run( "ash.player.EmitsSound", entity, data )
-				if result ~= nil then return result end
-			else
-				result = hook_Run( "ash.entity.EmitsSound", entity, data )
-				if result ~= nil then return result end
-			end
-		elseif entity:IsWorld() then
-			result = hook_Run( "ash.level.EmitsSound", entity, data )
-			if result ~= nil then return result end
-		end
+                if result ~= nil then return result end
+            else
+                result = hook_Run( "ash.entity.EmitsSound", entity, data )
+                if result ~= nil then return result end
+            end
+        elseif entity:IsWorld() then
+            result = hook_Run( "ash.level.EmitsSound", entity, data )
+            if result ~= nil then return result end
+        end
 
-		if data.Pitch ~= start_pitch then
-			return true
-		end
-	end, POST_HOOK_RETURN )
+        if data.Pitch ~= start_pitch then
+            return true
+        end
+    end, POST_HOOK_RETURN )
 
 end
 

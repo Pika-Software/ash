@@ -107,11 +107,64 @@ end
 
 ---@param pl Player
 hook.Add( "ash.player.Initialized", "Defaults", function( pl, is_local )
-	if is_local then
+    if is_local then
         pl:ConCommand( "hud_draw_fixed_reticle 0" )
         pl:ConCommand( "dsp_player 1" )
-		pl:ConCommand( "dsp_room 1" )
-	end
+        pl:ConCommand( "dsp_room 1" )
+    end
 end )
+
+local addon_name = "Land of the Living"
+
+if CLIENT then
+
+    local view = {}
+
+    hook.Add( "CalcView", addon_name, function( pl, origin, angles, fov )
+        ---@type Entity
+        local rag = pl:GetNWEntity( addon_name )
+        if rag == nil or not rag:IsValid() then return end
+
+        local attachment_id = rag:LookupAttachment( "eyes" )
+        if attachment_id == nil or attachment_id <= 0 then return end
+
+        local attachment = rag:GetAttachment( attachment_id )
+        if attachment == nil then return end
+
+        view.origin = attachment.Pos
+        -- view.angles = attachment.Ang
+        view.fov = fov
+
+        return view
+    end )
+
+    hook.Add( "PrePlayerDraw", addon_name, function( pl, flags )
+        local rag = pl:GetNWEntity( addon_name )
+        if rag == nil or not rag:IsValid() then return end
+
+        local head_id = rag:LookupBone( "ValveBiped.Bip01_Head1" )
+        if head_id ~= nil and head_id >= 0 then
+            rag:ManipulateBoneScale( head_id, vector_origin )
+        end
+
+        rag:DrawModel( flags )
+        return true
+    end )
+
+    hook.Add( "ShouldDrawLocalPlayer", addon_name, function( pl )
+        local rag = pl:GetNWEntity( addon_name )
+        if rag == nil or not rag:IsValid() then return end
+
+        return true
+    end )
+
+    -- hook.Add( "PreDrawViewModel", addon_name, function( _, pl )
+    --     local rag = pl:GetNWEntity( addon_name )
+    --     if rag == nil or not rag:IsValid() then return end
+
+    --     return true
+    -- end )
+
+end
 
 return flame_player

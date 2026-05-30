@@ -84,13 +84,13 @@ do
     local net_WriteFloat = net.WriteFloat
     local net_SendToServer = net.SendToServer
 
-    -- hook.Add( "ash.view.AimVector", "Sync", function( _, aim )
-    --     net_Start( "sync", true )
-    --     net_WriteFloat( aim[ 1 ] )
-    --     net_WriteFloat( aim[ 2 ] )
-    --     net_WriteFloat( aim[ 3 ] )
-    --     net_SendToServer()
-    -- end )
+    hook.Add( "ash.view.AimVector", "Sync", function( _, aim )
+        net_Start( "sync", true )
+        net_WriteFloat( aim[ 1 ] )
+        net_WriteFloat( aim[ 2 ] )
+        net_WriteFloat( aim[ 3 ] )
+        net_SendToServer()
+    end )
 
     ash_view.AimVector = Vector( 0, 0, 0 )
 
@@ -99,6 +99,7 @@ do
         local aim_vector = util_AimVector( data.angles or MainEyeAngles(), data.fov or 90, ash_ui.CursorX or 0, ash_ui.CursorY or 0, ash_ui.ScreenWidth or 0, ash_ui.ScreenHeight or 0 ) or ash_view.AimVector
 
         if ash_view.AimVector == aim_vector then return end
+
         ash_view.AimVector = aim_vector
 
         Entity_SetNW2Var( pl, "m_vAim", aim_vector )

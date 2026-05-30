@@ -26,7 +26,7 @@ do
         ash_level.Name = name
 
         ash.Logger:info( "Game level '%s' loaded!", name )
-        hook.Run( "LevelLoaded", name, entity )
+        hook.Run( "ash.level.Loaded", name, entity )
     end )
 
     local world_entity

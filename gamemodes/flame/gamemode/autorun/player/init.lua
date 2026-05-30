@@ -153,17 +153,17 @@ hook.Add( "PlayerSwitchFlashlight", "Defaults", function( arguments, pl, request
 end )
 
 hook.Add( "PlayerCanSeePlayersChat", "Defaults", function( text, team_only, listener, speaker )
-    if not (listener and listener:IsValid()) or not (speaker and speaker:IsValid()) then
-        return true
-    end
+    -- if not (listener and listener:IsValid()) or not (speaker and speaker:IsValid()) then
+    --     return true
+    -- end
 
-    if listener:Alive() ~= speaker:Alive() then
-        return false
-    end
+    -- if listener:Alive() ~= speaker:Alive() then
+    --     return false
+    -- end
 
-    if team_only then
-        return listener:Team() == speaker:Team()
-    end
+    -- if team_only then
+    --     return listener:Team() == speaker:Team()
+    -- end
 
     return true
 end )

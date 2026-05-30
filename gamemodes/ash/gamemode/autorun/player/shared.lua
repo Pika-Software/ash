@@ -94,7 +94,7 @@ end
 do
 
     local table_removeByValue = table.removeByValue
-    local inext = raw.inext
+    local raw_inext = raw.inext
 
     do
 
@@ -118,7 +118,7 @@ do
         ---
         ---@return function, Player[], integer
         function ash_player.iterator()
-            return inext, players, 0
+            return raw_inext, players, 0
         end
 
         --- [SHARED]
@@ -188,7 +188,7 @@ do
             end
         end, PRE_HOOK )
 
-        hook.Add( "ash.player.Removed", "IteratorsAndCounters", function( pl, full_update )
+        hook.Add( "ash.entity.PlayerRemoved", "IteratorsAndCounters", function( pl, full_update )
             if full_update then return end
 
             if table_removeByValue( players, pl, players_count ) ~= nil then
@@ -241,7 +241,7 @@ do
             end
         end, PRE_HOOK )
 
-        hook.Add( "ash.player.Removed", "PVS", function( pl, full_update )
+        hook.Add( "ash.entity.PlayerRemoved", "PVS", function( pl, full_update )
             if not full_update and table_removeByValue( players, pl, player_count ) ~= nil then
                 player_count = player_count - 1
             end
@@ -265,7 +265,7 @@ do
     ---@return Vector mins
     ---@return Vector maxs
     function ash_player.getHull( pl, on_crouch )
-        return ( on_crouch and Player_GetHullDuck or Player_GetHull )( pl )
+        return (on_crouch and Player_GetHullDuck or Player_GetHull)( pl )
     end
 
     --- [SHARED]
@@ -306,6 +306,7 @@ end
 ---@param value any
 hook.Add( "ash.entity.NW2Changed", "NW2Handler", function( entity, key, old_value, value )
     if not entity:IsPlayer() then return end
+
     hook_Run( "PlayerNW2Changed", entity, key, old_value, value )
 end, PRE_HOOK )
 
@@ -328,6 +329,7 @@ do
         __index = keys_cache,
         __newindex = function( self, pl, keys )
             if keys_cache[ pl ] == keys then return end
+
             Entity_SetNW2Var( pl, "m_iPlayerKeys", keys )
             keys_cache[ pl ] = keys
         end
@@ -734,7 +736,7 @@ do
         function ash_player.setModel( pl, model_path )
             model_path = model_precache( model_path )
 
-            if rawget( players_model, pl ) ~= model_path  then
+            if rawget( players_model, pl ) ~= model_path then
                 local new_model = hook_Run( "ash.player.Model", pl, players_model[ pl ], model_path ) or model_path
 
                 if new_model ~= model_path then
@@ -936,7 +938,7 @@ do
 
         local is_typing = Player_IsTyping( pl )
         if rawget( players_typing, pl ) ~= is_typing then
-            players_typing[ pl ] = ( hook_Run( "ash.player.Typing", pl, is_typing ) or is_typing ) == true
+            players_typing[ pl ] = (hook_Run( "ash.player.Typing", pl, is_typing ) or is_typing) == true
         end
 
         local flags = Entity_GetFlags( pl )
@@ -1103,6 +1105,7 @@ do
         hook.Add( "PlayerNW2Changed", "NW2Sync", function( pl, key, _, keys )
             if key == "m_iPlayerKeys" then
                 if rawget( players_keys, pl ) == keys then return end
+
                 local pressed_keys = players_key_states[ pl ]
 
                 for i = 0, 24, 1 do
@@ -1263,7 +1266,7 @@ do
         local direction = Vector( 0, 0, 0 )
         local keys = players_keys[ pl ]
 
-        if bit_band( keys, 2 ) == 0 then -- is not up
+        if bit_band( keys, 2 ) == 0 then     -- is not up
             if bit_band( keys, 4 ) ~= 0 then -- is down
                 Vector_Add( direction, -Angle_Up( move_angles ) )
             end
@@ -1271,7 +1274,7 @@ do
             Vector_Add( direction, Angle_Up( move_angles ) )
         end
 
-        if bit_band( keys, 8 ) == 0 then -- is not forward
+        if bit_band( keys, 8 ) == 0 then      -- is not forward
             if bit_band( keys, 16 ) ~= 0 then -- is backward
                 Vector_Add( direction, -Angle_Forward( move_angles ) )
             end
@@ -1279,7 +1282,7 @@ do
             Vector_Add( direction, Angle_Forward( move_angles ) )
         end
 
-        if bit_band( keys, 1024 ) == 0 then -- is not right
+        if bit_band( keys, 1024 ) == 0 then    -- is not right
             if bit_band( keys, 512 ) ~= 0 then -- is left
                 Vector_Add( direction, -Angle_Right( move_angles ) )
             end
@@ -1309,12 +1312,12 @@ do
 
         if move_state == nil then
             if players_on_ground[ pl ] then
-                if bit_band( buttons, 4 ) ~= 0 then -- in duck
+                if bit_band( buttons, 4 ) ~= 0 then     -- in duck
                     move_state = "crouching"
                 elseif bit_band( buttons, 2 ) ~= 0 then -- in jump
                     move_state = "jumping"
                 elseif bit_band( buttons, IN_MOVE ) ~= 0 then
-                    if bit_band( buttons, 262144 ) ~= 0 then -- in walk
+                    if bit_band( buttons, 262144 ) ~= 0 then     -- in walk
                         move_state = "wandering"
                     elseif bit_band( buttons, 131072 ) ~= 0 then -- in run
                         move_state = "running"
@@ -1367,7 +1370,7 @@ do
             MoveData_SetMaxSpeed( mv, player_speed )
 
             local origin = MoveData_GetOrigin( mv )
-            local velocity = ( ( directions[ pl ] * player_speed ) - MoveData_GetVelocity( mv ) ) * tick_interval
+            local velocity = ((directions[ pl ] * player_speed) - MoveData_GetVelocity( mv )) * tick_interval
 
             MoveData_SetVelocity( mv, velocity )
 
@@ -1442,6 +1445,7 @@ do
                 if pl ~= nil and players_move_type[ pl ] == 8 then
                     -- TODO: rework noclip
                     if ash_player.isInVehicle( pl ) then return end
+
                     return false
                 end
             end
@@ -1516,7 +1520,7 @@ do
     hook.Add( "ash.player.WalkSpeed", "DefaultModifiers", function( arguments, pl, in_keys, is_crouching, water_level )
         local speed = arguments[ 2 ] or 200
 
-        if water_level == 3 then -- walking underwater
+        if water_level == 3 then     -- walking underwater
             speed = speed * 0.25
         elseif water_level == 2 then -- walking waist-deep in water
             speed = speed * 0.5
@@ -1528,11 +1532,11 @@ do
     end, POST_HOOK_RETURN )
 
     hook.Add( "ash.player.SwimSpeed", "Defaults", function( pl, in_keys )
-         if bit_band( in_keys, 262144 ) ~= 0 then -- slowly swimming
+        if bit_band( in_keys, 262144 ) ~= 0 then     -- slowly swimming
             return 80
         elseif bit_band( in_keys, 131072 ) ~= 0 then -- fast swimming
             return 250
-        else -- swimming
+        else                                         -- swimming
             return 150
         end
     end )
@@ -1540,7 +1544,7 @@ do
     hook.Add( "ash.player.SwimSpeed", "DefaultModifiers", function( arguments, pl, in_keys, water_level )
         local speed = arguments[ 2 ] or 150
 
-        if water_level == 3 then -- swimming underwater
+        if water_level == 3 then     -- swimming underwater
             speed = speed * 0.5 + 50
         elseif water_level == 2 then -- surface swimming
             speed = speed + 20
@@ -1657,7 +1661,7 @@ end, POST_HOOK_RETURN )
 hook.Add( "PlayerNoClip", "NoclipController", function( arguments, pl, requested )
     local overridden = arguments[ 2 ]
     if overridden == nil then
-        return not requested or ( Player_Alive( pl ) and hook_Run( "ash.player.CanNoclip", pl ) )
+        return not requested or (Player_Alive( pl ) and hook_Run( "ash.player.CanNoclip", pl ))
     else
         return overridden == true
     end
@@ -1736,6 +1740,7 @@ end
 ---@param name string
 function ash_player.setName( pl, name )
     if ash_player.getName( pl ) == name then return end
+
     Entity_SetNW2Var( pl, "m_sNickname", name )
     hook_Run( "ash.player.Name", pl, name )
 end
