@@ -140,7 +140,7 @@ do
 
         ---@return Player[], integer
         function ash_player.getAll()
-            local pls = player.getAll()
+            local pls = player.GetAll()
             return pls, #pls
         end
 
@@ -172,7 +172,7 @@ do
 
         ---@return Player[], integer
         function ash_player.getBots()
-            local pls = player.getBots()
+            local pls = player.GetBots()
             return pls, #pls
         end
 
@@ -193,7 +193,7 @@ do
 
         ---@return Player[], integer
         function ash_player.getHumans()
-            local pls = player.getHumans()
+            local pls = player.GetHumans()
             return pls, #pls
         end
 
