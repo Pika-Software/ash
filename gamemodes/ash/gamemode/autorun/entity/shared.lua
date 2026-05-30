@@ -894,7 +894,7 @@ do
             end
         end
 
-        if is_player --[[or entity:IsPlayer()]] then
+        if is_player or entity:IsPlayer() then
             hook_Run( "ash.entity.PlayerRemoved", entity )
         elseif utils_isPropClass( class_name ) then
             hook_Run( "ash.entity.PropRemoved", entity, class_name )
