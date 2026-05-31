@@ -199,7 +199,7 @@ do
 
         local player_iterator = ash_player.iterator
 
-        hook.Add( "Tick", "Tick", function()
+        hook.Add( "Tick", "Ticking", function()
             for _, pl in player_iterator() do
                 hook_Run( "ash.player.Tick", pl, pl == player_entity )
             end

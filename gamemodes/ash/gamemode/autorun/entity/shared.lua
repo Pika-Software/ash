@@ -1266,7 +1266,7 @@ do
             hook_Run( "ash.entity.WaterLevel", entity, old, new )
         end, PRE_HOOK )
     else
-        hook.Add( "ash.entity.Think", "WaterLevel", function( entity )
+        hook.Add( "ash.entity.Tick", "WaterLevel", function( entity )
             local water_level = Entity_WaterLevel( entity ) or 0
             if water_levels[ entity ] ~= water_level then
                 hook_Run( "ash.entity.WaterLevel", entity, water_levels[ entity ], water_level )
@@ -1281,9 +1281,9 @@ do
 
     local ents_Iterator = ents.Iterator
 
-    hook.Add( "Tick", "Think", function()
+    hook.Add( "Tick", "Ticking", function()
         for _, entity in ents_Iterator() do
-            hook_Run( "ash.entity.Think", entity )
+            hook_Run( "ash.entity.Tick", entity )
         end
     end, PRE_HOOK )
 
