@@ -37,22 +37,21 @@ local hook_Run = hook.Run
 ---@field m_aOffset Angle | nil
 local SWEP = SWEP
 
+local shadow_control = {
+    secondstoarrive  = 0.1,
+    maxangular       = 1000000,
+    maxangulardamp   = 1000000,
+    maxspeed         = 1000000,
+    maxspeeddamp     = 1000000,
+    dampfactor       = 1,
+    teleportdistance = 0,
+}
+
 ---@diagnostic disable-next-line: duplicate-set-field
 function SWEP:Initialize()
     self:SetHoldType( "normal" )
     self:SetSensitivity( 1 )
-
     self.m_fNextThink = 0
-
-    self.m_tShadowControl = {
-        secondstoarrive  = 0.1,
-        maxangular       = 1000000,
-        maxangulardamp   = 1000000,
-        maxspeed         = 1000000,
-        maxspeeddamp     = 1000000,
-        dampfactor       = 1,
-        teleportdistance = 0,
-    }
 end
 
 function SWEP:StopHolding()
@@ -237,9 +236,16 @@ hook.Add( "ash.player.MouseWheel", "DistanceController", function( pl, wheel )
         if distance > player_getUseDistance( pl ) then return end
     else
         local player_mins, player_maxs = pl:GetCollisionBounds()
-        local object_mins, object_maxs = weapon.m_pObject:GetAABB()
 
-        if distance < (math.max( player_maxs[ 1 ] - player_mins[ 1 ], player_maxs[ 2 ] - player_mins[ 2 ] ) + math.max( object_maxs[ 1 ] - object_mins[ 1 ], object_maxs[ 2 ] - object_mins[ 2 ] )) * 0.5 then return end
+        local object_mins, object_maxs = weapon.m_pObject:GetAABB()
+        if object_mins == nil or object_maxs == nil then return end
+
+        if distance < (
+                math.max( player_maxs[ 1 ] - player_mins[ 1 ], player_maxs[ 2 ] - player_mins[ 2 ] ) +
+                math.max( object_maxs[ 1 ] - object_mins[ 1 ], object_maxs[ 2 ] - object_mins[ 2 ] )
+            ) * 0.5 then
+            return
+        end
     end
 
     weapon.m_vOffset, weapon.m_aOffset = WorldToLocal( position, angles, view_position, view_angles )
@@ -280,8 +286,6 @@ function SWEP:ComputePhysics( pl, phys_object )
     if phys_object:IsAsleep() then
         phys_object:Wake()
     end
-
-    local shadow_control = self.m_tShadowControl
 
     local player_velocity = animator_getVelocity( pl )
     Vector_Mul( player_velocity, FrameTime() * 10 )
