@@ -198,15 +198,14 @@ do
                 players_count = players_count - 1
             end
 
-            -- bots
-            if Player_IsBot( pl ) then
-                if table_removeByValue( bots, pl, bots_count ) ~= nil then
-                    bots_count = bots_count - 1
-                end
-
-                -- humans
-            elseif table_removeByValue( humans, pl, humans_count ) ~= nil then
+            -- humans
+            if table_removeByValue( humans, pl, humans_count ) ~= nil then
                 humans_count = humans_count - 1
+            end
+
+            -- bots
+            if table_removeByValue( bots, pl, bots_count ) ~= nil then
+                bots_count = bots_count - 1
             end
         end, PRE_HOOK )
 
