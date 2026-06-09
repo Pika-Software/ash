@@ -98,116 +98,99 @@ do
 
     do
 
-        local player_GetHumans = _G.player.GetHumans
-        local player_GetBots = _G.player.GetBots
-        local player_GetAll = _G.player.GetAll
+        local player_filter = ash_entity.Filter( function( entity )
+            ---@cast entity Player
+            return entity:IsPlayer()
+        end )
 
-        local Player_IsBot = Player.IsBot
+        local bot_filter = ash_entity.Filter( function( entity )
+            ---@cast entity Player
+            return entity:IsPlayer() and entity:IsBot()
+        end )
 
-        ---@type Player[]
-        local players = player_GetAll()
-        local players_count = #players
+        local humans = ash_entity.Filter( function( entity )
+            ---@cast entity Player
+            return entity:IsPlayer() and not entity:IsBot()
+        end )
 
-        ---@type Player[]
-        local bots = player_GetBots()
-        local bots_count = #bots
-
-        ---@type Player[]
-        local humans = player_GetHumans()
-        local humans_count = #humans
+        local empty_table = {}
 
         --- [SHARED]
         ---
-        --- Player iterator.
+        --- Iterates over players, optionally filtering by bots and humans.
         ---
+        ---@param iterate_bots boolean?
+        ---@param iterate_humans boolean?
         ---@return function, Player[], integer
-        function ash_player.iterator()
-            return raw_inext, players, 0
-        end
-
-        --- [SHARED]
-        ---
-        --- Get player table and player count.
-        ---
-        ---@return Player[], integer
-        function ash_player.getAll()
-            local copy = {}
-
-            for i = 1, players_count, 1 do
-                copy[ i ] = players[ i ]
+        function ash_player.iterator( iterate_bots, iterate_humans )
+            if iterate_humans ~= false then
+                if iterate_bots ~= false then
+                    return raw_inext, player_filter.list, 0
+                else
+                    return raw_inext, humans.list, 0
+                end
+            elseif iterate_bots ~= false then
+                return raw_inext, bot_filter.list, 0
             end
 
-            return copy, players_count
+            return raw_inext, empty_table, 0
         end
 
         --- [SHARED]
         ---
-        --- Get player count.
+        --- Get player table and player count, optionally filtering by bots and humans.
         ---
+        ---@param include_bots boolean?
+        ---@param include_humans boolean?
+        ---@return Player[], integer
+        function ash_player.getList( include_bots, include_humans )
+            local player_list, player_count
+
+            if include_humans ~= false then
+                if include_bots ~= false then
+                    player_list = player_filter.list
+                    player_count = player_filter.count
+                else
+                    player_list = humans.list
+                    player_count = humans.count
+                end
+            elseif include_bots ~= false then
+                player_list = bot_filter.list
+                player_count = bot_filter.count
+            end
+
+            local copy = {}
+
+            for i = 1, player_count, 1 do
+                copy[ i ] = player_list[ i ]
+            end
+
+            return copy, player_count
+        end
+
+        ---@deprecated
+        ash_player.getAll = ash_player.getList
+
+        --- [SHARED]
+        ---
+        --- Get player count, optionally filtering by bots and humans.
+        ---
+        ---@param include_humans boolean?
+        ---@param include_bots boolean?
         ---@return integer
-        function ash_player.getCount()
-            return players_count
+        function ash_player.getCount( include_humans, include_bots )
+            if include_humans ~= false then
+                if include_bots ~= false then
+                    return player_filter.count
+                else
+                    return humans.count
+                end
+            elseif include_bots ~= false then
+                return bot_filter.count
+            end
+
+            return 0
         end
-
-        --- [SHARED]
-        ---
-        --- Get bots table and bots count.
-        ---
-        ---@return Player[], integer
-        function ash_player.getBots()
-            local copy = {}
-
-            for i = 1, bots_count, 1 do
-                copy[ i ] = bots[ i ]
-            end
-
-            return copy, bots_count
-        end
-
-        --- [SHARED]
-        ---
-        --- Get humans table and humans count.
-        ---
-        ---@return Player[], integer
-        function ash_player.getHumans()
-            local copy = {}
-
-            for i = 1, humans_count, 1 do
-                copy[ i ] = humans[ i ]
-            end
-
-            return copy, humans_count
-        end
-
-        hook.Add( "ash.entity.PlayerCreated", "IteratorsAndCounters", function( pl )
-            players_count = players_count + 1
-            players[ players_count ] = pl
-
-            if Player_IsBot( pl ) then
-                bots_count = bots_count + 1
-                bots[ bots_count ] = pl
-            else
-                humans_count = humans_count + 1
-                humans[ bots_count ] = pl
-            end
-        end, PRE_HOOK )
-
-        hook.Add( "ash.entity.PlayerRemoved", "IteratorsAndCounters", function( pl )
-            -- all players
-            if table_removeByValue( players, pl, players_count ) ~= nil then
-                players_count = players_count - 1
-            end
-
-            -- humans
-            if table_removeByValue( humans, pl, humans_count ) ~= nil then
-                humans_count = humans_count - 1
-            end
-
-            -- bots
-            if table_removeByValue( bots, pl, bots_count ) ~= nil then
-                bots_count = bots_count - 1
-            end
-        end, PRE_HOOK )
 
     end
 

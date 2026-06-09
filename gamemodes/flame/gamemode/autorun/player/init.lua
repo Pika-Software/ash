@@ -11,6 +11,7 @@ local ash_model = import "ash.model"
 
 ---@type ash.player
 local ash_player = import "ash.player"
+local player_iterator = ash_player.iterator
 
 ---@type ash.player.phrases
 local ash_phrases = import "ash.player.phrases"
@@ -183,7 +184,7 @@ do
     } )
 
     timer.Create( "VoiceChat", 0.5, 0, function()
-        for _, speaker in player.Iterator() do
+        for _, speaker in player_iterator() do
             local speaker_is_alive = speaker:Alive()
             local speaker_origin = speaker:EyePos()
 

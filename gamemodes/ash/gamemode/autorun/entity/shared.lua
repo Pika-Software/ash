@@ -1063,10 +1063,13 @@ do
         ---@class ash.entity.FilterClass : ash.entity.Filter
         ---@overload fun(fn: ash.entity.FilterFunc): ash.entity.Filter
         local FilterClass = class.create( Filter )
+        ash_entity.Filter = FilterClass
 
         --- [SHARED]
         ---
         --- Get filtered entities.
+        ---
+        ---@see Use `entity.Filter` instead.
         ---
         ---@param filter_fn ash.entity.FilterFunc
         ---@return ash.entity.Filter
