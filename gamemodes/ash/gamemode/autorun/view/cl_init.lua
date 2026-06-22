@@ -110,6 +110,10 @@ do
         aim_update( pl )
     end, PRE_HOOK )
 
+    hook.Add( "ash.player.Crouching", "AimVector", function( pl )
+        aim_update( pl )
+    end, PRE_HOOK )
+
     hook.Add( "ash.ui.CursorMoved", "AimVector", function()
         if gui_IsGameUIVisible() then return end
 
