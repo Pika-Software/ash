@@ -1555,5 +1555,33 @@ dreamwork.engine.hookCatch( "EntityGarbageCollected", function( entity )
     hook_Run( "ash.entity.GarbageCollected", entity )
 end )
 
+do
+    local collide_map = {}
+
+    --- [SHARED]
+    ---
+    --- Sets whether two entity classes should collide with each other.
+    ---
+    --- @param class1 string
+    --- @param class2 string
+    --- @param bool? bool
+    function ash_entity.setNoCollideClasses( class1, class2, bool )
+        collide_map[ class1 ] = collide_map[ class1 ] or {}
+        collide_map[ class1 ][ class2 ] = bool
+    end
+
+    hook.Add( "ShouldCollide", "Default", function( ent1, ent2 )
+        local class1 = Entity_GetClass( ent1 )
+        if collide_map[ class1 ] and collide_map[ class1 ][ Entity_GetClass( ent2 ) ] == false then
+            return false
+        end
+
+        if hook_Run( "ash.entity.CanCollide", ent1, ent2 ) == false then
+            return false
+        end
+
+        return true
+    end, PRE_HOOK_RETURN )
+end
 
 return ash_entity
