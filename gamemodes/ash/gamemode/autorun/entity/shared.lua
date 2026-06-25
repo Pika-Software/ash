@@ -1584,4 +1584,72 @@ do
     end, PRE_HOOK_RETURN )
 end
 
+do
+    local DistToSqr = Vector.DistToSqr
+    local Entity_GetPos = Entity.GetPos
+
+    --- [SHARED]
+    ---
+    --- Finds entities within a given range of a position.
+    ---
+    ---@param pos Vector distance squared
+    ---@param range number
+    ---@param ... string
+    ---@return Entity[] entity list
+    ---@return integer count
+    function ash_entity.findInRange( pos, range, ... )
+        local count_varang = select( "#", ... )
+        local results = {}
+        local result_count = 0
+
+        if count_varang <= 0 then
+            for _, v in ash_entity.iterator() do
+                if DistToSqr( pos, Entity_GetPos( v ) ) <= range then
+                    result_count = result_count + 1
+                    results[ result_count ] = v
+                end
+            end
+        else
+            for i = 1, count_varang do
+                local v = select( i, ... )
+                local ents_list, ents_count = ash_entity.findByClass( v )
+
+                for j = 1, ents_count do
+                    local ent = ents_list[ j ]
+                    if DistToSqr( pos, Entity_GetPos( ent ) ) <= range then
+                        result_count = result_count + 1
+                        results[ result_count ] = ent
+                    end
+                end
+            end
+        end
+
+        return results, result_count
+    end
+
+    --- [SHARED]
+    ---
+    --- Returns whether there is an entity in range of the given position.
+    ---
+    ---@param pos Vector
+    ---@param range number
+    ---@param ... string
+    ---@return boolean
+    function ash_entity.hasInRange( pos, range, ... )
+        for i = 1, select( "#", ... ) do
+            local v = select( i, ... )
+            local ents_list, ents_count = ash_entity.findByClass( v )
+
+            for j = 1, ents_count do
+                local ent = ents_list[ j ]
+                if DistToSqr( pos, Entity_GetPos( ent ) ) <= range then
+                    return true
+                end
+            end
+        end
+
+        return false
+    end
+end
+
 return ash_entity
