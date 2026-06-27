@@ -6,6 +6,7 @@ local math_min = math.min
 local math_max = math.max
 local Lerp = Lerp
 local FrameTime = FrameTime
+local LocalPlayer = LocalPlayer
 
 local hook_name = "ash.zoom"
 --- @class ash.zoom
@@ -35,7 +36,9 @@ function ash_zoom.setup( config )
     factor = default_factor
     local speed = 14
 
-    hook_Add( "ash.player.Key", hook_name, function( _, key, pressed )
+    hook_Add( "ash.player.Key", hook_name, function( ply, key, pressed )
+        if ply ~= LocalPlayer() then return end
+
         if key ~= IN_ZOOM then return end
 
         if pressed then
@@ -47,7 +50,9 @@ function ash_zoom.setup( config )
     end, NORMAL_HOOK )
 
     if variable then
-        hook_Add( "ash.player.MouseWheel", hook_name, function( _, wheel )
+        hook_Add( "ash.player.MouseWheel", hook_name, function( ply, wheel )
+            if ply ~= LocalPlayer() then return end
+
             if not is_zooming then return end
 
             if wheel > 0 then
@@ -57,7 +62,9 @@ function ash_zoom.setup( config )
             end
         end, NORMAL_HOOK )
 
-        hook_Add( "PlayerBindPress", hook_name, function( _, bind )
+        hook_Add( "PlayerBindPress", hook_name, function( ply, bind )
+            if ply ~= LocalPlayer() then return end
+
             if is_zooming and (bind == "invprev" or bind == "invnext") then
                 return true
             end
