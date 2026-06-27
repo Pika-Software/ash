@@ -49,6 +49,14 @@ function ash_zoom.setup( config )
         end
     end, NORMAL_HOOK )
 
+    hook_Add( "PlayerBindPress", hook_name .. ".toggle", function( ply, bind )
+        if ply ~= LocalPlayer() then return end
+
+        if bind == "toggle_zoom" then
+            is_zooming = not is_zooming
+        end
+    end, NORMAL_HOOK )
+
     if variable then
         hook_Add( "ash.player.MouseWheel", hook_name, function( ply, wheel )
             if ply ~= LocalPlayer() then return end
