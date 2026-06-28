@@ -17,11 +17,11 @@ local tr_zoom = nil
 local factor = nil
 
 --- @class ash.zoom.config
---- @field variable boolean Enable variable zoom (scroll mouse wheel to change FOV)
---- @field factor_min number Minimum zoom factor (requires variable zoom enabled)
---- @field factor_max number Maximum zoom factor (requires variable zoom enabled)
---- @field factor_step number Zoom factor difference on mouse scroll
---- @field default_factor number Default zoom factor immediately on pressing +zoom
+--- @field variable? boolean Enable variable zoom (scroll mouse wheel to change FOV)
+--- @field factor_min? number Minimum zoom factor (requires variable zoom enabled)
+--- @field factor_max? number Maximum zoom factor (requires variable zoom enabled)
+--- @field factor_step? number Zoom factor difference on mouse scroll
+--- @field default_factor? number Default zoom factor immediately on pressing +zoom
 
 --- [CLIENT]
 ---
