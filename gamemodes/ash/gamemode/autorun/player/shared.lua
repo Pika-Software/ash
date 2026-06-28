@@ -94,6 +94,7 @@ end
 do
 
     local table_removeByValue = table.removeByValue
+    local entity_isInPVS = ash_entity.isInPVS
     local raw_inext = raw.inext
 
     do
@@ -203,7 +204,7 @@ do
         local player_count = 0
 
         for _, pl in ash_player.iterator() do
-            if ash_entity.isInPVS( pl ) then
+            if entity_isInPVS( pl ) then
                 player_count = player_count + 1
                 players[ player_count ] = pl
             end
@@ -1136,7 +1137,9 @@ do
 
         local impulse = UserCommand_GetImpulse( cmd )
         if impulse ~= 0 then
-            hook_Run( "ash.player.Impulse", pl, impulse )
+            if hook_Run( "ash.player.Impulse", pl, impulse ) == false then
+                cmd:SetImpulse( 0 )
+            end
         end
 
         local view_angles = UserCommand_GetViewAngles( cmd )
