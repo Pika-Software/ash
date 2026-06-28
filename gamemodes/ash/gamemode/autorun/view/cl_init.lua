@@ -54,6 +54,7 @@ do
         if arguments[ 2 ] == true then return true end
 
         data.origin, data.angles = origin, angles
+        data.zfar, data.znear = nil, nil
         data.fov = fov
 
         hook_Run( "ash.view.Perform", data )
