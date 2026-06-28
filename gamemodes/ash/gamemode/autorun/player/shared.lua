@@ -94,7 +94,6 @@ end
 do
 
     local table_removeByValue = table.removeByValue
-    local entity_isInPVS = ash_entity.isInPVS
     local raw_inext = raw.inext
 
     do
@@ -122,7 +121,7 @@ do
         ---
         ---@param iterate_bots boolean?
         ---@param iterate_humans boolean?
-        ---@return function, Player[], integer
+        ---@return ( fun( players: Player[], i: ( integer | nil ) ): integer, Player ), Player[], integer
         function ash_player.iterator( iterate_bots, iterate_humans )
             if iterate_humans ~= false then
                 if iterate_bots ~= false then
@@ -197,8 +196,13 @@ do
 
     if CLIENT then
 
+        local Entity_WorldSpaceCenter = Entity.WorldSpaceCenter
+        local Vector_DistToSqr = Vector.DistToSqr
+        local entity_isInPVS = ash_entity.isInPVS
+        local table_sort = table.sort
+
         ---@type Player[]
-        local players = {}
+        local players_in_pvs = {}
 
         ---@type integer
         local player_count = 0
@@ -206,7 +210,7 @@ do
         for _, pl in ash_player.iterator() do
             if entity_isInPVS( pl ) then
                 player_count = player_count + 1
-                players[ player_count ] = pl
+                players_in_pvs[ player_count ] = pl
             end
         end
 
@@ -216,7 +220,16 @@ do
         ---
         ---@return Player[], integer
         function ash_player.getInPVS()
-            return players, player_count
+            return players_in_pvs, player_count
+        end
+
+        --- [CLIENT]
+        ---
+        --- Iterates over all players that currently in client PVS.
+        ---
+        ---@return ( fun( players: Player[], i: ( integer | nil ) ): integer, Player ), Player[], integer
+        function ash_player.iteratorPVS()
+            return raw_inext, players_in_pvs, 0
         end
 
         ---@param pl Player
@@ -224,16 +237,51 @@ do
         hook.Add( "ash.player.PVS", "PVSUpdater", function( pl, isInPVS )
             if isInPVS then
                 player_count = player_count + 1
-                players[ player_count ] = pl
-            elseif table_removeByValue( players, pl, player_count ) ~= nil then
+                players_in_pvs[ player_count ] = pl
+            elseif table_removeByValue( players_in_pvs, pl, player_count ) ~= nil then
                 player_count = player_count - 1
             end
         end, PRE_HOOK )
 
+        ---@type table<Player, number>
+        local distances = {}
+
         hook.Add( "ash.entity.PlayerRemoved", "PVSUpdater", function( pl )
-            if table_removeByValue( players, pl, player_count ) ~= nil then
+            if table_removeByValue( players_in_pvs, pl, player_count ) ~= nil then
                 player_count = player_count - 1
             end
+
+            distances[ pl ] = nil
+        end, PRE_HOOK )
+
+        ---@param pl Player
+        ---@param pl2 Player
+        ---@return boolean
+        local function sort_fn( pl, pl2 )
+            return distances[ pl ] > distances[ pl2 ]
+        end
+
+        ---@type ash.view
+        local ash_view = import "ash.view"
+        local view_Data = ash_view.Data
+
+        ---@param local_player Player
+        ---@param is_local boolean
+        hook.Add( "ash.player.Tick", "PVSUpdater", function( local_player, is_local )
+            if not is_local then return end
+
+            local view_origin = view_Data.origin or local_player:WorldSpaceCenter()
+
+            for i = 1, player_count, 1 do
+                local pl = players_in_pvs[ i ]
+                if pl == local_player then
+                    distances[ local_player ] = 0
+                else
+                    distances[ pl ] = Vector_DistToSqr( view_origin, Entity_WorldSpaceCenter( pl ) )
+                end
+            end
+
+            table_sort( players_in_pvs, sort_fn )
         end, PRE_HOOK )
 
     end

@@ -339,7 +339,7 @@ end
 
 do
 
-    local player_iterator = ash_player.iterator
+    local player_iteratorPVS = ash_player.iteratorPVS
     local Entity_DrawModel = Entity.DrawModel
 
     ---@type table<Player, boolean>
@@ -349,7 +349,7 @@ do
     local is_local = false
 
     hook.Add( "PostDrawTranslucentWorld", "Render", function( _, is_depth_pass )
-        for _, pl in player_iterator() do
+        for _, pl in player_iteratorPVS() do
             is_local = player_isLocal( pl )
 
             if hook_Run( "ash.player.ShouldDraw", pl, false, is_local ) ~= false then
@@ -374,7 +374,7 @@ do
     end, POST_HOOK )
 
     hook.Add( "PostDrawTranslucentReflection", "Render", function( _, is_depth_pass )
-        for _, pl in player_iterator() do
+        for _, pl in player_iteratorPVS() do
             is_local = player_isLocal( pl )
 
             if hook_Run( "ash.player.ShouldDraw", pl, true, is_local ) ~= false then

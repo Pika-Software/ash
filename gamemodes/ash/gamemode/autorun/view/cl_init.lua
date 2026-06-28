@@ -13,6 +13,11 @@ local ash_player = import "ash.player"
 local ash_view = include( "shared.lua" )
 
 ---@class ash.view.Data : ViewData
+---@field origin Vector The view origin.
+---@field angles Angle The view angles.
+---@field zfar number The far Z value.
+---@field znear number The near Z value.
+---@field fov number The field of view.
 local data = {
     drawviewmodel = true,
     dopostprocess = true,
