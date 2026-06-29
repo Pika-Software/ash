@@ -1,11 +1,10 @@
 local std = dreamwork.std
 local angle_zero = angle_zero
 
-local system_HasFocus = system.HasFocus
 local assert = std.assert
 local arg = std.arg
 
-local CurTime = CurTime
+local os_clock = os.clock
 
 local render_DrawWireframeBox = render.DrawWireframeBox
 local render_SetMaterial = render.SetMaterial
@@ -27,24 +26,27 @@ local render_queue = {
 ---@type number[]
 local death_times = {}
 
+---@param lifetime? number
+---@param fn fun()
 local function gen( lifetime, fn )
-    if system_HasFocus() then
-        local queue_size = render_queue[ 0 ] + 1
-        render_queue[ queue_size ] = fn
-        death_times[ queue_size ] = CurTime() + math.max( lifetime or 0, 0.5 )
-        render_queue[ 0 ] = queue_size
-    end
+    local queue_size = render_queue[ 0 ] + 1
+    render_queue[ queue_size ] = fn
+    death_times[ queue_size ] = os_clock() + math.max( lifetime or 0, 0.5 )
+    render_queue[ 0 ] = queue_size
 end
 
-timer.Create( "OverlayTicks", 0.1, 0, function()
-    local now = CurTime()
+timer.Create( "OverlayTicks", 0.5, 0, function()
+    local queue_size = render_queue[ 0 ] or 0
+    local now = os_clock()
 
-    for i = render_queue[ 0 ], 1, -1 do
+    for i = queue_size, 1, -1 do
         if now > death_times[ i ] then
-            render_queue[ 0 ] = render_queue[ 0 ] - 1
             table.remove( render_queue, i )
+            queue_size = queue_size - 1
         end
     end
+
+    render_queue[ 0 ] = queue_size - 1
 end )
 
 ---@param start_position Vector
