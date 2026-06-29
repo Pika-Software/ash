@@ -144,6 +144,10 @@ do
 
     local player_entity
 
+    hook.Add( "ash.ui.CursorMoved", "MovedCursor", function( x, y, cursor_visible )
+        hook_Run( "ash.player.MovedCursor", player_entity, x, y, cursor_visible )
+    end )
+
     local thread = coroutine.create( function()
         ::retry_loop::
 

@@ -49,19 +49,19 @@ local units = {
         return viewport_height * x
     end,
     pw = function( x )
-        return ( ScrW() * 0.01 ) * x
+        return (ScrW() * 0.01) * x
     end,
     ph = function( x )
-        return ( ScrH() * 0.01 ) * x
+        return (ScrH() * 0.01) * x
     end,
     p = function( x )
-        return ( ( ScrW() + ScrH() ) * 0.005 ) * x
+        return ((ScrW() + ScrH()) * 0.005) * x
     end,
     pmin = function( x )
-        return ( math_min( ScrW(), ScrH() ) * 0.01 ) * x
+        return (math_min( ScrW(), ScrH() ) * 0.01) * x
     end,
     pmax = function( x )
-        return ( math_max( ScrW(), ScrH() ) * 0.01 ) * x
+        return (math_max( ScrW(), ScrH() ) * 0.01) * x
     end,
     cm = function( x )
         return x * 37.8
@@ -76,7 +76,7 @@ local units = {
         return x * 16
     end,
     pt = function( x )
-        return ( x * 96 ) / 72
+        return (x * 96) / 72
     end,
     q = function( x )
         return x * 0.945
@@ -411,7 +411,7 @@ do
         for key, value in pairs( Material_GetKeyValues( from ) ) do
             local fn = type2fn[ type( value ) ]
             if fn ~= nil then
-               fn( to, key, value )
+                fn( to, key, value )
             end
         end
     end

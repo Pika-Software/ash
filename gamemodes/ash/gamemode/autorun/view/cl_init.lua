@@ -120,14 +120,10 @@ do
         aim_update( pl )
     end, PRE_HOOK )
 
-    hook.Add( "ash.ui.CursorMoved", "AimVector", function()
-        if gui_IsGameUIVisible() then return end
+    hook.Add( "ash.player.MovedCursor", "AimVector", function( pl )
+        if gui_IsGameUIVisible() or pl == nil or not Entity_IsValid( pl ) then return end
 
-        ---@diagnostic disable-next-line: undefined-field
-        local pl = ash_player.Entity
-        if pl ~= nil and Entity_IsValid( pl ) then
-            aim_update( pl )
-        end
+        aim_update( pl )
     end, PRE_HOOK )
 
 end
