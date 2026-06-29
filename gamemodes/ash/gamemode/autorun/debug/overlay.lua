@@ -60,6 +60,9 @@ local function line( start_position, end_position, r, g, b, write_depth, lifetim
     assert( arg( start_position, 1, "Vector" ) )
     assert( arg( end_position, 2, "Vector" ) )
 
+    start_position = Vector( start_position )
+    end_position = Vector( end_position )
+
     local color = Color( r or 255, g or 255, b or 255, 255 )
     write_depth = write_depth ~= false
 
@@ -119,6 +122,8 @@ local matColorIgnoreZ = Material( "color_ignorez" )
 function overlay.box( filled, origin, angles, mins, maxs, r, g, b, write_depth, lifetime )
     assert( arg( origin, 1, "Vector" ) )
 
+    origin = Vector( origin )
+
     local color = Color( r or 255, g or 255, b or 255, 255 )
     write_depth = write_depth ~= false
 
@@ -130,6 +135,9 @@ function overlay.box( filled, origin, angles, mins, maxs, r, g, b, write_depth, 
 
     assert( arg( mins, 3, "Vector" ) )
     assert( arg( maxs, 4, "Vector" ) )
+
+    mins = Vector( mins )
+    maxs = Vector( maxs )
 
     local fn
 
@@ -169,6 +177,8 @@ function overlay.text( str, origin, size, r, g, b, write_depth, lifetime )
     assert( arg( str, 1, "string" ) )
     assert( arg( origin, 2, "Vector" ) )
     assert( arg( size, 3, "number" ) )
+
+    origin = Vector( origin )
 
     local color = Color( r or 255, g or 255, b or 255, 255 )
     write_depth = write_depth ~= false
