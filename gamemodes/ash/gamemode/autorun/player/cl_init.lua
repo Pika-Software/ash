@@ -352,7 +352,7 @@ do
 
     local is_local = false
 
-    hook.Add( "PostDrawTranslucentWorld", "Render", function( _, is_depth_pass )
+    hook.Add( "PreDrawTranslucentWorld", "Render", function( _, is_depth_pass )
         for _, pl in player_iteratorPVS() do
             is_local = player_isLocal( pl )
 
@@ -368,7 +368,6 @@ do
                     Entity_DrawModel( wep, 1 )
                 end
 
-                -- Entity_DrawModel( entity, 4 )
                 render_restricted[ pl ] = true
 
                 hook_Run( "ash.player.DrawAppearance", pl, false, is_local, is_depth_pass )
@@ -377,7 +376,7 @@ do
         end
     end, POST_HOOK )
 
-    hook.Add( "PostDrawTranslucentReflection", "Render", function( _, is_depth_pass )
+    hook.Add( "PreDrawTranslucentReflection", "Render", function( _, is_depth_pass )
         for _, pl in player_iteratorPVS() do
             is_local = player_isLocal( pl )
 
@@ -393,7 +392,6 @@ do
                     Entity_DrawModel( wep, 1 )
                 end
 
-                -- Entity_DrawModel( entity, 4 )
                 render_restricted[ pl ] = true
 
                 hook_Run( "ash.player.DrawAppearance", pl, true, is_local, is_depth_pass )

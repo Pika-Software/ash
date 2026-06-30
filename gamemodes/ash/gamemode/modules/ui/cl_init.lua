@@ -505,14 +505,26 @@ do
         if string_isURL( path ) then
             futures_run( image_request, function( ok, file_path )
                 if ok then
-                    translate( engine_loadMaterial( file_path, image_parameters ), material )
+                    local engine_material, time_took = engine_loadMaterial( file_path, image_parameters )
+                    if engine_material == nil then
+                        ash.Logger:error( "Unable to load web content, %s.", file_path )
+                    else
+                        ash.Logger:debug( "Loaded web content in %s ms.", time_took )
+                        translate( engine_material, material )
+                    end
                 else
                     ash.Logger:error( "Unable to load web content, %s.", file_path )
                 end
             end, path )
         else
             setTimeout( function()
-                translate( engine_loadMaterial( path, image_parameters ), material )
+                local engine_material, time_took = engine_loadMaterial( path, image_parameters )
+                if engine_material == nil then
+                    ash.Logger:error( "Unable to load local content, %s.", path )
+                else
+                    ash.Logger:debug( "Loaded local content in %s ms.", time_took )
+                    translate( engine_material, material )
+                end
             end )
         end
 
