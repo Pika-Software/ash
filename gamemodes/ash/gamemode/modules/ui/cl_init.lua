@@ -509,7 +509,7 @@ do
                     if engine_material == nil then
                         ash.Logger:error( "Unable to load web content, %s.", file_path )
                     else
-                        ash.Logger:debug( "Loaded web content in %s ms.", time_took )
+                        ash.Logger:debug( "Loaded web content '%s', took %.3f ms.", file_path, time_took * 1000 )
                         translate( engine_material, material )
                     end
                 else
@@ -522,7 +522,7 @@ do
                 if engine_material == nil then
                     ash.Logger:error( "Unable to load local content, %s.", path )
                 else
-                    ash.Logger:debug( "Loaded local content in %s ms.", time_took )
+                    ash.Logger:debug( "Loaded local content '%s', took %.3f ms.", path, time_took * 1000 )
                     translate( engine_material, material )
                 end
             end )
