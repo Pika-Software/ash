@@ -1199,14 +1199,15 @@ do
     ---@param entities Entity[]
     ---@param origin Vector
     ---@param position_fn? fun( entity: Entity ): Vector
-    ---@return Entity entity
+    ---@return Entity | nil entity
+    ---@return number | nil distance
     function ash_entity.closest( entities, origin, position_fn )
         if position_fn == nil then
             position_fn = Entity_GetPos
         end
 
         local min_distance = math_huge
-        local selected_entity = NULL
+        local selected_entity
 
         for i = 1, #entities, 1 do
             local entity = entities[ i ]
@@ -1218,7 +1219,7 @@ do
             end
         end
 
-        return selected_entity
+        return selected_entity, min_distance
     end
 
 end
