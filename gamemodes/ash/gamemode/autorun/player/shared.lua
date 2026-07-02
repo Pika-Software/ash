@@ -1744,6 +1744,12 @@ do
         return false
     end, POST_HOOK_RETURN )
 
+    ---@param pl Player
+    hook.Add( "ash.player.Spawn", "NoclipController", function( pl )
+        Entity_SetNW2Var( pl, "ash.noclip", false )
+        pl:SetCollisionGroup( 0 )
+    end, PRE_HOOK )
+
 end
 
 ---@type ash.player.animator
@@ -1973,7 +1979,9 @@ do
     } )
 
     hook.Add( "ash.player.SwitchedWeapon", "HoldTypeHandler", function( pl, _, wep )
-        holdtypes[ pl ] = wep:GetHoldType()
+        if wep ~= nil and Entity_IsValid( wep ) then
+            holdtypes[ pl ] = wep:GetHoldType()
+        end
     end, PRE_HOOK )
 
     --- [SHARED]
