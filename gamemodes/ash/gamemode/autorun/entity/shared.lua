@@ -2,6 +2,7 @@
 local std = dreamwork.std
 
 local math = std.math
+local math_sqrt = math.sqrt
 local math_huge = math.huge
 
 local Entity_GetNW2Var = Entity.GetNW2Var
@@ -12,8 +13,6 @@ local Variable = std.console.Variable
 local hook_Run = hook.Run
 local isnumber = isnumber
 local SERVER = SERVER
-
-local NULL = NULL
 
 ---@class ash.entity
 ---@field count integer
@@ -1219,7 +1218,7 @@ do
             end
         end
 
-        return selected_entity, min_distance
+        return selected_entity, math_sqrt( min_distance )
     end
 
 end
