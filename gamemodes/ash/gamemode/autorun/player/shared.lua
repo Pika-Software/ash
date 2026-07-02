@@ -1695,25 +1695,56 @@ hook.Add( "PlayerShouldTakeDamage", "DamageHandler", function( arguments )
     return arguments[ 2 ] ~= false
 end, POST_HOOK_RETURN )
 
----@param pl Player
-hook.Add( "PlayerNoClip", "NoclipController", function( arguments, pl )
-    local requested = not (ash_player.inInNoclip( pl ) == true)
+do
 
-    local value = false
+    ---@type TraceResult
+    local trace_result = {}
 
-    local overridden = arguments[ 2 ]
-    if overridden ~= nil then
-        value = overridden == true
-    elseif not requested or (Player_Alive( pl ) and hook_Run( "ash.player.CanNoclip", pl )) then
-        value = requested
-    end
+    ---@type HullTrace
+    local trace = {
+        mask = MASK_PLAYERSOLID,
+        output = trace_result,
+    }
 
-    pl:SetCollisionGroup( value and 10 or 0 )
+    ---@param pl Player
+    hook.Add( "PlayerNoClip", "NoclipController", function( arguments, pl )
+        local requested = not (ash_player.inInNoclip( pl ) == true)
 
-    Entity_SetNW2Var( pl, "ash.noclip", value )
+        local value = false
 
-    return false
-end, POST_HOOK_RETURN )
+        local overridden = arguments[ 2 ]
+        if overridden ~= nil then
+            value = overridden == true
+        elseif not requested or (Player_Alive( pl ) and hook_Run( "ash.player.CanNoclip", pl )) then
+            value = requested
+        end
+
+        pl:SetCollisionGroup( value and 10 or 0 )
+
+        Entity_SetNW2Var( pl, "ash.noclip", value )
+
+        if not value and SERVER then
+            trace.start = pl:EyePos()
+            trace.endpos = trace.start - ash_player.getAngles( pl ):Up() * 128
+
+            trace.mins, trace.maxs = pl:GetCollisionBounds()
+            trace.filter = pl
+
+            util.TraceHull( trace )
+
+            if trace_result.Hit and not trace_result.StartSolid then
+                setTimeout( function()
+                    if IsValid( pl ) then
+                        pl:SetPos( trace_result.HitPos )
+                    end
+                end )
+            end
+        end
+
+        return false
+    end, POST_HOOK_RETURN )
+
+end
 
 ---@type ash.player.animator
 local animator = include( "animator.lua", ash_player )
