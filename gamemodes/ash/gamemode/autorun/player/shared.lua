@@ -1955,6 +1955,39 @@ do
 
 end
 
+do
+
+    ---@type table<Player, string>
+    local holdtypes = {}
+
+    setmetatable( holdtypes, {
+        ---@param pl Player
+        __index = function( self, pl )
+            local wep = ash_player.getActiveWeapon( pl )
+            if wep ~= nil and Entity_IsValid( wep ) then
+                return wep:GetHoldType()
+            end
+
+            return "normal"
+        end,
+    } )
+
+    hook.Add( "ash.player.SwitchedWeapon", "HoldTypeHandler", function( pl, _, wep )
+        holdtypes[ pl ] = wep:GetHoldType()
+    end, PRE_HOOK )
+
+    --- [SHARED]
+    ---
+    --- Returns the player's hold type.
+    ---
+    ---@param pl Player
+    ---@return string holdType
+    function ash_player.getHoldType( pl )
+        return holdtypes[ pl ]
+    end
+
+end
+
 --- [SERVER]
 ---
 --- Gets the player's voice volume scale.
