@@ -154,23 +154,23 @@ if SERVER then
 
         local sequence_name
 
-        if hitgroup == 1 then -- head
+        if hitgroup == 1 then                      -- head
             sequence_name = "flinch_head_0" .. math.random( 1, 2 )
         elseif hitgroup == 2 or hitgroup == 3 then -- chest or stomach
             sequence_name = "flinch_stomach_0" .. math.random( 1, 2 )
-        elseif hitgroup == 4 then -- left arm
+        elseif hitgroup == 4 then                  -- left arm
             sequence_name = "flinch_shoulder_l"
-        elseif hitgroup == 5 then -- right arm
+        elseif hitgroup == 5 then                  -- right arm
             sequence_name = "flinch_shoulder_r"
-        elseif hitgroup == 6 then -- left leg
+        elseif hitgroup == 6 then                  -- left leg
             sequence_name = "flinch_01"
-        elseif hitgroup == 7 then -- right leg
+        elseif hitgroup == 7 then                  -- right leg
             sequence_name = "flinch_02"
         else
 
             local damage_position = damage_info:GetDamagePosition()
 
-            local direction = ( damage_position - pl:EyePos() )
+            local direction = (damage_position - pl:EyePos())
             direction:Normalize()
 
             if math_abs( direction:Dot( player_getAngles( pl ):Forward() ) ) > 0.25 then
@@ -205,7 +205,6 @@ do
     function flame_player.getSpeedModifier( pl )
         return Entity_GetNW2Float( pl, "m_flSpeedModifier", 1 )
     end
-
 
     local function move_speed_multiplier( arguments, pl )
         local speed = arguments[ 2 ]
@@ -292,11 +291,10 @@ end
 function flame_player.V3toRGB( str )
     local segments = string.byteSplit( string.byteTrim( str, 0x20 --[[ space ]] ), 0x20 --[[ space ]] )
 
-    return math.clamp( ( tonumber( segments[ 1 ] or 0, 10 ) or 0 ) * 255, 0, 255 ),
-        math.clamp( ( tonumber( segments[ 2 ] or 0, 10 ) or 0 ) * 255, 0, 255 ),
-        math.clamp( ( tonumber( segments[ 3 ] or 0, 10 ) or 0 ) * 255, 0, 255 )
+    return math.clamp( (tonumber( segments[ 1 ] or 0, 10 ) or 0) * 255, 0, 255 ),
+        math.clamp( (tonumber( segments[ 2 ] or 0, 10 ) or 0) * 255, 0, 255 ),
+        math.clamp( (tonumber( segments[ 3 ] or 0, 10 ) or 0) * 255, 0, 255 )
 end
-
 
 ---@param str string
 ---@return integer r
@@ -344,7 +342,7 @@ do
 
         util_TraceLine( trace )
 
-        data.Dir = ( ( trace_result.HitPos or trace.endpos ) - shoot_pos ):GetNormalized()
+        data.Dir = ((trace_result.HitPos or trace.endpos) - shoot_pos):GetNormalized()
     end
 
     ---@param entity Entity

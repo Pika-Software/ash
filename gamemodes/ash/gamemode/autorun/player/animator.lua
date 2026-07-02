@@ -505,7 +505,7 @@ do
             if unhandled_move_types[ move_type ] then
                 activity = getStandActivity( pl )
                 goto activity_selected
-            elseif flight_move_types[ move_type ] then
+            elseif flight_move_types[ move_type ] or ash_player.inInNoclip( pl ) then
                 activity = getFlightActivity( pl )
                 goto activity_selected
             end
@@ -606,7 +606,7 @@ do
         if player_count == 1 then
             index = 1
         else
-            index = ( index % player_count ) + 1
+            index = (index % player_count) + 1
         end
 
         local pl = players[ index ]

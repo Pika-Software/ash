@@ -1251,7 +1251,7 @@ do
     ---@param pl Player
     ---@return boolean is_in_noclip
     function ash_player.inInNoclip( pl )
-        return players_move_type[ pl ] == 8
+        return Entity_GetNW2Var( pl, "ash.noclip", false ) == true
     end
 
     ---@type table<Player, Vector>
@@ -1387,23 +1387,12 @@ do
             return suppress_engine
         end
 
-        -- TODO: rework noclip
-        if ash_player.isInVehicle( pl ) then return end
+        if ash_player.inInNoclip( pl ) then -- noclip movement
+            local player_speed = hook_Run( "ash.player.NoclipSpeed", pl, players_keys[ pl ] ) or 1000
 
-        local move_type = players_move_type[ pl ]
-        local player_speed = 0
-
-        if move_type == 2 then -- walking
-            local water_level = entity_getWaterLevel( pl )
-            if players_on_ground[ pl ] then
-                player_speed = hook_Run( "ash.player.WalkSpeed", pl, players_keys[ pl ], players_crouching[ pl ], water_level ) or 200
-            elseif water_level == 0 then
-                player_speed = hook_Run( "ash.player.FallSpeed", pl, players_keys[ pl ], players_crouching[ pl ] ) or 10
-            else
-                player_speed = hook_Run( "ash.player.SwimSpeed", pl, players_keys[ pl ], water_level ) or 150
+            if pl:GetCollisionGroup() ~= 10 then
+                pl:SetCollisionGroup( 10 )
             end
-        elseif move_type == 8 then -- noclip movement
-            player_speed = hook_Run( "ash.player.NoclipSpeed", pl, players_keys[ pl ] ) or 1000
 
             MoveData_SetMaxClientSpeed( mv, player_speed )
             MoveData_SetMaxSpeed( mv, player_speed )
@@ -1417,6 +1406,20 @@ do
             MoveData_SetOrigin( mv, origin )
 
             return true
+        end
+
+        local move_type = players_move_type[ pl ]
+        local player_speed = 0
+
+        if move_type == 2 then -- walking
+            local water_level = entity_getWaterLevel( pl )
+            if players_on_ground[ pl ] then
+                player_speed = hook_Run( "ash.player.WalkSpeed", pl, players_keys[ pl ], players_crouching[ pl ], water_level ) or 200
+            elseif water_level == 0 then
+                player_speed = hook_Run( "ash.player.FallSpeed", pl, players_keys[ pl ], players_crouching[ pl ] ) or 10
+            else
+                player_speed = hook_Run( "ash.player.SwimSpeed", pl, players_keys[ pl ], water_level ) or 150
+            end
         elseif move_type == 9 then -- ladder movement
             player_speed = hook_Run( "ash.player.LadderSpeed", pl, players_keys[ pl ] ) or 150
         end
@@ -1436,8 +1439,7 @@ do
         ---@param pl Player
         ---@param wheel number
         hook.Add( "ash.player.MouseWheel", "NoclipSpeed", function( pl, wheel )
-            if players_move_type[ pl ] == 8 then
-                -- TODO: rework noclip
+            if ash_player.inInNoclip( pl ) then
                 if ash_player.isInVehicle( pl ) then return end
 
                 local noclip_speed = Entity_GetNW2Var( pl, "m_fNoclipSpeed", 500 )
@@ -1478,15 +1480,9 @@ do
 
     if CLIENT then
 
-        hook.Add( "HUDShouldDraw", "NoclipHUD", function( name )
-            if name == "CHudWeaponSelection" then
-                local pl = ash_player.Entity
-                if pl ~= nil and players_move_type[ pl ] == 8 then
-                    -- TODO: rework noclip
-                    if ash_player.isInVehicle( pl ) then return end
-
-                    return false
-                end
+        hook.Add( "ash.player.ShouldDrawHUD", "NoclipHUD", function( pl, name )
+            if name == "CHudWeaponSelection" and ash_player.inInNoclip( pl ) then
+                return false
             end
         end )
 
@@ -1636,7 +1632,9 @@ do
 
     ---@type table<Player, number>
     local usage_starts = {}
+
     gc.setTableRules( usage_starts, true )
+    gc.setup( usage_starts, "Player" )
 
     --- [SHARED]
     ---
@@ -1697,13 +1695,24 @@ hook.Add( "PlayerShouldTakeDamage", "DamageHandler", function( arguments )
     return arguments[ 2 ] ~= false
 end, POST_HOOK_RETURN )
 
-hook.Add( "PlayerNoClip", "NoclipController", function( arguments, pl, requested )
+---@param pl Player
+hook.Add( "PlayerNoClip", "NoclipController", function( arguments, pl )
+    local requested = not (ash_player.inInNoclip( pl ) == true)
+
+    local value = false
+
     local overridden = arguments[ 2 ]
-    if overridden == nil then
-        return not requested or (Player_Alive( pl ) and hook_Run( "ash.player.CanNoclip", pl ))
-    else
-        return overridden == true
+    if overridden ~= nil then
+        value = overridden == true
+    elseif not requested or (Player_Alive( pl ) and hook_Run( "ash.player.CanNoclip", pl )) then
+        value = requested
     end
+
+    pl:SetCollisionGroup( value and 10 or 0 )
+
+    Entity_SetNW2Var( pl, "ash.noclip", value )
+
+    return false
 end, POST_HOOK_RETURN )
 
 ---@type ash.player.animator
