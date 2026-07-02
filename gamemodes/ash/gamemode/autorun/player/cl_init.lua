@@ -352,7 +352,7 @@ do
     ---@return number scale The player's voice volume scale. Range is from 0 to 1.
     local function getVolumeScale( pl )
         local scale = getVoiceVolumeScaleNW( pl )
-        return hook_Run( "ash.player.voice.VolumeScale", pl, scale ) or scale
+        return hook_Run( "ash.player.VoiceVolumeScale", pl, scale ) or scale
     end
 
     ash_player.getVoiceVolumeScale = getVolumeScale
