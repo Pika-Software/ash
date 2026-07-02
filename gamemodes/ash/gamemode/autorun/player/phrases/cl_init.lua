@@ -9,9 +9,6 @@ local player_isSpeaking = ash_player.isSpeaking
 ---@type ash.sound.bass
 local ash_bass = import "ash.sound.bass"
 
--- ---@type ash.player.voice
--- local ash_voice = import "ash.player.voice"
-
 ---@type table<Player, ash.sound.bass.Channel>
 local channels = {}
 gc.setTableRules( channels, true )
@@ -81,7 +78,7 @@ hook.Add( "ash.player.Speaking", "Cleanup", function( pl, is_speaking )
     end
 end, PRE_HOOK )
 
-hook.Add( "ash.player.voice.Volume", "Volume", function( pl, volume )
+hook.Add( "ash.player.VoiceVolume", "Volume", function( pl, volume )
     local channel = channels[ pl ]
     if channel ~= nil and channel:isValid() then
         return channel:getVolumeLevel()
@@ -89,11 +86,10 @@ hook.Add( "ash.player.voice.Volume", "Volume", function( pl, volume )
 end )
 
 -- hook.Add( "PlayerThink", "Perform", function( pl, me )
---     if hook_Run( "ash.player.voice.CanHear", me, pl ) == false then
+--     if hook_Run( "ash.player.VoiceCanBeHeard", me, pl ) == false then
 --         return
 --     end
 
 
 
 -- end )
-

@@ -1915,7 +1915,25 @@ do
 
 end
 
-include( "voice.lua", ash_player )
+--- [SERVER]
+---
+--- Gets the player's voice volume scale.
+---
+---@param pl Player
+---@return number scale
+function ash_player.getVoiceVolumeScale( pl )
+    return Entity_GetNW2Var( pl, "m_fVoiceVolumeScale", 1 )
+end
+
+--- [SHARED]
+---
+--- Sets the player's voice volume scale.
+---
+---@param pl Player
+---@param scale number
+function ash_player.setVoiceVolumeScale( pl, scale )
+    Entity_SetNW2Var( pl, "m_fVoiceVolumeScale", scale )
+end
 
 --- [SHARED]
 ---

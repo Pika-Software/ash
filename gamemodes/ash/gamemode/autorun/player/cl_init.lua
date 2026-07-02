@@ -268,6 +268,10 @@ end
 
 do
 
+    local Player_GetVoiceVolumeScale = Player.GetVoiceVolumeScale
+    local Player_SetVoiceVolumeScale = Player.SetVoiceVolumeScale
+    local Player_IsVoiceAudible = Player.IsVoiceAudible
+    local Player_VoiceVolume = Player.VoiceVolume
     local Player_isSpeaking = Player.IsSpeaking
 
     ---@type table<Player, boolean>
@@ -299,6 +303,112 @@ do
     hook.Add( "PlayerEndVoice", "VoiceHandler", function( pl )
         voice_statuses[ pl ] = false
         hook_Run( "ash.player.Speaking", pl, false, player_isLocal( pl ) )
+    end, PRE_HOOK )
+
+
+    ---@type table<Player, number>
+    local volumes = {}
+
+    gc.setup( volumes, "Player" )
+
+    setmetatable( volumes, {
+        __index = function( self, pl )
+            return 0
+        end,
+        __mode = "k"
+    } )
+
+    ---@type table<Player, boolean>
+    local audible_players = {}
+
+    gc.setup( audible_players, "Player" )
+    gc.setTableRules( audible_players, true, false )
+
+    --- [CLIENT]
+    ---
+    --- Checks if the player's voice is audible.
+    ---
+    ---@param pl Player
+    ---@return boolean Whether the player's voice is audible.
+    function ash_player.isVoiceAudible( pl )
+        return audible_players[ pl ] == true
+    end
+
+    --- [CLIENT]
+    ---
+    --- Gets the player's voice volume.
+    ---
+    ---@return number volume The player's voice volume. In range from 0 to 1.
+    function ash_player.getVoiceVolume( pl )
+        return volumes[ pl ]
+    end
+
+    local getVoiceVolumeScaleNW = ash_player.getVoiceVolumeScale
+
+    --- [CLIENT]
+    ---
+    --- Gets the player's voice volume scale.
+    ---
+    ---@return number scale The player's voice volume scale. Range is from 0 to 1.
+    local function getVolumeScale( pl )
+        local scale = getVoiceVolumeScaleNW( pl )
+        return hook_Run( "ash.player.voice.VolumeScale", pl, scale ) or scale
+    end
+
+    ash_player.getVoiceVolumeScale = getVolumeScale
+
+    ---@type table<Player, number>
+    local max_volumes = {}
+
+    gc.setup( max_volumes, "Player" )
+
+    setmetatable( max_volumes, {
+        __mode = "k"
+    } )
+
+    hook.Add( "ash.player.Tick", "VolumeController", function( pl, is_local )
+        local is_audible = is_local
+
+        if not is_local then
+            is_audible = Player_IsVoiceAudible( pl )
+
+            local audible_override = hook_Run( "ash.player.VoiceCanBeHeard", ash_player.Entity, pl, is_audible, false )
+            if audible_override ~= nil then
+                is_audible = audible_override ~= false
+            end
+
+            local scale = is_audible and getVolumeScale( pl ) or 0
+            if Player_GetVoiceVolumeScale( pl ) ~= scale then
+                Player_SetVoiceVolumeScale( pl, scale )
+            end
+        end
+
+        audible_players[ pl ] = is_audible
+
+        if is_audible and voice_statuses[ pl ] then
+            local raw_volume = Player_VoiceVolume( pl )
+
+            local volume_override = hook_Run( "ash.player.VoiceVolume", pl, raw_volume )
+            if volume_override ~= nil then
+                raw_volume = volume_override
+            end
+
+            local max_volume = max_volumes[ pl ]
+
+            if max_volume == nil then
+                max_volume = raw_volume
+            else
+                max_volume = math.max( 0, max_volume - (0.1 * FrameTime()), raw_volume )
+            end
+
+            max_volumes[ pl ] = max_volume
+
+            if raw_volume == 0 then
+                volumes[ pl ] = 0
+            else
+                volumes[ pl ] = raw_volume / max_volume
+            end
+        end
     end, PRE_HOOK )
 
 end

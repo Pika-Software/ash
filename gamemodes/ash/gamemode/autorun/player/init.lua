@@ -6,8 +6,7 @@ MODULE.ClientFiles = {
     "animator.lua",
     "cl_init.lua",
     "shared.lua",
-    "camera.lua",
-    "voice.lua"
+    "camera.lua"
 }
 
 do
@@ -1002,6 +1001,13 @@ end, POST_HOOK )
 ---@param entity Entity
 hook.Add( "GravGunPickupAllowed", "GravityGunHandler", function( arguments, pl, entity )
     return arguments[ 2 ] ~= false
+end, POST_HOOK_RETURN )
+
+---@param arguments table
+---@param listener Player
+---@param speaker Player
+hook.Add( "PlayerCanHearPlayersVoice", "VoiceHandler", function( arguments, listener, speaker )
+    return hook_Run( "ash.player.VoiceCanBeHeard", listener, speaker, arguments[ 2 ] == true, arguments[ 3 ] == true )
 end, POST_HOOK_RETURN )
 
 return ash_player
