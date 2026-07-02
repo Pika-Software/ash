@@ -780,33 +780,50 @@ do
         init_queue = { [ 0 ] = 0 }
     end, PRE_HOOK )
 
+
+    ---@param entity Entity
+    ---@param class_name string
+    local function perform_entity_creation( entity, class_name )
+        hook_Run( "ash.entity.Created", entity, class_name )
+
+        if class_name == "player" then
+            hook_Run( "ash.entity.PlayerCreated", entity )
+            -- elseif class_name == "world" then
+            --     hook_Run( "ash.level.Created", entity )
+        elseif utils_isPropClass( class_name ) then
+            Entity_SetNW2Var( entity, "m_bProp", true )
+            hook_Run( "ash.entity.PropCreated", entity, class_name, Entity_GetModel( entity ) )
+        elseif utils_isDoorClass( class_name ) then
+            Entity_SetNW2Var( entity, "m_bDoor", true )
+            hook_Run( "ash.entity.DoorCreated", entity, class_name )
+        elseif utils_isButtonClass( class_name ) then
+            Entity_SetNW2Var( entity, "m_bButton", true )
+            hook_Run( "ash.entity.ButtonCreated", entity, class_name )
+        elseif utils_isRagdollClass( class_name ) then
+            Entity_SetNW2Var( entity, "m_bRagdoll", true )
+            hook_Run( "ash.entity.RagdollCreated", entity, class_name )
+        elseif entity:IsWeapon() then
+            hook_Run( "ash.entity.WeaponCreated", entity, class_name )
+        end
+    end
+
     hook.Add( "Tick", "InitQueue", function()
         for i = init_queue[ 0 ], 1, -1 do
             ---@type Entity
             ---@diagnostic disable-next-line: assign-type-mismatch
             local entity = init_queue[ i ]
             if entity ~= nil and Entity_IsValid( entity ) then
-                local class_name = Entity_GetClass( entity )
-                hook_Run( "ash.entity.Created", entity, class_name )
+                local class_name
 
-                if class_name == "player" then
-                    hook_Run( "ash.entity.PlayerCreated", entity )
-                    -- elseif class_name == "world" then
-                    --     hook_Run( "ash.level.Created", entity )
-                elseif utils_isPropClass( class_name ) then
-                    Entity_SetNW2Var( entity, "m_bProp", true )
-                    hook_Run( "ash.entity.PropCreated", entity, class_name, Entity_GetModel( entity ) )
-                elseif utils_isDoorClass( class_name ) then
-                    Entity_SetNW2Var( entity, "m_bDoor", true )
-                    hook_Run( "ash.entity.DoorCreated", entity, class_name )
-                elseif utils_isButtonClass( class_name ) then
-                    Entity_SetNW2Var( entity, "m_bButton", true )
-                    hook_Run( "ash.entity.ButtonCreated", entity, class_name )
-                elseif utils_isRagdollClass( class_name ) then
-                    Entity_SetNW2Var( entity, "m_bRagdoll", true )
-                    hook_Run( "ash.entity.RagdollCreated", entity, class_name )
-                elseif entity:IsWeapon() then
-                    hook_Run( "ash.entity.WeaponCreated", entity, class_name )
+                if entity:IsPlayer() then
+                    class_name = "player"
+                else
+                    class_name = Entity_GetClass( entity )
+                end
+
+                local success, err_msg = pcall( perform_entity_creation, entity, class_name )
+                if not success then
+                    ErrorNoHalt( err_msg .. "\n" )
                 end
             end
         end
