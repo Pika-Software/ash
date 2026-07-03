@@ -1206,11 +1206,32 @@ do
 
     end
 
+    ---@type table<Player, number>
+    local fake_wheels = {}
+
+    setmetatable( fake_wheels, {
+        __index = function( self, pl )
+            self[ pl ] = 0
+            return 0
+        end,
+        __mode = "k"
+    } )
+
+    gc.setup( fake_wheels, "Player" )
+
+    ---@param pl Player
+    ---@param key_code KEY
+    hook.Add( "PlayerButtonDown", "sadasd", function( pl, key_code )
+        if key_code == 49 --[[ - ]] or key_code == 50 --[[ + ]] then
+            fake_wheels[ pl ] = (key_code == 50) and 1 or -1
+        end
+    end, PRE_HOOK )
+
     ---@param pl Player
     ---@param cmd CUserCmd
     hook.Add( "StartCommand", "InputCapture", function( pl, cmd )
         local keys = UserCommand_GetButtons( cmd )
-        if rawget( players_keys, pl ) ~= keys then
+        if players_keys[ pl ] ~= keys then
             local pressed_keys = players_key_states[ pl ]
             players_keys[ pl ] = keys
 
@@ -1226,6 +1247,15 @@ do
         end
 
         local mouse_wheel = UserCommand_GetMouseWheel( cmd )
+        if mouse_wheel == 0 then
+            local fake_wheel = fake_wheels[ pl ]
+            if fake_wheel ~= 0 then
+                fake_wheels[ pl ] = 0
+                mouse_wheel = fake_wheel
+                cmd:SetMouseWheel( fake_wheel )
+            end
+        end
+
         if mouse_wheel ~= 0 then
             hook_Run( "ash.player.MouseWheel", pl, mouse_wheel )
         end
