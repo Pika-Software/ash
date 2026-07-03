@@ -362,6 +362,8 @@ do
         __mode = "k"
     } )
 
+    gc.setup( keys_cache, "Player" )
+
     setmetatable( players_keys, {
         __index = keys_cache,
         __newindex = function( self, pl, keys )
@@ -371,6 +373,8 @@ do
             keys_cache[ pl ] = keys
         end
     } )
+
+    gc.setup( players_keys, "Player" )
 
 end
 
@@ -395,6 +399,8 @@ setmetatable( players_key_states, {
     end,
     __mode = "k"
 } )
+
+gc.setup( players_key_states, "Player" )
 
 --- [SHARED]
 ---
@@ -502,7 +508,10 @@ do
             __mode = "k"
         }
 
+        gc.setup( press_times, "Player" )
         setmetatable( press_times, keys_meta )
+
+        gc.setup( release_times, "Player" )
         setmetatable( release_times, keys_meta )
 
     end
@@ -643,6 +652,8 @@ do
         __mode = "k"
     } )
 
+    gc.setup( players_typing, "Player" )
+
     ---@type table<Player, Entity>
     local players_vehicle = {}
 
@@ -665,6 +676,8 @@ do
         __mode = "k"
     } )
 
+    gc.setup( players_vehicle, "Player" )
+
     setmetatable( players_in_vehicle, {
         __index = function( self, pl )
             local in_vehicle = Player_InVehicle( pl )
@@ -673,6 +686,8 @@ do
         end,
         __mode = "k"
     } )
+
+    gc.setup( players_in_vehicle, "Player" )
 
     setmetatable( players_move_type, {
         __index = function( self, pl )
@@ -683,6 +698,8 @@ do
         __mode = "k"
     } )
 
+    gc.setup( players_move_type, "Player" )
+
     setmetatable( players_flags, {
         __index = function( self, pl )
             local flags = Entity_GetFlags( pl )
@@ -691,6 +708,8 @@ do
         end,
         __mode = "k"
     } )
+
+    gc.setup( players_flags, "Player" )
 
     setmetatable( players_on_ground, {
         __index = function( self, pl )
@@ -701,6 +720,8 @@ do
         __mode = "k"
     } )
 
+    gc.setup( players_on_ground, "Player" )
+
     setmetatable( players_crouching, {
         __index = function( self, pl )
             local is_crouching = bit_band( players_flags[ pl ], 2 ) ~= 0
@@ -709,6 +730,8 @@ do
         end,
         __mode = "k"
     } )
+
+    gc.setup( players_crouching, "Player" )
 
     setmetatable( players_crouching_anim, {
         __index = function( self, pl )
@@ -719,6 +742,8 @@ do
         __mode = "k"
     } )
 
+    gc.setup( players_crouching_anim, "Player" )
+
     setmetatable( players_frozen, {
         __index = function( self, pl )
             local is_frozen = bit_band( players_flags[ pl ], 64 ) ~= 0
@@ -727,6 +752,8 @@ do
         end,
         __mode = "k"
     } )
+
+    gc.setup( players_frozen, "Player" )
 
     setmetatable( players_in_water, {
         __index = function( self, pl )
@@ -737,6 +764,8 @@ do
         __mode = "k"
     } )
 
+    gc.setup( players_in_water, "Player" )
+
     setmetatable( players_sequence, {
         __index = function( self, pl )
             local sequence = Entity_GetSequence( pl )
@@ -745,6 +774,8 @@ do
         end,
         __mode = "k"
     } )
+
+    gc.setup( players_sequence, "Player" )
 
     ---@type table<Player, string>
     local players_model = {}
@@ -796,6 +827,8 @@ do
         __mode = "k"
     } )
 
+    gc.setup( players_model, "Player" )
+
     ---@type table<Player, integer>
     local players_skin = {}
 
@@ -817,6 +850,8 @@ do
         end,
         __mode = "k"
     } )
+
+    gc.setup( players_skin, "Player" )
 
     ---@type table<Player, boolean>
     local players_water_jumping = {}
@@ -840,6 +875,8 @@ do
         __mode = "k"
     } )
 
+    gc.setup( players_water_jumping, "Player" )
+
     ---@type table<Player, boolean>
     local players_in_train = {}
 
@@ -861,6 +898,8 @@ do
         end,
         __mode = "k"
     } )
+
+    gc.setup( players_in_train, "Player" )
 
     ---@type table<Player, boolean>
     local players_under_rain = {}
@@ -884,6 +923,8 @@ do
         __mode = "k"
     } )
 
+    gc.setup( players_under_rain, "Player" )
+
     ---@type table<Player, Angle>
     local player_angles = {}
 
@@ -895,6 +936,8 @@ do
         end,
         __mode = "k"
     } )
+
+    gc.setup( player_angles, "Player" )
 
     --- [SHARED]
     ---
@@ -927,6 +970,8 @@ do
             end,
             __mode = "k"
         } )
+
+        gc.setup( player_holdtypes, "Player" )
 
     end
 
@@ -1120,6 +1165,8 @@ do
         __mode = "k"
     } )
 
+    gc.setup( player_view_angles, "Player" )
+
     --- [SHARED]
     ---
     --- Returns the player's view angles (eye angles) that client requires.
@@ -1264,6 +1311,8 @@ do
         __mode = "k"
     } )
 
+    gc.setup( directions, "Player" )
+
     --- [SHARED]
     ---
     --- Gets the player's direction.
@@ -1285,6 +1334,8 @@ do
         end,
         __mode = "k"
     } )
+
+    gc.setup( move_states, "Player" )
 
     --- [SHARED]
     ---
@@ -1706,22 +1757,34 @@ do
         output = trace_result,
     }
 
-    ---@param pl Player
-    hook.Add( "PlayerNoClip", "NoclipController", function( arguments, pl )
-        local requested = not (ash_player.inInNoclip( pl ) == true)
+    local in_call = false
 
+    ---@param pl Player
+    hook.Add( "PlayerNoClip", "NoclipController", function( pl )
+        if in_call then return end
+
+        local requested = not (ash_player.inInNoclip( pl ) == true)
         local value = false
 
-        local overridden = arguments[ 2 ]
-        if overridden ~= nil then
-            value = overridden == true
-        elseif not requested or (Player_Alive( pl ) and hook_Run( "ash.player.CanNoclip", pl )) then
-            value = requested
+        if requested and Player_Alive( pl ) and hook_Run( "ash.player.CanNoclip", pl ) ~= false then
+            in_call = true
+
+            local success, result = pcall( hook_Run, "PlayerNoClip", pl, requested )
+            in_call = false
+
+            if success then
+                if result == nil then
+                    value = true
+                else
+                    value = result == true
+                end
+            else
+                ErrorNoHalt( result .. "\n" )
+            end
         end
 
-        pl:SetCollisionGroup( value and 10 or 0 )
-
         Entity_SetNW2Var( pl, "ash.noclip", value )
+        pl:SetCollisionGroup( value and 10 or 0 )
 
         if not value and SERVER then
             trace.start = pl:EyePos()
@@ -1742,7 +1805,7 @@ do
         end
 
         return false
-    end, POST_HOOK_RETURN )
+    end, PRE_HOOK_RETURN )
 
     ---@param pl Player
     hook.Add( "ash.player.Spawn", "NoclipController", function( pl )

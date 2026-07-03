@@ -356,6 +356,9 @@ do
             __mode = "k"
         } )
 
+
+        gc.setup( respawn_keys, "Player" )
+
     end
 
     --- [SERVER]
@@ -439,6 +442,8 @@ do
             end,
             __mode = "k"
         } )
+
+        gc.setup( awaiting_respawn, "Player" )
 
     end
 
@@ -574,6 +579,8 @@ do
         end,
         __mode = "k"
     } )
+
+    gc.setup( active_weapons, "Player" )
 
     --- [SERVER]
     ---
@@ -915,6 +922,8 @@ do
 
     ---@type table<Player, Vehicle>
     local enter_override = {}
+
+    gc.setup( enter_override, "Player" )
     gc.setTableRules( enter_override, true )
 
     --- [SERVER]
@@ -931,6 +940,8 @@ do
 
     ---@type table<Player, boolean>
     local leave_override = {}
+
+    gc.setup( leave_override, "Player" )
     gc.setTableRules( leave_override, true )
 
     --- [SERVER]

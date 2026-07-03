@@ -284,6 +284,8 @@ do
         __mode = "k"
     } )
 
+    gc.setup( voice_statuses, "Player" )
+
     --- [CLIENT]
     ---
     --- Checks if the player is speaking (using voice chat).
@@ -317,6 +319,8 @@ do
         end,
         __mode = "k"
     } )
+
+    gc.setup( volumes, "Player" )
 
     ---@type table<Player, boolean>
     local audible_players = {}
@@ -361,10 +365,7 @@ do
     local max_volumes = {}
 
     gc.setup( max_volumes, "Player" )
-
-    setmetatable( max_volumes, {
-        __mode = "k"
-    } )
+    gc.setTableRules( max_volumes, true, false )
 
     hook.Add( "ash.player.Tick", "VolumeController", function( pl, is_local )
         local is_audible = is_local
@@ -427,6 +428,8 @@ do
         __mode = "k"
     } )
 
+    gc.setup( active_weapons, "Player" )
+
     --- [CLIENT]
     ---
     --- Returns the player's active weapon.
@@ -458,6 +461,8 @@ do
 
     ---@type table<Player, boolean>
     local render_restricted = {}
+
+    gc.setup( render_restricted, "Player" )
     gc.setTableRules( render_restricted, true )
 
     local is_local = false
