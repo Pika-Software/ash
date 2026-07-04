@@ -1166,17 +1166,21 @@ hook.Add( "EntityFireBullets", "BulletCallback", function( arguments, entity, bu
 
     bullet.Callback = function( attacker, trace_result, damage_info )
         local do_effects, do_damage = hook_Run( "ash.entity.BulletImpact", bullet, attacker, trace_result, damage_info )
-        local result = { do_effects == true, do_damage == true }
+
+        local result = {
+            do_effects ~= false,
+            do_damage ~= false
+        }
 
         if callback ~= nil then
             do_effects, do_damage = callback( attacker, trace_result, damage_info )
 
             if do_effects ~= nil then
-                result[ 1 ] = do_effects == true
+                result[ 1 ] = do_effects ~= false
             end
 
             if do_damage ~= nil then
-                result[ 2 ] = do_damage == true
+                result[ 2 ] = do_damage ~= false
             end
         end
 
