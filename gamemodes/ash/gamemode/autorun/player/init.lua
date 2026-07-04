@@ -491,15 +491,22 @@ do
 
         ---@param pl Player
         ---@param in_key integer
-        hook.Add( "ash.player.Key", "Spawn", function( pl, in_key )
+        hook.Add( "ash.player.Key", "SpawnLogic", function( pl, in_key )
             if awaiting_respawn[ pl ] and bit_band( in_key, respawn_keys[ pl ] ) ~= 0 and hook_Run( "ash.player.ShouldSpawn", pl ) ~= false then
                 Entity_Spawn( pl )
             end
         end, PRE_HOOK )
 
+        ---@type table<Player, boolean>
+        local spawn_pickup = {}
+
+        hook.Add( "ash.player.PreWeaponPickup", "SpawnLogic", function( pl )
+            if spawn_pickup[ pl ] then return true end
+        end, PRE_HOOK_RETURN )
+
         ---@param pl Player
         ---@param transition boolean
-        hook.Add( "PlayerSpawn", "PreSpawn", function( pl, transition )
+        hook.Add( "PlayerSpawn", "PreSpawnLogic", function( pl, transition )
             awaiting_respawn[ pl ] = false
 
             if not Entity_GetNW2Bool( pl, "ash.alive", false ) then
@@ -531,6 +538,8 @@ do
             hook_Run( "ash.player.SetupModel", pl, transition )
             hook_Run( "ash.player.SetupAmmo", pl, transition )
 
+            spawn_pickup[ pl ] = true
+
             local weapon_classes = hook_Run( "ash.player.SetupWeapons", pl, transition )
             if weapon_classes ~= nil then
                 for i = 1, #weapon_classes, 1 do
@@ -543,13 +552,15 @@ do
 
             hook_Run( "ash.player.SetupLoadout", pl, transition )
 
+            spawn_pickup[ pl ] = nil
+
             hook_Run( "ash.player.Spawn", pl, transition, players_alive, players_dead )
         end, PRE_HOOK )
 
         ---@param pl Player
         ---@param is_transition boolean
         ---@diagnostic disable-next-line: undefined-doc-param
-        hook.Add( "PlayerSpawn", "PostSpawn", function( _, pl, is_transition )
+        hook.Add( "PlayerSpawn", "PostSpawnLogic", function( _, pl, is_transition )
             if not is_transition then
                 local pos, ang = hook_Run( "ash.player.SetupPosition", pl )
                 pos = pos or vector_origin
@@ -1020,5 +1031,91 @@ end, POST_HOOK_RETURN )
 hook.Add( "PlayerCanHearPlayersVoice", "VoiceHandler", function( arguments, listener, speaker )
     return hook_Run( "ash.player.VoiceCanBeHeard", listener, speaker, arguments[ 2 ] == true, arguments[ 3 ] == true )
 end, POST_HOOK_RETURN )
+
+
+do
+
+    local Player_DropWeapon = Player.DropWeapon
+
+    if debug.iscf( Player_DropWeapon ) then
+
+        ---![(Server)](https://github.com/user-attachments/assets/d8fbe13a-6305-4e16-8698-5be874721ca1) Forces the player to drop the specified weapon
+        ---
+        ---[View wiki](https://wiki.facepunch.com/gmod/Player:DropWeapon)
+        ---
+        ---@param pl Player
+        ---@param weapon? Weapon Weapon to be dropped. If unset, will default to the currently equipped weapon.
+        ---@param target? Vector If set, launches the weapon at given position. There is a limit to how far it is willing to throw the weapon. Overrides velocity argument.
+        ---@param velocity? Vector If set and previous argument is unset, launches the weapon with given velocity. If the velocity is higher than 400, it will be clamped to 400.
+        function Player.DropWeapon( pl, weapon, target, velocity )
+            if hook_Run( "ash.player.WeaponDrop", pl, weapon, target, velocity ) ~= false then
+                Player_DropWeapon( pl, weapon, target, velocity )
+            end
+        end
+
+    end
+
+    ash_player.dropWeapon = Player.DropWeapon
+
+    ---@param pl Player
+    ---@param weapon Weapon
+    hook.Add( "PlayerDroppedWeapon", "ash.player.WeaponDropped", function( pl, weapon )
+        if pl:IsPlayer() and weapon ~= nil and Entity_IsValid( weapon ) then
+            hook_Run( "ash.player.WeaponDropped", pl, weapon )
+        end
+    end )
+
+    hook.Add( "PlayerCanPickupWeapon", "ash.player.WeaponPickup", function( arguments, pl, weapon )
+        local can_pickup_result = hook_Run( "ash.player.CanPickupWeapon", pl, weapon )
+        if can_pickup_result == nil then
+            can_pickup_result = arguments[ 2 ] ~= false
+        else
+            can_pickup_result = can_pickup_result ~= false
+        end
+
+        if can_pickup_result then
+            local pre_pickup_result = hook_Run( "ash.player.PreWeaponPickup", pl, weapon, false )
+            if pre_pickup_result ~= nil then
+                return pre_pickup_result ~= false
+            end
+        end
+
+        return can_pickup_result
+    end, POST_HOOK_RETURN )
+
+    local Player_PickupWeapon = Player.PickupWeapon
+
+    if debug.iscf( Player_PickupWeapon ) then
+        ---![(Server)](https://github.com/user-attachments/assets/d8fbe13a-6305-4e16-8698-5be874721ca1) Forces the player to pickup an existing weapon entity. The player will not pick up the weapon if they already own a weapon of given type, or if the player could not normally have this weapon in their inventory.
+        ---
+        --- This function **will** bypass [GM:PlayerCanPickupWeapon](https://wiki.facepunch.com/gmod/GM:PlayerCanPickupWeapon).
+        ---
+        ---[View wiki](https://wiki.facepunch.com/gmod/Player:PickupWeapon)
+        ---
+        ---@param pl Player
+        ---@param weapon Weapon The weapon to try to pick up.
+        ---@param ammo_only? boolean If set to true, the player will only attempt to pick up the ammo from the weapon. The weapon will not be picked up even if the player doesn't have a weapon of this type, and the weapon will be removed if the player picks up any ammo from it.
+        ---@return boolean # Whether the player succeeded in picking up the weapon or not.
+        function Player.PickupWeapon( pl, weapon, ammo_only )
+            if ammo_only then
+                return Player_PickupWeapon( pl, weapon, true )
+            end
+
+            if hook_Run( "ash.player.PreWeaponPickup", pl, weapon, true ) ~= false then
+                return Player_PickupWeapon( pl, weapon, false )
+            end
+
+            return false
+        end
+
+    end
+
+    ash_player.pickupWeapon = Player.PickupWeapon
+
+    hook.Add( "WeaponEquip", "ash.player.WeaponPickup", function( weapon, pl )
+        hook_Run( "ash.player.WeaponPickup", pl, weapon )
+    end, PRE_HOOK )
+
+end
 
 return ash_player

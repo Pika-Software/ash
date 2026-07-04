@@ -14,6 +14,7 @@ local ash_trace = import "ash.trace"
 local trace_cast = ash_trace.cast
 
 local CLIENT = CLIENT
+local SERVER = SERVER
 
 do
     -- i hope in one day rubat just khs
@@ -1793,7 +1794,8 @@ do
     hook.Add( "PlayerNoClip", "NoclipController", function( pl )
         if in_call then return end
 
-        local requested = not (ash_player.inInNoclip( pl ) == true)
+        local previous_value = ash_player.inInNoclip( pl ) == true
+        local requested = not previous_value
         local value = false
 
         if requested and Player_Alive( pl ) and hook_Run( "ash.player.CanNoclip", pl ) ~= false then
@@ -1816,7 +1818,7 @@ do
         Entity_SetNW2Var( pl, "ash.noclip", value )
         pl:SetCollisionGroup( value and 10 or 0 )
 
-        if not value and SERVER then
+        if not value and value ~= previous_value and SERVER then
             trace.start = pl:EyePos()
             trace.endpos = trace.start - ash_player.getAngles( pl ):Up() * 128
 
