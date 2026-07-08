@@ -22,6 +22,8 @@ local last_dock_padding = {
     bottom = 0,
 }
 
+local contex_panel = nil
+
 do
     ---@class ash.ui.falcon.base_panel : Panel
     ---@field keyValue table<string, any>
@@ -287,6 +289,15 @@ do
         return self
     end
 
+    function BASE_PANEL:context( callback )
+        local old_context_panel = contex_panel
+        contex_panel = self
+        callback()
+        contex_panel = old_context_panel
+
+        return self
+    end
+
     do
         ---@class ash.falcon.panel : ash.ui.falcon.base_panel
         local PANEL = {}
@@ -493,10 +504,10 @@ do
     end
 end
 
-local contex_panel = nil
+
 
 do
-    local function scroll( struct, callback )
+    local function scroll( struct )
         assert( contex_panel ~= nil, "parent panel is required" )
 
         local panel = contex_panel:Add( "ash.falcon.scroll" )
@@ -504,14 +515,6 @@ do
 
         panel:struct( struct )
             :build()
-
-        local old_panel = contex_panel
-        contex_panel = panel
-        if callback then
-            callback()
-        end
-
-        contex_panel = old_panel
 
         return panel
     end
@@ -521,39 +524,18 @@ do
 
     ---@param name string
     ---@param struct table
-    ---@param callback fun()
     ---@return ash.falcon.frame
-    local function frame( name, struct, callback )
+    local function frame( name, struct )
         local panel = ash_ui.setPanel( name, "ash.falcon.frame", nil )
         ---@cast panel ash.falcon.frame
 
         panel:struct( struct )
             :build()
 
-        local old_panel = contex_panel
-        contex_panel = panel
-        if callback then
-            callback()
-        end
-
-        contex_panel = old_panel
-
         return panel
     end
 
     falcon.frame = frame
-
-    ---@param struct table
-    ---@param struct_scroll? table
-    ---@param callback fun()
-    ---@return ash.falcon.frame
-    local function frameScroll( name, struct, struct_scroll, callback )
-        return frame( name, struct, function()
-            scroll( struct_scroll or {}, callback )
-        end )
-    end
-
-    falcon.frameScroll = frameScroll
 
     local function button( struct, callback )
         assert( contex_panel ~= nil, "parent panel is required" )
@@ -565,13 +547,6 @@ do
         panel:struct( struct )
             :build()
 
-        local old_panel = contex_panel
-        contex_panel = panel
-        if callback then
-            callback()
-        end
-
-        contex_panel = old_panel
 
         return panel
     end
@@ -587,14 +562,6 @@ do
         panel:struct( struct )
             :build()
 
-        local old_panel = contex_panel
-        contex_panel = panel
-        if callback then
-            callback()
-        end
-
-        contex_panel = old_panel
-
         return panel
     end
 
@@ -606,17 +573,9 @@ do
         local panel = contex_panel:Add( "ash.falcon.label" )
         ---@cast panel ash.falcon.label
 
+        print( "contex_panel", contex_panel )
         panel:struct( struct )
             :build()
-
-        local old_panel = contex_panel
-        contex_panel = panel
-        if callback then
-            callback()
-        end
-
-        contex_panel = old_panel
-
         return panel
     end
 
@@ -631,13 +590,6 @@ do
         panel:struct( struct )
             :build()
 
-        local old_panel = contex_panel
-        contex_panel = panel
-        if callback then
-            callback()
-        end
-
-        contex_panel = old_panel
 
         return panel
     end
@@ -647,21 +599,13 @@ do
     local function panel( struct, callback )
         assert( contex_panel ~= nil, "parent panel is required" )
 
-        local panel = contex_panel:Add( "ash.falcon.panel" )
-        ---@cast panel ash.falcon.panel
+        local pnl = contex_panel:Add( "ash.falcon.panel" )
+        ---@cast pnl ash.falcon.panel
 
-        panel:struct( struct )
+        pnl:struct( struct )
             :build()
 
-        local old_panel = contex_panel
-        contex_panel = panel
-        if callback then
-            callback()
-        end
-
-        contex_panel = old_panel
-
-        return panel
+        return pnl
     end
 
     falcon.panel = panel
