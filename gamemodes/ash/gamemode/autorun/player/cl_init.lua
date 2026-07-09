@@ -185,16 +185,23 @@ do
             net.WriteUInt( 0, 8 )
             net.SendToServer()
 
-            local success, err_msg = pcall( hook.Run, "ash.player.Initialized", entity, true )
-            if not success then
-                ErrorNoHalt( "ash.player.Initialized: " .. err_msg .. "\n" )
-            end
+            ---@cast callbacks fun( pl: Player )[]
 
             for i = 1, callbacks[ 0 ], 1 do
-                callbacks[ i ]( entity )
+                local success, err_msg = pcall( callbacks[ i ], entity )
+                if not success then
+                    ErrorNoHalt( err_msg .. "\n" )
+                end
+
+                callbacks[ i ] = nil
             end
 
             callbacks[ 0 ] = 0
+
+            local success, err_msg = pcall( hook.Run, "ash.player.Initialized", entity, true )
+            if not success then
+                ErrorNoHalt( err_msg .. "\n" )
+            end
         end
 
         coroutine_yield( true )
