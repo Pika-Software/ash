@@ -22,7 +22,7 @@ do
     local Player_SetHullDuck = Player.SetHullDuck
     local Player_SetHull = Player.SetHull
 
-    --- [SERVER]
+    --- [SHARED]
     ---
     --- Sets the player's hull.
     ---
@@ -148,6 +148,25 @@ do
         hook_Run( "ash.player.MovedCursor", player_entity, x, y, cursor_visible )
     end )
 
+    ---@type fun( pl: Player )[]
+    local callbacks = { [ 0 ] = 0 }
+
+    --- [CLIENT]
+    ---
+    --- Registers a callback to be called when the player is ready.
+    ---
+    ---@param callback fun( pl: Player )
+    function ash_player.onReady( callback )
+        if player_entity ~= nil then
+            callback( player_entity )
+            return
+        end
+
+        local callback_count = callbacks[ 0 ] + 1
+        callbacks[ callback_count ] = callback
+        callbacks[ 0 ] = callback_count
+    end
+
     local thread = coroutine.create( function()
         ::retry_loop::
 
@@ -166,7 +185,16 @@ do
             net.WriteUInt( 0, 8 )
             net.SendToServer()
 
-            hook.Run( "ash.player.Initialized", entity, true )
+            local success, err_msg = pcall( hook.Run, "ash.player.Initialized", entity, true )
+            if not success then
+                ErrorNoHalt( "ash.player.Initialized: " .. err_msg .. "\n" )
+            end
+
+            for i = 1, callbacks[ 0 ], 1 do
+                callbacks[ i ]( entity )
+            end
+
+            callbacks[ 0 ] = 0
         end
 
         coroutine_yield( true )
