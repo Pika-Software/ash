@@ -101,4 +101,24 @@ do
 
 end
 
+do
+    SafeRemoveEntity = _G.SafeRemoveEntity
+
+    --- [SHARED]
+    ---
+    --- Removes all entities of the given classes.
+    ---
+    ---@param ... string
+    function ash_entity.removeEntities( ... )
+        for i = 1, select( "#", ... ) do
+            local v = select( i, ... )
+            local ents_list, ents_count = ash_entity.findByClass( v )
+
+            for j = 1, ents_count do
+                SafeRemoveEntity( ents_list[ j ] )
+            end
+        end
+    end
+end
+
 return ash_entity
