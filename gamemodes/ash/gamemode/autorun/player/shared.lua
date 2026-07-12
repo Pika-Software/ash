@@ -1798,20 +1798,24 @@ do
         local requested = not previous_value
         local value = false
 
-        if requested and Player_Alive( pl ) and hook_Run( "ash.player.CanNoclip", pl ) ~= false then
-            in_call = true
+        if requested and Player_Alive( pl ) then
+            if hook_Run( "ash.player.CanNoclip", pl ) ~= true then
+                in_call = true
 
-            local success, result = pcall( hook_Run, "PlayerNoClip", pl, requested )
-            in_call = false
+                local success, result = pcall( hook_Run, "PlayerNoClip", pl, requested )
+                in_call = false
 
-            if success then
-                if result == nil then
-                    value = true
+                if success then
+                    if result then
+                        value = requested
+                    else
+                        value = false
+                    end
                 else
-                    value = result == true
+                    ErrorNoHalt( result .. "\n" )
                 end
             else
-                ErrorNoHalt( result .. "\n" )
+                value = true
             end
         end
 
