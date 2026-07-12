@@ -228,7 +228,7 @@ do
     ---
     --- Checks if the player is local.
     ---
-    ---@param pl Player
+    ---@param pl Entity | Player
     ---@return boolean is_local
     function ash_player.isLocal( pl )
         return pl == player_entity
