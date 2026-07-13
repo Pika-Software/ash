@@ -504,6 +504,10 @@ do
             if spawn_pickup[ pl ] then return true end
         end, PRE_HOOK_RETURN )
 
+        ---@type table<Player, boolean>
+        local first_spawn = {}
+        gc.setTableRules( first_spawn, true )
+
         ---@param pl Player
         ---@param transition boolean
         hook.Add( "PlayerSpawn", "PreSpawnLogic", function( pl, transition )
@@ -521,8 +525,13 @@ do
                 hook_Run( "ash.player.ChangeAliveStatus", pl, true )
             end
 
-            Entity_SetNW2Bool( pl, "ash.alive", true )
+            Entity_SetNW2Bool(pl, "ash.alive", true)
 
+
+            if not first_spawn[ pl ] then
+                first_spawn[ pl ] = true
+                hook_Run( "ash.player.FirstSpawn", pl, transition )
+            end
 
             hook_Run( "ash.player.PreSpawn", pl, transition )
 
