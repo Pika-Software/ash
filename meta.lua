@@ -33,11 +33,6 @@ __dir = ""
 ---@overload fun( pitch: number, yaw: number, roll: number ): Angle
 Angle = {}
 
----@class ash.Color : Color
----@field Lerp fun( f: number, from: Color, to: Color, do_alpha?: boolean ): Color
----@overload fun( r: number, g: number, b: number, a: number ): Color
-Color = {}
-
 ---@class ash.ConVar : ConVar
 ---@overload fun( name: string, value: string, flags: number, description: string, min_value: number, max_value: number ): ConVar
 ConVar = {}
@@ -327,8 +322,6 @@ gc = std.gc
 
 setTimeout = std.setTimeout
 printf = std.printf
-
-Color = std.Color
 
 ---@class flame : ash.Gamemode
 flame = flame or {}

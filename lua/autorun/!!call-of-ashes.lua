@@ -59,7 +59,6 @@ local util_Compress = glua_util.Compress
 local util_SHA256 = glua_util.SHA256
 
 local path_getDirectory = path.getDirectory
-local Color = std.Color
 
 local hook_Add = glua_hook.Add
 local hook_Run = glua_hook.Run
@@ -90,26 +89,28 @@ setmetatable( ash, {
     end
 } )
 
----@class dreamwork.std.ColorClass.scheme
-local color_scheme = std.Color.scheme
+local color = std.color
+
+---@class dreamwork.std.color.Scheme
+local color_scheme = color.Scheme
 ash.Colors = color_scheme
 
-color_scheme.ash_main = Color( 180, 120, 255 )
+color_scheme.ash_main = color.fromRGB( 180, 120, 255 )
 
-color_scheme.ash_white = Color( 255, 255, 255 )
-color_scheme.ash_black = Color( 0, 0, 0 )
-color_scheme.ash_red = Color( 220, 80, 80 )
-color_scheme.ash_green = Color( 80, 200, 100 )
-color_scheme.ash_blue = Color( 50, 150, 250 )
-color_scheme.ash_yellow = Color( 220, 220, 80 )
-color_scheme.ash_orange = Color( 255, 128, 0 )
+color_scheme.ash_white = color.fromRGB( 255, 255, 255 )
+color_scheme.ash_black = color.fromRGB( 0, 0, 0 )
+color_scheme.ash_red = color.fromRGB( 220, 80, 80 )
+color_scheme.ash_green = color.fromRGB( 80, 200, 100 )
+color_scheme.ash_blue = color.fromRGB( 50, 150, 250 )
+color_scheme.ash_yellow = color.fromRGB( 220, 220, 80 )
+color_scheme.ash_orange = color.fromRGB( 255, 128, 0 )
 
-color_scheme.ash_log = Color( 240, 240, 240 )
-color_scheme.ash_time = Color( 100, 100, 100 )
-color_scheme.ash_separator = Color( 150, 150, 150 )
+color_scheme.ash_log = color.fromRGB( 240, 240, 240 )
+color_scheme.ash_time = color.fromRGB( 100, 100, 100 )
+color_scheme.ash_separator = color.fromRGB( 150, 150, 150 )
 
-color_scheme.ash_client = Color( 225, 170, 10 )
-color_scheme.ash_server = Color( 5, 170, 250 )
+color_scheme.ash_client = color.fromRGB( 225, 170, 10 )
+color_scheme.ash_server = color.fromRGB( 5, 170, 250 )
 
 local logger = std.console.Logger( {
     color = color_scheme.ash_main,
@@ -834,8 +835,8 @@ if _G[ active_gamemode ] == nil then
         Name = active_link.name,
         Logger = std.console.Logger( {
             title = active_gamemode .. "@" .. active_link.version,
-            color = Color( 255, 255, 255 ),
-            interpolation = false
+            interpolation = false,
+            color = 0xFFFFFF
         } )
     }
 end
@@ -873,7 +874,6 @@ environment.gc = std.gc
 environment.raw = raw
 
 environment.printf = std.printf
-environment.Color = Color
 
 environment.DEBUG = DEBUG
 environment._G = _G
@@ -2527,9 +2527,6 @@ do
 
     ---@diagnostic disable-next-line: param-type-mismatch
     environment.Matrix = addMetatable( "VMatrix", Matrix )
-
-    -- ---@diagnostic disable-next-line: param-type-mismatch
-    -- environment.Color = addMetatable( "Color", Color )
 
     environment.ConVar = addMetatable( "ConVar", CreateConVar )
 
