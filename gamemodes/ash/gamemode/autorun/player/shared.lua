@@ -271,6 +271,7 @@ do
         hook.Add( "ash.player.Tick", "PVSUpdater", function( local_player, is_local )
             if not is_local then return end
 
+            -- TODO: recheck what kinda origin here we got
             local view_origin = view_Data.origin or local_player:WorldSpaceCenter()
 
             for i = 1, player_count, 1 do
@@ -2269,5 +2270,7 @@ end
 --     end, PRE_HOOK )
 
 -- end
+
+-- TODO: bone manipulation hooks
 
 return ash_player

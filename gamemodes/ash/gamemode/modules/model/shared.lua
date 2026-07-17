@@ -40,7 +40,7 @@ do
 end
 
 local function model_path_fix( model_path )
-    return string_gsub( string_lower( model_path ), "[\\/]+", "/" )
+    return (string_gsub( string_lower( model_path ), "[\\/]+", "/" ))
 end
 
 ash_model.pathFix = model_path_fix

@@ -817,8 +817,12 @@ if LUA_CLIENT then
 
 end
 
+if ash.Chain == nil then return end
+
 if _G[ active_gamemode ] == nil then
     local active_link = ash.Chain[ 1 ]
+    if active_link == nil then return end
+
     local active_title = active_link.title
     local active_author = active_link.author
 

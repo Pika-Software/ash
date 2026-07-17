@@ -83,11 +83,9 @@ end
 ---@param variables? table<string, string>
 ---@return string text
 function i18n.perform( str, variables )
-    local value = string_gsub( str, "%s?%$%(([^)]+)%)%s?", function( key )
+    return (string_gsub( str, "%s?%$%(([^)]+)%)%s?", function( key )
         return get( key, variables )
-    end )
-
-    return value
+    end ))
 end
 
 ---@param content string
