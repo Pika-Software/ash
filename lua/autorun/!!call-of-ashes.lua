@@ -941,8 +941,9 @@ end
 
 do
 
+    local SysTime = SysTime
+
     local init_file = LUA_CLIENT and "/cl_init.lua" or "/init.lua"
-    local CurTime = CurTime
 
     ---@param name string
     ---@param location string
@@ -950,7 +951,7 @@ do
     function Module:__init( name, location )
         self.Prefix = name .. "::"
         self.Realm = "unknown"
-        self.Time = CurTime()
+        self.Time = SysTime()
         self.Name = name
 
         if file_Exists( location, "LUA" ) and file_IsDir( location, "LUA" ) then
