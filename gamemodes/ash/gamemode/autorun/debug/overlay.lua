@@ -1,10 +1,10 @@
 local std = dreamwork.std
-local angle_zero = angle_zero
 
 local assert = std.assert
 local arg = std.arg
 
-local os_clock = os.clock
+local angle_zero = angle_zero
+local CurTime = CurTime
 
 local render_DrawWireframeBox = render.DrawWireframeBox
 local render_SetMaterial = render.SetMaterial
@@ -31,13 +31,13 @@ local death_times = {}
 local function gen( lifetime, fn )
     local queue_size = render_queue[ 0 ] + 1
     render_queue[ queue_size ] = fn
-    death_times[ queue_size ] = os_clock() + math.max( lifetime or 0, 0.5 )
+    death_times[ queue_size ] = CurTime() + math.max( lifetime or 0, 0.5 )
     render_queue[ 0 ] = queue_size
 end
 
 timer.Create( "OverlayTicks", 0.5, 0, function()
     local queue_size = render_queue[ 0 ] or 0
-    local now = os_clock()
+    local now = CurTime()
 
     for i = queue_size, 1, -1 do
         if now > death_times[ i ] then

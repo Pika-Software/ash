@@ -3,7 +3,7 @@ MODULE.Networks = {
 }
 
 local setmetatable = setmetatable
-local os_clock = os.clock
+local CurTime = CurTime
 local istable = istable
 local pairs = pairs
 local type = type
@@ -171,7 +171,7 @@ function Node:__newindex( key, value )
     local values = node_values[ self ]
     if values[ key ] ~= value then
         values[ key ] = value
-        node_change_times[ self ][ key ] = os_clock()
+        node_change_times[ self ][ key ] = CurTime()
         sync_with_players( self, key, value )
     end
 end
