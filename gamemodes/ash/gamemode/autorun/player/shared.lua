@@ -1460,6 +1460,7 @@ do
     end, POST_HOOK_RETURN )
 
     if SERVER then
+        ---@param pl Player
         hook.Add( "ash.player.Tick", "i hopes garry got as painful death as it possible", function( pl )
             local move_type = players_move_type[ pl ]
             local player_speed = 0
@@ -1476,6 +1477,8 @@ do
             elseif move_type == 9 then -- ladder movement
                 player_speed = hook_Run( "ash.player.LadderSpeed", pl, players_keys[ pl ] ) or 150
             end
+
+            if pl:GetRunSpeed() ~= player_speed then return end
 
             pl:SetSlowWalkSpeed( player_speed )
             pl:SetWalkSpeed( player_speed )
