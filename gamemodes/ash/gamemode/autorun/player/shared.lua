@@ -1459,6 +1459,31 @@ do
         return move_state
     end, POST_HOOK_RETURN )
 
+    if SERVER then
+        hook.Add( "ash.player.Tick", "i hopes garry got as painful death as it possible", function( pl )
+            local move_type = players_move_type[ pl ]
+            local player_speed = 0
+
+            if move_type == 2 then -- walking
+                local water_level = entity_getWaterLevel( pl )
+                if players_on_ground[ pl ] then
+                    player_speed = hook_Run( "ash.player.WalkSpeed", pl, players_keys[ pl ], players_crouching[ pl ], water_level ) or 200
+                elseif water_level == 0 then
+                    player_speed = hook_Run( "ash.player.FallSpeed", pl, players_keys[ pl ], players_crouching[ pl ] ) or 10
+                else
+                    player_speed = hook_Run( "ash.player.SwimSpeed", pl, players_keys[ pl ], water_level ) or 150
+                end
+            elseif move_type == 9 then -- ladder movement
+                player_speed = hook_Run( "ash.player.LadderSpeed", pl, players_keys[ pl ] ) or 150
+            end
+
+            pl:SetSlowWalkSpeed( player_speed )
+            pl:SetWalkSpeed( player_speed )
+            pl:SetRunSpeed( player_speed )
+            pl:SetMaxSpeed( player_speed )
+        end, PRE_HOOK )
+    end
+
     ---@param pl Player
     ---@param mv CMoveData
     ---@diagnostic disable-next-line: redundant-parameter
@@ -1490,25 +1515,6 @@ do
 
             return true
         end
-
-        local move_type = players_move_type[ pl ]
-        local player_speed = 0
-
-        if move_type == 2 then -- walking
-            local water_level = entity_getWaterLevel( pl )
-            if players_on_ground[ pl ] then
-                player_speed = hook_Run( "ash.player.WalkSpeed", pl, players_keys[ pl ], players_crouching[ pl ], water_level ) or 200
-            elseif water_level == 0 then
-                player_speed = hook_Run( "ash.player.FallSpeed", pl, players_keys[ pl ], players_crouching[ pl ] ) or 10
-            else
-                player_speed = hook_Run( "ash.player.SwimSpeed", pl, players_keys[ pl ], water_level ) or 150
-            end
-        elseif move_type == 9 then -- ladder movement
-            player_speed = hook_Run( "ash.player.LadderSpeed", pl, players_keys[ pl ] ) or 150
-        end
-
-        MoveData_SetMaxClientSpeed( mv, player_speed )
-        MoveData_SetMaxSpeed( mv, player_speed )
     end, POST_HOOK_RETURN )
 
     if SERVER then

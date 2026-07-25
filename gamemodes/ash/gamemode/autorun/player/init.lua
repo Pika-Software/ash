@@ -525,7 +525,7 @@ do
                 hook_Run( "ash.player.ChangeAliveStatus", pl, true )
             end
 
-            Entity_SetNW2Bool(pl, "ash.alive", true)
+            Entity_SetNW2Bool( pl, "ash.alive", true )
 
 
             if not first_spawn[ pl ] then
@@ -534,13 +534,6 @@ do
             end
 
             hook_Run( "ash.player.PreSpawn", pl, transition )
-
-            local max_speed = physenv.GetPerformanceSettings().MaxVelocity
-
-            pl:SetSlowWalkSpeed( max_speed )
-            pl:SetWalkSpeed( max_speed )
-            pl:SetRunSpeed( max_speed )
-            pl:SetMaxSpeed( max_speed )
 
             pl:SetCrouchedWalkSpeed( 1 )
 
