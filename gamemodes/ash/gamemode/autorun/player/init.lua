@@ -506,6 +506,7 @@ do
 
         ---@type table<Player, boolean>
         local first_spawn = {}
+        gc.setup( first_spawn, "Player" )
         gc.setTableRules( first_spawn, true )
 
         ---@param pl Player
