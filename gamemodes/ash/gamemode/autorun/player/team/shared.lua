@@ -261,6 +261,16 @@ setmetatable( model_counts, {
 
 --- [SHARED]
 ---
+--- Get team models
+---
+---@param team_name string
+---@return string[] | nil
+function ash_team.getModels( team_name )
+    return models[ team_name ]
+end
+
+--- [SHARED]
+---
 --- Gets the score of the specified team.
 ---
 ---@param team_name string

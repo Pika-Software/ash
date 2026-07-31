@@ -7,6 +7,8 @@ local ash_ui = import "ash.ui"
 ---@type ash.ui.rndx
 local rndx = import "ash.ui.rndx"
 
+---@type ash.ui.svg
+local ash_svg = import "ash.ui.svg"
 
 local last_dock_margin = {
     top = 0,
@@ -22,6 +24,92 @@ local last_dock_padding = {
     bottom = 0,
 }
 
+
+---@class ash.ui.falcon.state
+---@field value any
+---@field default any
+---@field isState boolean
+---@field type any
+---@field callbacks table
+local state_meta = {}
+state_meta.__index = state_meta
+
+---@param value any
+function state_meta:set( value )
+    if self.value == value then
+        return
+    end
+
+    self.value = value
+
+    local callbacks = self.callbacks
+    local count = callbacks[ 0 ]
+
+    for i = count, 1, -1 do
+        if callbacks[ i ][ 1 ]( self ) == false then
+            table.remove( callbacks, i )
+            callbacks[ 0 ] = callbacks[ 0 ] - 1
+        end
+    end
+end
+
+function state_meta:removeCallback( data )
+    local callbacks = self.callbacks
+    for i = callbacks[ 0 ], 1, -1 do
+        local v = callbacks[ i ]
+        if v[ 1 ] == data then
+            table.remove( callbacks, i )
+            callbacks[ 0 ] = callbacks[ 0 ] - 1
+            return
+        end
+    end
+end
+
+---@param default any
+function state_meta:get( default )
+    local value = self.value
+    if value == nil then
+        return default or self.default
+    end
+
+    return value
+end
+
+---@param callback function
+function state_meta:addCallback( callback )
+    local callbacks = self.callbacks
+    local count = callbacks[ 0 ] + 1
+
+    callbacks[ 0 ] = count
+
+    local data = { callback }
+
+    callbacks[ count ] = data
+
+    return function()
+        if self ~= nil then
+            self:removeCallback( data )
+        end
+    end
+end
+
+---@param value any
+---@return ash.ui.falcon.state
+local function state( value )
+    ---@class ash.ui.falcon.state
+    local obj = setmetatable( {}, state_meta )
+    obj.default = value
+    obj.isState = true
+    obj.type = type( value )
+    obj.value = value
+    obj.callbacks = { [ 0 ] = 0 }
+
+    return obj
+end
+
+falcon.state = state
+
+
 local contex_panel = nil
 
 do
@@ -29,6 +117,7 @@ do
     ---@field keyValue table<string, any>
     ---@field steps table<string, any>
     ---@field methods table<string, function>
+    ---@filed states ash.ui.falcon.state[]
     ---@field dockMargin fun(pnl: ash.ui.falcon.base_panel, tbl: table)
     ---@field dockPadding fun(pnl: ash.ui.falcon.base_panel, tbl: table)
     ---@field dock fun(pnl: ash.ui.falcon.base_panel, dock_type: number)
@@ -50,10 +139,11 @@ do
         self.paints = {}
         self.paintsBack = {}
         self.actions = {}
+        self.states = {}
 
-        self:setValue( "background.color", color_background )
-        self:setValue( "background.round", 4 )
-        self:setValue( "background.flags", rndx.SHAPE_FIGMA )
+        self:set( "background.color", color_background )
+        self:set( "background.round", 4 )
+        self:set( "background.flags", rndx.SHAPE_FIGMA )
 
         self:newMethod( "dock", function( pnl, dock_type )
             pnl:Dock( dock_type )
@@ -128,6 +218,39 @@ do
         self:newMethod( "setVisible", function( pnl, visible )
             pnl:SetVisible( visible )
         end )
+
+        self:newMethod( "setPos", function( pnl, x, y )
+            x = x or 0
+            y = y or 0
+
+            pnl:SetPos( x, y )
+        end )
+
+        self:newMethod( "setX", function( pnl, x )
+            pnl:SetX( x )
+        end )
+
+        self:newMethod( "setY", function( pnl, y )
+            pnl:SetY( y )
+        end )
+
+        self:newMethod( "keyboardInput", function( pnl, boolean )
+            pnl:SetKeyBoardInputEnabled( boolean )
+        end )
+
+        self:newMethod( "mouseInput", function( pnl, boolean )
+            pnl:SetMouseInputEnabled( boolean )
+        end )
+
+        self:newMethod( "paintedManually", function( pnl, boolean )
+            pnl:SetPaintedManually( boolean )
+        end )
+
+        self:newMethod( "addState", function( pnl, st, callback )
+            local states = pnl.states
+
+            states[ #states + 1 ] = { st, st:addCallback( callback ) }
+        end )
     end
 
     function BASE_PANEL:Paint( w, h )
@@ -136,6 +259,10 @@ do
         end
 
         if not self:getValue( "noDrawBackground", false ) then
+            if self:getValue( "outline.draw", false ) then
+                rndx.DrawOutlined( self:getValue( "outline.round", self:getValue( "background.round" ) ) or 0, 0, 0, w, h, self:getValue( "outline.color" ) or color_white, self:getValue( "background.thickness", 1 ), self:getValue( "outline.flags", self:getValue( "background.flags", 0 ) ) or 0 )
+            end
+
             rndx.Draw( self:getValue( "background.round" ) or 0, 0, 0, w, h, self:getValue( "background.color" ) or color_background, self:getValue( "background.flags" ) or 0 )
         end
 
@@ -147,16 +274,47 @@ do
     ---@param key string
     ---@param value any
     ---@return ash.ui.falcon.base_panel
-    function BASE_PANEL:setValue( key, value )
-        self.keyValue[ key ] = value
+    function BASE_PANEL:set( key, value )
+        local keyValue = self.keyValue
+        local data = keyValue[ key ] or {}
+        keyValue[ key ] = data
+
+        if istable( value ) and value.isState then
+            data[ 1 ] = 1
+            data[ 2 ] = value
+        else
+            data[ 1 ] = 0
+            data[ 2 ] = value
+        end
+
         return self
     end
 
     ---@param key string
+    ---@param default any
     ---@return any
-    function BASE_PANEL:getValue( key, fallback )
-        return self.keyValue[ key ] or fallback
+    function BASE_PANEL:get( key, default )
+        local data = self.keyValue[ key ]
+
+        if data ~= nil then
+            local t = data[ 1 ]
+            local value = data[ 2 ]
+            if t == 0 then
+
+                ---@cast value string
+                return value
+            elseif t == 1 then
+
+                ---@cast value ash.ui.falcon.state
+                return value:get()
+            end
+        end
+
+        return default
     end
+
+    BASE_PANEL.setValue = BASE_PANEL.set
+    BASE_PANEL.getValue = BASE_PANEL.get
 
     function BASE_PANEL:addStep( key, ... )
         self.steps[ key ] = { ... }
@@ -211,6 +369,7 @@ do
     end
 
     function BASE_PANEL:OnScreenSizeChanged( w, h )
+        self:build()
         self:runAction( "screenSizeChanged", w, h )
     end
 
@@ -233,6 +392,11 @@ do
     end
 
     function BASE_PANEL:OnRemove()
+        local states = self.states
+        for i = 1, #states do
+            states[ i ][ 2 ]()
+        end
+
         self:runAction( "remove" )
     end
 
@@ -264,14 +428,14 @@ do
 
     function BASE_PANEL:hide()
         local x, y = input.GetCursorPos()
-        self:setValue( "saved_mouse_x", x )
-        self:setValue( "saved_mouse_y", y )
+        self:set( "saved_mouse_x", x )
+        self:set( "saved_mouse_y", y )
         self:runAction( "hide" )
         self:AlphaTo( 0, 0.2, 0, function()
             if IsValid( self ) then
                 x, y = input.GetCursorPos()
-                self:setValue( "saved_mouse_x", x )
-                self:setValue( "saved_mouse_y", y )
+                self:set( "saved_mouse_x", x )
+                self:set( "saved_mouse_y", y )
                 self:runAction( "hideComplete" )
                 self:SetVisible( false )
             end
@@ -340,7 +504,7 @@ do
 
             self:dock( FILL )
 
-            self:setValue( "background.color", Color( 0, 0, 0, 0 ) )
+            self:set( "background.color", Color( 0, 0, 0, 0 ) )
 
             self:newMethod( "setSpace", function( pnl, tbl )
                 local w, h = pnl:GetSize()
@@ -409,51 +573,65 @@ do
         local draw_text = draw.DrawText
 
         ---@class ash.falcon.label : ash.falcon.panel
-        ---@field setTextData fun(pnl: ash.falcon.label, data: table )
+        ---@field setTextData fun( pnl: ash.falcon.label, data: table ): ash.falcon.label
+        ---@field set fun( pnl: ash.falcon.label, key: any, value: any ): ash.falcon.label
         local PANEL = {}
 
         local color_gray = Color( 200, 200, 200 )
         function PANEL:Init()
             self:newMethod( "setTextData", function( pnl, data )
-                data.color = data.color or pnl:getValue( "color", color_white )
-                data.font = data.font or pnl:getValue( "font", "DermaLarge" )
-                data.text = data.text or pnl:getValue( "text", "" )
+                if isstring( data ) then
+                    self:set( "text", data )
+                else
+                    data.text = data.text or pnl:getValue( "text", "" )
+                    data.color = data.color or pnl:getValue( "color", color_white )
+                    data.font = data.font or pnl:getValue( "font", "DermaLarge" )
 
-                self:setValue( "text", data.text )
-                self:setValue( "font", data.font )
-                self:setValue( "color", data.color )
+                    self:set( "text", data.text )
+                    self:set( "font", data.font )
+                    self:set( "color", data.color )
+                end
 
-                local w, h = ash_ui.getTextSize( data.text, data.font )
-                pnl:setSize( { width = tostring( w ) .. "px", height = tostring( h ) .. "px" } )
+                if not self:getValue( "staticSize", false ) then
+                    local w, h = ash_ui.getTextSize( data.text, data.font )
+                    pnl:setSize( { width = tostring( w ) .. "px", height = tostring( h ) .. "px" } )
+                end
             end )
 
-            self:setValue( "color", color_gray )
-            self:setValue( "color.cursor", color_white )
-            self:setValue( "cursorColorEnabled", false )
+            self:set( "color", color_gray )
+            self:set( "color.cursor", color_white )
+            self:set( "cursorColorEnabled", false )
 
             self:addAction( "cursorEntered", "cursor", function( pnl )
-                pnl:setValue( "cursor", true )
+                pnl:set( "cursor", true )
             end )
 
             self:addAction( "cursorExited", "cursor", function( pnl )
-                pnl:setValue( "cursor", false )
+                pnl:set( "cursor", false )
             end )
         end
 
         function PANEL:Paint( w, h )
-            local align = self:getValue( "align", TEXT_ALIGN_LEFT )
-            local color = self:getValue( "color", color_white )
+            local align = self:get( "align", TEXT_ALIGN_LEFT )
+            local color = self:get( "color", color_white )
 
-            if self:getValue( "cursorColorEnabled", false ) and self:getValue( "cursor", false ) then
-                color = self:getValue( "color.cursor", color_white )
+            if self:get( "cursorColorEnabled", false ) and self:get( "cursor", false ) then
+                color = self:get( "color.cursor", color_white )
             end
 
+            -- rndx.Draw( 0, 0, 0, w, h, color_white )
+            local text, font = self:get( "text" ), self:get( "font" )
+
+            local wt, ht = ash_ui.getTextSize( text, font )
+
             if align == TEXT_ALIGN_LEFT then
-                draw_text( self:getValue( "text" ), self:getValue( "font" ), 0, 0, color, TEXT_ALIGN_LEFT )
+                draw_text( text, font, 0, h * 0.5 - (ht * 0.5), color, TEXT_ALIGN_LEFT )
             elseif align == TEXT_ALIGN_CENTER then
-                draw_text( self:getValue( "text" ), self:getValue( "font" ), w * 0.5, 0, color, TEXT_ALIGN_CENTER )
+                draw_text( text, font, w * 0.5, h * 0.5, color, TEXT_ALIGN_CENTER )
             elseif align == TEXT_ALIGN_RIGHT then
-                draw_text( self:getValue( "text" ), self:getValue( "font" ), w, 0, color, TEXT_ALIGN_RIGHT )
+                draw_text( text, font, w, h * 0.5 - (ht * 0.5), color, TEXT_ALIGN_RIGHT )
+            elseif align == TEXT_ALIGN_BOTTOM then
+                draw_text( text, font, 0, 0, color, TEXT_ALIGN_BOTTOM )
             end
         end
 
@@ -478,7 +656,7 @@ do
 
             self:newMethod( "model", function( pnl, model )
                 pnl.icon:SetModel( model )
-                self:setValue( "model", model )
+                self:set( "model", model )
                 local w, h = pnl:GetSize()
                 w = w - 5
                 h = h - 5
@@ -486,11 +664,11 @@ do
             end )
 
             self:addAction( "cursorEntered", "outline", function( pnl )
-                pnl:setValue( "drawOutline", true )
+                pnl:set( "drawOutline", true )
             end )
 
             self:addAction( "cursorExited", "outline", function( pnl )
-                pnl:setValue( "drawOutline", false )
+                pnl:set( "drawOutline", false )
             end )
         end
 
@@ -501,6 +679,52 @@ do
         end
 
         vgui.Register( "ash.falcon.model_icon", PANEL, "ash.falcon.panel" )
+    end
+
+    do
+        ---@class ash.falcon.image : ash.falcon.panel
+        ---@field setImage fun(pnl: ash.falcon.image, img: any, params: string? )
+        ---@field image_type integer
+        ---@field image any
+        local PANEL = {}
+
+        local surface_SetDrawColor = surface.SetDrawColor
+        local surface_SetMaterial = surface.SetMaterial
+        local surface_DrawTexturedRect = surface.DrawTexturedRect
+
+        function PANEL:Init()
+            self:newMethod( "setImage", function( pnl, img, params )
+                local img_type = type( img )
+                if img_type == "string" then
+                    if string.hasSuffix( img, ".svg.txt" ) or string.hasSuffix( img, ".svg" ) then
+                        pnl.image_type = 1
+                        pnl.image = ash_svg.Load( img )
+                    else
+                        pnl.image_type = 0
+                        pnl.image = Material( img, params )
+                    end
+                elseif img_type == "IMaterial" then
+                    pnl.image_type = 0
+                    pnl.image = img
+                end
+            end )
+        end
+
+        function PANEL:Paint( w, h )
+            local img_type = self.image_type
+
+            if self.image then
+                if img_type == 0 then
+                    surface_SetDrawColor( self:getValue( "image.color", color_white ) )
+                    surface_SetMaterial( self.image )
+                    surface_DrawTexturedRect( 0, 0, w, h )
+                elseif img_type == 1 then
+                    self.image:Render( 0, 0, w, h )
+                end
+            end
+        end
+
+        vgui.Register( "ash.falcon.image", PANEL, "ash.falcon.panel" )
     end
 end
 
@@ -525,7 +749,7 @@ do
     ---@param name string
     ---@param struct table
     ---@return ash.falcon.frame
-    local function frame( name, struct )
+    local function root( name, struct )
         local panel = ash_ui.setPanel( name, "ash.falcon.frame", nil )
         ---@cast panel ash.falcon.frame
 
@@ -535,9 +759,9 @@ do
         return panel
     end
 
-    falcon.frame = frame
+    falcon.root = root
 
-    local function button( struct, callback )
+    local function button( struct )
         assert( contex_panel ~= nil, "parent panel is required" )
 
 
@@ -553,7 +777,7 @@ do
 
     falcon.button = button
 
-    local function layout( struct, callback )
+    local function layout( struct )
         assert( contex_panel ~= nil, "parent panel is required" )
 
         local panel = contex_panel:Add( "ash.falcon.layout" )
@@ -567,13 +791,12 @@ do
 
     falcon.layout = layout
 
-    local function label( struct, callback )
+    local function label( struct )
         assert( contex_panel ~= nil, "parent panel is required" )
 
         local panel = contex_panel:Add( "ash.falcon.label" )
         ---@cast panel ash.falcon.label
 
-        print( "contex_panel", contex_panel )
         panel:struct( struct )
             :build()
         return panel
@@ -581,7 +804,7 @@ do
 
     falcon.label = label
 
-    local function modelIcon( struct, callback )
+    local function modelIcon( struct )
         assert( contex_panel ~= nil, "parent panel is required" )
 
         local panel = contex_panel:Add( "ash.falcon.model_icon" )
@@ -596,7 +819,7 @@ do
 
     falcon.modelIcon = modelIcon
 
-    local function panel( struct, callback )
+    local function panel( struct )
         assert( contex_panel ~= nil, "parent panel is required" )
 
         local pnl = contex_panel:Add( "ash.falcon.panel" )
@@ -609,6 +832,20 @@ do
     end
 
     falcon.panel = panel
+
+    local function image( struct )
+        assert( contex_panel ~= nil, "parent panel is required" )
+
+        local pnl = contex_panel:Add( "ash.falcon.image" )
+        ---@cast pnl ash.falcon.image
+
+        pnl:struct( struct )
+            :build()
+
+        return pnl
+    end
+
+    falcon.image = image
 end
 
 

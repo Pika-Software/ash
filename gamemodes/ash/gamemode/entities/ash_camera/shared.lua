@@ -14,8 +14,13 @@ function ENT:Initialize()
     self:DrawShadow( false )
 end
 
+local attach_map = {
+    [ "point_viewcontrol" ] = true,
+    [ "point_camera" ] = true,
+}
+
 hook.Add( "OnEntityCreated", "Defaults", function( ent )
-    if Entity_GetClass( ent ) == "point_viewcontrol" then
+    if attach_map[ Entity_GetClass( ent ) ] then
         timer.Simple( 0, function()
             if not IsValid( ent ) then
                 return
