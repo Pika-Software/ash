@@ -109,7 +109,6 @@ end
 
 falcon.state = state
 
-
 local contex_panel = nil
 
 do
@@ -118,12 +117,22 @@ do
     ---@field steps table<string, any>
     ---@field methods table<string, function>
     ---@filed states ash.ui.falcon.state[]
-    ---@field dockMargin fun(pnl: ash.ui.falcon.base_panel, tbl: table)
-    ---@field dockPadding fun(pnl: ash.ui.falcon.base_panel, tbl: table)
-    ---@field dock fun(pnl: ash.ui.falcon.base_panel, dock_type: number)
-    ---@field setSize fun(pnl: ash.ui.falcon.base_panel, tbl: table)
-    ---@field center fun(pnl: ash.ui.falcon.base_panel)
+    ---@field dockMargin fun(pnl: ash.ui.falcon.base_panel, tbl: table): ash.ui.falcon.base_panel
+    ---@field dockPadding fun(pnl: ash.ui.falcon.base_panel, tbl: table): ash.ui.falcon.base_panel
+    ---@field dock fun(pnl: ash.ui.falcon.base_panel, dock_type: number): ash.ui.falcon.base_panel
+    ---@field alpha fun(pnl: ash.ui.falcon.base_panel, alpha: number): ash.ui.falcon.base_panel
+    ---@field setVisible fun(pnl: ash.ui.falcon.base_panel, boolean: boolean | table): ash.ui.falcon.base_panel
+    ---@field animation fun(pnl: ash.ui.falcon.base_panel, animation: string, ...): ash.ui.falcon.base_panel
+    ---@field center fun(pnl: ash.ui.falcon.base_panel): ash.ui.falcon.base_panel
+    ---@field centerVertical fun(pnl: ash.ui.falcon.base_panel, f: number): ash.ui.falcon.base_panel
+    ---@field centerHorizontal fun(pnl: ash.ui.falcon.base_panel, f: number): ash.ui.falcon.base_panel
+    ---@field sizeToChildren fun(pnl: ash.ui.falcon.base_panel, boolean: boolean): ash.ui.falcon.base_panel
+    ---@field invalidateLayout fun(pnl: ash.ui.falcon.base_panel, boolean1: boolean, boolean2: boolean): ash.ui.falcon.base_panel
     local BASE_PANEL = {}
+
+    ---@type ash.ui.falcon.base_panel[]
+    local panels = {}
+    local panels_count = 0
 
     local function convertUnitsToPixels( struct )
         for name, v in pairs( struct ) do
@@ -140,6 +149,9 @@ do
         self.paintsBack = {}
         self.actions = {}
         self.states = {}
+
+        panels_count = panels_count + 1
+        panels[ panels_count ] = self
 
         self:set( "background.color", color_background )
         self:set( "background.round", 4 )
@@ -211,12 +223,25 @@ do
             pnl:Center()
         end )
 
+        self:newMethod( "centerVertical", function( pnl, f )
+            pnl:CenterVertical( f )
+        end )
+
+        self:newMethod( "centerHorizontal", function( pnl, f )
+            pnl:CenterHorizontal( f )
+        end )
+
         self:newMethod( "makePopup", function( pnl )
             pnl:MakePopup()
         end )
 
         self:newMethod( "setVisible", function( pnl, visible )
-            pnl:SetVisible( visible )
+            pnl:set( "isVisible", visible )
+            if istable( visible ) and visible.isState then
+                pnl:SetVisible( visible:get() )
+            else
+                pnl:SetVisible( visible )
+            end
         end )
 
         self:newMethod( "setPos", function( pnl, x, y )
@@ -251,6 +276,31 @@ do
 
             states[ #states + 1 ] = { st, st:addCallback( callback ) }
         end )
+
+        self:newMethod( "alpha", function( pnl, alpha )
+            self:SetAlpha( alpha )
+        end )
+
+        self:newMethod( "animation", function( pnl, animation, ... )
+            if animation == "alpha" then
+                pnl:AlphaTo( ... )
+            end
+        end )
+
+        self:newMethod( "invalidateLayout", function( pnl, boolean )
+            self:InvalidateLayout( boolean )
+        end )
+
+        self:newMethod( "sizeToChildren", function( pnl, booleanW, booleanH )
+            self:SizeToChildren( booleanW, booleanH )
+        end )
+
+        self:set( "isVisible", true )
+
+        self:addAction( "think", "visible", function( pnl )
+            pnl:SetVisible( pnl:get( "isVisible", false ) )
+        end )
+
     end
 
     function BASE_PANEL:Paint( w, h )
@@ -259,11 +309,11 @@ do
         end
 
         if not self:getValue( "noDrawBackground", false ) then
-            if self:getValue( "outline.draw", false ) then
-                rndx.DrawOutlined( self:getValue( "outline.round", self:getValue( "background.round" ) ) or 0, 0, 0, w, h, self:getValue( "outline.color" ) or color_white, self:getValue( "background.thickness", 1 ), self:getValue( "outline.flags", self:getValue( "background.flags", 0 ) ) or 0 )
-            end
-
             rndx.Draw( self:getValue( "background.round" ) or 0, 0, 0, w, h, self:getValue( "background.color" ) or color_background, self:getValue( "background.flags" ) or 0 )
+
+            if self:getValue( "outline.draw", false ) then
+                rndx.DrawOutlined( self:getValue( "outline.round", self:getValue( "background.round" ) ) or 0, 0, 0, w, h, self:getValue( "outline.color" ) or color_white, self:getValue( "outline.thickness", 1 ), self:getValue( "outline.flags", self:getValue( "background.flags", 0 ) ) or 0 )
+            end
         end
 
         for _, func in pairs( self.paints ) do
@@ -397,6 +447,10 @@ do
             states[ i ][ 2 ]()
         end
 
+        if table.removeByValue( panels, self, panels_count ) then
+            panels_count = panels_count - 1
+        end
+
         self:runAction( "remove" )
     end
 
@@ -437,7 +491,7 @@ do
                 self:set( "saved_mouse_x", x )
                 self:set( "saved_mouse_y", y )
                 self:runAction( "hideComplete" )
-                self:SetVisible( false )
+                self:setVisible( false )
             end
         end )
 
@@ -461,6 +515,20 @@ do
 
         return self
     end
+
+    hook.Add( "Think", "PanelThink", function()
+        for i = panels_count, 1, -1 do
+            local panel = panels[ i ]
+
+            if panel ~= nil and panel:IsValid() then
+                panel:runAction( "think" )
+            else
+                table.remove( panels, i )
+
+                panels_count = panels_count - 1
+            end
+        end
+    end )
 
     do
         ---@class ash.falcon.panel : ash.ui.falcon.base_panel
@@ -593,7 +661,7 @@ do
                 end
 
                 if not self:getValue( "staticSize", false ) then
-                    local w, h = ash_ui.getTextSize( data.text, data.font )
+                    local w, h = ash_ui.getTextSize( self:get( "text" ) , self:get( "font" ) )
                     pnl:setSize( { width = tostring( w ) .. "px", height = tostring( h ) .. "px" } )
                 end
             end )
@@ -627,7 +695,7 @@ do
             if align == TEXT_ALIGN_LEFT then
                 draw_text( text, font, 0, h * 0.5 - (ht * 0.5), color, TEXT_ALIGN_LEFT )
             elseif align == TEXT_ALIGN_CENTER then
-                draw_text( text, font, w * 0.5, h * 0.5, color, TEXT_ALIGN_CENTER )
+                draw_text( text, font, w * 0.5, h * 0.5 - (ht * 0.5) , color, TEXT_ALIGN_CENTER )
             elseif align == TEXT_ALIGN_RIGHT then
                 draw_text( text, font, w, h * 0.5 - (ht * 0.5), color, TEXT_ALIGN_RIGHT )
             elseif align == TEXT_ALIGN_BOTTOM then

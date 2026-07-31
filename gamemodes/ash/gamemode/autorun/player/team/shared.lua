@@ -121,6 +121,10 @@ setmetatable( players, {
 } )
 
 hook.Add( "EntityNetworkedVarChanged", "Default", function( entity, name, previous_value, new_value )
+    if new_value == previous_value then
+        return
+    end
+
     if entity ~= nil and entity:IsValid() then
         if name == "ash.player.team" then
             if previous_value == nil then
