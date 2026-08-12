@@ -454,6 +454,8 @@ do
         local player_getKeys = ash_player.getKeys
         local bit_band = bit.band
 
+        local runspeed = 180 ^ 2
+
         local IN_MOVE = bit.bor( IN_FORWARD, IN_BACK, IN_MOVELEFT, IN_MOVERIGHT )
 
         local IN_SPEED = IN_SPEED
@@ -467,7 +469,10 @@ do
         ---@param velocity Vector
         ---@diagnostic disable-next-line: redundant-parameter
         hook.Add( "CalcMainActivity", "AnimationController", function( arguments, pl, velocity )
-            velocities[ pl ] = velocity
+            velocities[pl] = velocity
+
+            local on_ground = pl:IsOnGround()
+            local player_is_running = math.ceil( velocity:Length2DSqr() ) >= runspeed
 
             if SERVER or entity_isInPVS( pl ) then
                 activity = arguments[ 2 ]
@@ -541,14 +546,14 @@ do
                             activity = getCrouchWalkActivity( pl )
                         end
                     elseif bit_band( in_keys, IN_MOVE ) == 0 then
-                        if bit_band( in_keys, IN_SPEED ) == 0 then
+                        if player_is_running then
                             activity = getStandActivity( pl )
                         else
                             activity = getRunActivity( pl )
                         end
                     elseif bit_band( in_keys, IN_WALK ) ~= 0 then
                         activity = getWalkActivity( pl )
-                    elseif bit_band( in_keys, IN_SPEED ) ~= 0 then
+                    elseif player_is_running then
                         activity = getRunActivity( pl )
                     else
                         activity = getWalkActivity( pl )
@@ -589,7 +594,7 @@ do
     local Entity_GetSequenceGroundSpeed = Entity.GetSequenceGroundSpeed
     local Entity_SetPlaybackRate = Entity.SetPlaybackRate
 
-    local player_getInPVS = CLIENT and ash_player.getInPVS or ash_player.getAll
+    local player_getInPVS = CLIENT and ash_player.getInPVS or ash_player.getList
     local player_getSequence = ash_player.getSequence
 
     local math_sqrt = math.sqrt

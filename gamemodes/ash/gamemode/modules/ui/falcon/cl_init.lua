@@ -24,18 +24,19 @@ local last_dock_padding = {
     bottom = 0,
 }
 
+local force_dock
 
----@class ash.ui.falcon.state
+---@class ash.ui.falcon.State : dreamwork.std.Object
+---@field __class ash.ui.falcon.StateClass
 ---@field value any
 ---@field default any
 ---@field isState boolean
 ---@field type any
 ---@field callbacks table
-local state_meta = {}
-state_meta.__index = state_meta
+local State = class.base( "ash.ui.falcon.State" )
 
 ---@param value any
-function state_meta:set( value )
+function State:set( value )
     if self.value == value then
         return
     end
@@ -53,7 +54,7 @@ function state_meta:set( value )
     end
 end
 
-function state_meta:removeCallback( data )
+function State:removeCallback( data )
     local callbacks = self.callbacks
     for i = callbacks[ 0 ], 1, -1 do
         local v = callbacks[ i ]
@@ -66,7 +67,7 @@ function state_meta:removeCallback( data )
 end
 
 ---@param default any
-function state_meta:get( default )
+function State:get( default )
     local value = self.value
     if value == nil then
         return default or self.default
@@ -76,7 +77,7 @@ function state_meta:get( default )
 end
 
 ---@param callback function
-function state_meta:addCallback( callback )
+function State:addCallback( callback )
     local callbacks = self.callbacks
     local count = callbacks[ 0 ] + 1
 
@@ -94,20 +95,21 @@ function state_meta:addCallback( callback )
 end
 
 ---@param value any
----@return ash.ui.falcon.state
-local function state( value )
-    ---@class ash.ui.falcon.state
-    local obj = setmetatable( {}, state_meta )
-    obj.default = value
-    obj.isState = true
-    obj.type = type( value )
-    obj.value = value
-    obj.callbacks = { [ 0 ] = 0 }
-
-    return obj
+function State:__init( value )
+    self.default = value
+    self.isState = true
+    self.type = type( value )
+    self.value = value
+    self.callbacks = { [ 0 ] = 0 }
 end
 
-falcon.state = state
+---@class ash.ui.falcon.StateClass : ash.ui.falcon.State
+---@field __base ash.ui.falcon.State
+---@overload fun( value: any ): ash.ui.falcon.State
+local StateClass = class.create( State )
+
+
+falcon.State = StateClass
 
 local contex_panel = nil
 
@@ -143,7 +145,7 @@ do
     local color_background = Color( 10, 10, 10, 200 )
     function BASE_PANEL:Init()
         self.keyValue = {}
-        self.steps = {}
+        self.steps = { [ 0 ] = 0 }
         self.methods = {}
         self.paints = {}
         self.paintsBack = {}
@@ -205,23 +207,23 @@ do
 
         self:newMethod( "paint", function( pnl, name, func )
             pnl.paints[ name ] = func
-        end )
+        end, true )
 
         self:newMethod( "paintBack", function( pnl, name, func )
             pnl.paintsBack[ name ] = func
-        end )
+        end, true )
 
         self:newMethod( "removePaint", function( pnl, name )
             pnl.paints[ name ] = nil
-        end )
+        end, true )
 
         self:newMethod( "removePaintBack", function( pnl, name )
             pnl.paintsBack[ name ] = nil
-        end )
+        end, true )
 
         self:newMethod( "center", function( pnl )
             pnl:Center()
-        end )
+        end, true )
 
         self:newMethod( "centerVertical", function( pnl, f )
             pnl:CenterVertical( f )
@@ -233,7 +235,7 @@ do
 
         self:newMethod( "makePopup", function( pnl )
             pnl:MakePopup()
-        end )
+        end, true )
 
         self:newMethod( "setVisible", function( pnl, visible )
             pnl:set( "isVisible", visible )
@@ -242,7 +244,7 @@ do
             else
                 pnl:SetVisible( visible )
             end
-        end )
+        end, true )
 
         self:newMethod( "setPos", function( pnl, x, y )
             x = x or 0
@@ -261,31 +263,31 @@ do
 
         self:newMethod( "keyboardInput", function( pnl, boolean )
             pnl:SetKeyBoardInputEnabled( boolean )
-        end )
+        end, true )
 
         self:newMethod( "mouseInput", function( pnl, boolean )
             pnl:SetMouseInputEnabled( boolean )
-        end )
+        end, true )
 
         self:newMethod( "paintedManually", function( pnl, boolean )
             pnl:SetPaintedManually( boolean )
-        end )
+        end, true )
 
         self:newMethod( "addState", function( pnl, st, callback )
             local states = pnl.states
 
             states[ #states + 1 ] = { st, st:addCallback( callback ) }
-        end )
+        end, true )
 
         self:newMethod( "alpha", function( pnl, alpha )
             self:SetAlpha( alpha )
-        end )
+        end, true )
 
         self:newMethod( "animation", function( pnl, animation, ... )
             if animation == "alpha" then
                 pnl:AlphaTo( ... )
             end
-        end )
+        end, true )
 
         self:newMethod( "invalidateLayout", function( pnl, boolean )
             self:InvalidateLayout( boolean )
@@ -299,13 +301,21 @@ do
 
         self:addAction( "think", "visible", function( pnl )
             pnl:SetVisible( pnl:get( "isVisible", false ) )
+        end)
+
+        self:addAction( "resolution", "rebuild", function( pnl )
+            pnl:build()
         end )
 
     end
 
     function BASE_PANEL:Paint( w, h )
-        for _, func in pairs( self.paintsBack ) do
-            func( self, w, h )
+        for _, func in pairs(self.paintsBack) do
+            func(self, w, h)
+        end
+
+        if self:get( "blur.draw", false ) then
+            rndx.DrawBlur( self:getValue( "background.round" ), w, h, self:getValue( "outline.flags", self:getValue( "background.flags", 0 ) ) or 0, self:getValue( "blur.tl" ), self:getValue( "blur.tr" ), self:getValue( "blur.bl" ), self:getValue( "blur.br" ), self:getValue( "blur.thickness" ) )
         end
 
         if not self:getValue( "noDrawBackground", false ) then
@@ -355,7 +365,7 @@ do
                 return value
             elseif t == 1 then
 
-                ---@cast value ash.ui.falcon.state
+                ---@cast value ash.ui.falcon.State
                 return value:get()
             end
         end
@@ -366,8 +376,23 @@ do
     BASE_PANEL.setValue = BASE_PANEL.set
     BASE_PANEL.getValue = BASE_PANEL.get
 
-    function BASE_PANEL:addStep( key, ... )
-        self.steps[ key ] = { ... }
+    function BASE_PANEL:addStep(key, ...)
+        local steps = self.steps
+        local steps_count = steps[ 0 ]
+
+        for i = 1, steps_count do
+            if steps[ i ][ 1 ] == key then
+                table.remove( steps, i )
+
+                steps_count = steps_count - 1
+                break
+            end
+        end
+
+        steps_count = steps_count + 1
+
+        steps[ steps_count ] = { key, { ... } }
+        steps[ 0 ] = steps_count
     end
 
     function BASE_PANEL:runMethod( key, ... )
@@ -379,13 +404,21 @@ do
 
     ---@return ash.ui.falcon.base_panel
     function BASE_PANEL:struct( struct )
-        self.steps = table.copy( struct )
+        for name, tbl in pairs( struct ) do
+            self:addStep( name, unpack( tbl ) )
+        end
         return self
     end
 
-    function BASE_PANEL:newMethod( key, func )
+    ---@param key string
+    ---@param func function
+    ---@param noToStep? boolean
+    function BASE_PANEL:newMethod( key, func, noToStep )
         self[ key ] = function( pnl, ... )
-            pnl:addStep( key, ... )
+            if not noToStep then
+                pnl:addStep(key, ...)
+            end
+
             func( pnl, ... )
 
             return pnl
@@ -416,11 +449,6 @@ do
 
     function BASE_PANEL:OnKeyCodePressed( keycode )
         self:runAction( "keyCodePressed", keycode )
-    end
-
-    function BASE_PANEL:OnScreenSizeChanged( w, h )
-        self:build()
-        self:runAction( "screenSizeChanged", w, h )
     end
 
     function BASE_PANEL:OnMouseMoved( x, y )
@@ -500,8 +528,13 @@ do
 
     ---@return ash.ui.falcon.base_panel
     function BASE_PANEL:build()
-        for key, vars in pairs( self.steps ) do
-            self:runMethod( key, vars ~= true and unpack( vars ) or nil )
+        local steps = self.steps
+        local steps_count = #steps
+
+        for i = 1, steps_count do
+            local v = steps[i]
+            local t = v[ 2 ]
+            self:runMethod( v[ 1 ], t ~= true and unpack( t ) or nil )
         end
 
         return self
@@ -511,6 +544,55 @@ do
         local old_context_panel = contex_panel
         contex_panel = self
         callback()
+        contex_panel = old_context_panel
+
+        return self
+    end
+
+    function BASE_PANEL:tstack( callback )
+        local old_context_panel = contex_panel
+        contex_panel = self
+        local old_force_dock = force_dock
+        force_dock = TOP
+        callback()
+        force_dock = old_force_dock
+        contex_panel = old_context_panel
+
+        return self
+    end
+
+
+    function BASE_PANEL:bstack( callback )
+        local old_context_panel = contex_panel
+        contex_panel = self
+        local old_force_dock = force_dock
+        force_dock = BOTTOM
+        callback()
+        force_dock = old_force_dock
+        contex_panel = old_context_panel
+
+        return self
+    end
+
+    function BASE_PANEL:lstack( callback )
+        local old_context_panel = contex_panel
+        contex_panel = self
+        local old_force_dock = force_dock
+        force_dock = LEFT
+        callback()
+        force_dock = old_force_dock
+        contex_panel = old_context_panel
+
+        return self
+    end
+
+    function BASE_PANEL:rstack( callback )
+        local old_context_panel = contex_panel
+        contex_panel = self
+        local old_force_dock = force_dock
+        force_dock = RIGHT
+        callback()
+        force_dock = old_force_dock
         contex_panel = old_context_panel
 
         return self
@@ -528,7 +610,17 @@ do
                 panels_count = panels_count - 1
             end
         end
-    end )
+    end)
+
+    hook.Add( "ash.ui.ScreenResolution", "ResolutionChanged", function()
+        for i = 1, panels_count do
+            local panel = panels[ i ]
+
+            if panel ~= nil and panel:IsValid() then
+                panel:runAction( "resolution" )
+            end
+        end
+    end)
 
     do
         ---@class ash.falcon.panel : ash.ui.falcon.base_panel
@@ -808,6 +900,10 @@ do
         panel:struct( struct )
             :build()
 
+        if force_dock ~= nil then
+            panel:dock( force_dock )
+        end
+
         return panel
     end
 
@@ -824,6 +920,10 @@ do
         panel:struct( struct )
             :build()
 
+        if force_dock ~= nil then
+            panel:dock( force_dock )
+        end
+
         return panel
     end
 
@@ -838,6 +938,10 @@ do
 
         panel:struct( struct )
             :build()
+
+        if force_dock ~= nil then
+            panel:dock( force_dock )
+        end
 
 
         return panel
@@ -854,6 +958,10 @@ do
         panel:struct( struct )
             :build()
 
+        if force_dock ~= nil then
+            panel:dock( force_dock )
+        end
+
         return panel
     end
 
@@ -867,6 +975,11 @@ do
 
         panel:struct( struct )
             :build()
+
+        if force_dock ~= nil then
+            panel:dock( force_dock )
+        end
+
         return panel
     end
 
@@ -881,6 +994,9 @@ do
         panel:struct( struct )
             :build()
 
+        if force_dock ~= nil then
+            panel:dock( force_dock )
+        end
 
         return panel
     end
@@ -896,6 +1012,10 @@ do
         pnl:struct( struct )
             :build()
 
+        if force_dock ~= nil then
+            pnl:dock( force_dock )
+        end
+
         return pnl
     end
 
@@ -909,6 +1029,11 @@ do
 
         pnl:struct( struct )
             :build()
+
+        if force_dock ~= nil then
+            pnl:dock( force_dock )
+        end
+
 
         return pnl
     end
