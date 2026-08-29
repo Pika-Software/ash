@@ -305,10 +305,9 @@ do
 end
 
 hook.Add( "ash.player.footsteps.Sound", "Defaults", function( pl, sound_position, player_shoes, material_name, selected_state, bone_id )
-    local sound_level, pitch, volume = 75, 50, 0.7
+    local sound_level, pitch, volume = 75, 70, 0.7
 
     if selected_state == "running" then
-        pitch = 70
         volume = 1
     end
 
