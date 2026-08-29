@@ -455,6 +455,7 @@ do
         local bit_band = bit.band
 
         local runspeed = 180 ^ 2
+        local walkspeed = 160 ^ 2
 
         local IN_MOVE = bit.bor( IN_FORWARD, IN_BACK, IN_MOVELEFT, IN_MOVERIGHT )
 
@@ -472,7 +473,8 @@ do
             velocities[pl] = velocity
 
             local on_ground = pl:IsOnGround()
-            local player_is_running = math.ceil( velocity:Length2DSqr() ) >= runspeed
+            local speed = math.ceil( Vector_LengthSqr( velocity ) )
+            local player_is_running = math.ceil( speed ) >= runspeed
 
             if SERVER or entity_isInPVS( pl ) then
                 activity = arguments[ 2 ]
@@ -551,7 +553,7 @@ do
                         else
                             activity = getRunActivity( pl )
                         end
-                    elseif bit_band( in_keys, IN_WALK ) ~= 0 then
+                    elseif speed < walkspeed then
                         activity = getWalkActivity( pl )
                     elseif player_is_running then
                         activity = getRunActivity( pl )

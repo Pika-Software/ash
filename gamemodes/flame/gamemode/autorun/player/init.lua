@@ -305,15 +305,12 @@ do
 end
 
 hook.Add( "ash.player.footsteps.Sound", "Defaults", function( pl, sound_position, player_shoes, material_name, selected_state, bone_id )
-    local sound_level, pitch, volume = 75, 100, 0.25
+    local sound_level, pitch, volume = 75, 50, 0.7
 
-    -- if selected_state == "wandering" then
-    --     sound_level, pitch, volume = 40, 100, 0.25
-    -- elseif selected_state == "running" then
-    --     sound_level, pitch, volume = 90, 100, 1.00
-    -- elseif selected_state == "falling" then
-    --     sound_level, pitch, volume = 100, 100, 1.25
-    -- end
+    if selected_state == "running" then
+        pitch = 70
+        volume = 1
+    end
 
     return sound_level, pitch, volume, 1
 end )
