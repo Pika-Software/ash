@@ -206,8 +206,9 @@ do
         end
     end )
 
-    hook.Add( "PlayerCanHearPlayersVoice", "Default", function( listener, speaker )
-        return speaker == listener or speakers[ speaker ][ listener ], true
+    local Player_GetInfoNum = Player.GetInfoNum
+    hook.Add("PlayerCanHearPlayersVoice", "Default", function(listener, speaker)
+        return speaker == listener or speakers[ speaker ][ listener ], Player_GetInfoNum( listener, "flame_3dvoice", 0 ) > 0 and true or false
     end )
 
 end
@@ -305,7 +306,7 @@ do
 end
 
 hook.Add( "ash.player.footsteps.Sound", "Defaults", function( pl, sound_position, player_shoes, material_name, selected_state, bone_id )
-    local sound_level, pitch, volume = 75, 70, 0.7
+    local sound_level, pitch, volume = 75, 100, 0.7
 
     if selected_state == "running" then
         volume = 1

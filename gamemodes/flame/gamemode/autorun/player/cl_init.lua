@@ -68,8 +68,7 @@ do
 end
 
 do
-
-    local cl_playerskin = console.Variable( {
+    local cl_playerskin = console.Variable({
         name = "cl_playerskin",
         type = "integer",
         default = 0,
@@ -77,9 +76,9 @@ do
         archive = true,
         userinfo = true,
         dont_record = true
-    } )
+    })
 
-    flame_player.SelectedSkin = console.Variable( {
+    flame_player.SelectedSkin = console.Variable({
         name = "flame_player_skin",
         type = "integer",
         default = cl_playerskin.value or cl_playerskin.default,
@@ -87,9 +86,19 @@ do
         archive = true,
         userinfo = true,
         dont_record = true
-    } )
-
+    })
 end
+
+flame_player["3DVoice"] = console.Variable( {
+    name = "flame_player_3dvoice",
+    type = "boolean",
+    default = true,
+    description = "Enable 3D voice.",
+    archive = true,
+    userinfo = true,
+    min = 0,
+    max = 1
+} )
 
 -- do
 

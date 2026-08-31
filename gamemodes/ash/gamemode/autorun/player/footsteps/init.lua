@@ -260,8 +260,8 @@ do
     local shoes = {
         default = {
             channel = 6,
-            level = 75,
-            pitch = { 118, 138 },
+            level = 1,
+            pitch = 100,
             aliases = {
                 { "tile", "concrete" },
                 { "default", "concrete" },

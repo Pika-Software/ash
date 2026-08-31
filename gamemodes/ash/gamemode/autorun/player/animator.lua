@@ -630,7 +630,7 @@ do
                     rate = math_sqrt( Vector_LengthSqr( velocities[ pl ] ) ) / max_speed
 
                     if player_isOnGround( pl ) then
-                        rate = math_min( 2, rate )
+                        rate = math_min( 1.65, rate )
                     else
                         rate = math_min( 1, rate )
                     end
