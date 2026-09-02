@@ -129,19 +129,79 @@ do
 end
 
 do
-
     local GetViewEntity = GetViewEntity
 
     ash_view.Entity = GetViewEntity() or NULL
 
-    timer.Create( "ViewEntity", 0.5, 0, function()
+    timer.Create("ViewEntity", 0.5, 0, function()
         local entity = GetViewEntity() or NULL
         if entity ~= ash_view.Entity then
-            hook_Run( "ash.view.Entity", ash_view.Entity, entity )
+            hook_Run("ash.view.Entity", ash_view.Entity, entity)
             ash_view.Entity = entity
         end
-    end )
-
+    end)
 end
+
+do
+    ---@type ViewData
+    local view = {
+        ["origin"] = Vector(),
+    	["angles"] = Angle(),
+    	["fov"] = 60,
+    	["znear"] = 0,
+    	["zfar"] = 0,
+    	["drawviewer"] = false,
+    }
+
+    ---@class Weapon
+    ---@field calcView fun( self: self, view: ViewData )
+
+    local Player_GetVehicle = Player.GetVehicle
+    local Player_GetActiveWeapon = Player.GetActiveWeapon
+
+    hook.Add( "CalcView", "Default", function( pl, origin, angles, fov, znear, zfar )
+    	local veh = Player_GetVehicle( pl )
+        local wep = Player_GetActiveWeapon( pl )
+
+    	---@cast wep SWEP
+
+    	view.origin = origin
+    	view.angles = angles
+    	view.fov = fov
+    	view.znear = znear
+    	view.zfar = zfar
+    	view.drawviewer = false
+
+    	hook.Run( "ash.view.CalcView", pl, view, origin, angles, fov, znear, zfar )
+
+        if veh ~= nil and veh:IsValid() then
+            if hook.Run("ash.view.CalcVehicleView", veh, pl, view) == false then
+                return view
+            end
+        end
+
+        if drive.CalcView( pl, view ) == false then
+            return view
+        end
+
+    	player_manager.RunClass( pl, "CalcView", view )
+
+    	if wep ~= nil and wep:IsValid() then
+    		local calcView = wep.CalcView
+            if calcView ~= nil then
+                origin, angles, fov = calcView(wep, pl, Vector(view.origin), Angle(view.angles), view.fov)
+                view.origin, view.angles, view.fov = origin or view.origin, angles or view.angles, fov or view.fov
+            end
+
+    		local ashCalcView = wep.calcView
+            if ashCalcView then
+                ashCalcView( wep, view )
+            end
+    	end
+
+    	return view
+    end )
+end
+
 
 return ash_view
