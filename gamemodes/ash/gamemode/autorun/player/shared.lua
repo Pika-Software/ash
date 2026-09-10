@@ -44,6 +44,8 @@ local tick_interval = engine.TickInterval()
 local Entity_IsValid = Entity.IsValid
 local Player_Alive = Player.Alive
 
+local Entity_GetNW2Int = Entity.GetNW2Int
+
 ash_player.isAlive = Player_Alive
 
 --- [SHARED]
@@ -2143,6 +2145,15 @@ end
 ---@param name string
 function ash_player.setCamera( pl, name )
     Entity_SetNW2Var( pl, "m_sCamera", name )
+end
+
+--- [SHARED]
+---
+--- Get player deaths
+---
+---@param pl Player
+function ash_player.getDeaths( pl )
+    return Entity_GetNW2Int( pl, "ash.deaths", 0 )
 end
 
 -- ---@param pl Player

@@ -338,6 +338,9 @@ do
 
     local Entity_SetNW2Bool = Entity.SetNWBool
     local Entity_GetNW2Bool = Entity.GetNWBool
+    local Entity_SetNW2Int = Entity.SetNW2Int
+    local Entity_GetNW2Int = Entity.GetNW2Int
+
 
     local bit_band = bit.band
     local bit_bor = bit.bor
@@ -456,6 +459,7 @@ do
     end, PRE_HOOK )
 
     hook.Add( "PlayerDeath", "Death", function( pl, inflictor, attacker )
+        Entity_SetNW2Int( pl, "ash.deaths", Entity_GetNW2Int( pl, "ash.deaths", 0 ) + 1 )
         hook_Run( "ash.player.Death", pl, false, inflictor or NULL, attacker or NULL )
     end, PRE_HOOK )
 
