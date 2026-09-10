@@ -114,22 +114,6 @@ falcon.State = StateClass
 local contex_panel = nil
 
 do
-    ---@class ash.ui.falcon.base_panel : Panel
-    ---@field keyValue table<string, any>
-    ---@field steps table<string, any>
-    ---@field methods table<string, function>
-    ---@filed states ash.ui.falcon.state[]
-    ---@field dockMargin fun(pnl: ash.ui.falcon.base_panel, tbl: table): ash.ui.falcon.base_panel
-    ---@field dockPadding fun(pnl: ash.ui.falcon.base_panel, tbl: table): ash.ui.falcon.base_panel
-    ---@field dock fun(pnl: ash.ui.falcon.base_panel, dock_type: number): ash.ui.falcon.base_panel
-    ---@field alpha fun(pnl: ash.ui.falcon.base_panel, alpha: number): ash.ui.falcon.base_panel
-    ---@field setVisible fun(pnl: ash.ui.falcon.base_panel, boolean: boolean | table): ash.ui.falcon.base_panel
-    ---@field animation fun(pnl: ash.ui.falcon.base_panel, animation: string, ...): ash.ui.falcon.base_panel
-    ---@field center fun(pnl: ash.ui.falcon.base_panel): ash.ui.falcon.base_panel
-    ---@field centerVertical fun(pnl: ash.ui.falcon.base_panel, f: number): ash.ui.falcon.base_panel
-    ---@field centerHorizontal fun(pnl: ash.ui.falcon.base_panel, f: number): ash.ui.falcon.base_panel
-    ---@field sizeToChildren fun(pnl: ash.ui.falcon.base_panel, boolean: boolean): ash.ui.falcon.base_panel
-    ---@field invalidateLayout fun(pnl: ash.ui.falcon.base_panel, boolean1: boolean, boolean2: boolean): ash.ui.falcon.base_panel
     local BASE_PANEL = {}
 
     ---@type ash.ui.falcon.base_panel[]
@@ -331,9 +315,6 @@ do
         end
     end
 
-    ---@param key string
-    ---@param value any
-    ---@return ash.ui.falcon.base_panel
     function BASE_PANEL:set( key, value )
         local keyValue = self.keyValue
         local data = keyValue[ key ] or {}
@@ -526,7 +507,6 @@ do
         return self
     end
 
-    ---@return ash.ui.falcon.base_panel
     function BASE_PANEL:build()
         local steps = self.steps
         local steps_count = #steps
@@ -600,7 +580,8 @@ do
 
     hook.Add( "Think", "PanelThink", function()
         for i = panels_count, 1, -1 do
-            local panel = panels[ i ]
+            local panel = panels[i]
+            ---@cast panel ash.falcon.panel
 
             if panel ~= nil and panel:IsValid() then
                 panel:runAction( "think" )
@@ -733,8 +714,6 @@ do
         local draw_text = draw.DrawText
 
         ---@class ash.falcon.label : ash.falcon.panel
-        ---@field setTextData fun( pnl: ash.falcon.label, data: table ): ash.falcon.label
-        ---@field set fun( pnl: ash.falcon.label, key: any, value: any ): ash.falcon.label
         local PANEL = {}
 
         local color_gray = Color( 200, 200, 200 )
@@ -801,7 +780,7 @@ do
     do
         ---@class ash.falcon.model_icon : ash.falcon.panel
         ---@field icon SpawnIcon
-        ---@field model fun(pnl: ash.falcon.model_icon, model: string)
+        ---@field model fun(pnl: self, model: string)
         local PANEL = {}
 
         local model_default = Model( "models/props_borealis/bluebarrel001.mdl" )
@@ -891,6 +870,7 @@ end
 
 
 do
+    ---@return ash.falcon.scroll
     local function scroll( struct )
         assert( contex_panel ~= nil, "parent panel is required" )
 
@@ -929,6 +909,7 @@ do
 
     falcon.root = root
 
+    ---@return ash.falcon.button
     local function button( struct )
         assert( contex_panel ~= nil, "parent panel is required" )
 
@@ -949,6 +930,7 @@ do
 
     falcon.button = button
 
+    ---@return ash.falcon.layout
     local function layout( struct )
         assert( contex_panel ~= nil, "parent panel is required" )
 
@@ -967,17 +949,18 @@ do
 
     falcon.layout = layout
 
-    local function label( struct )
-        assert( contex_panel ~= nil, "parent panel is required" )
+    ---@return ash.falcon.label
+    local function label(struct)
+        assert(contex_panel ~= nil, "parent panel is required")
 
-        local panel = contex_panel:Add( "ash.falcon.label" )
+        local panel = contex_panel:Add("ash.falcon.label")
         ---@cast panel ash.falcon.label
 
-        panel:struct( struct )
+        panel:struct(struct)
             :build()
 
         if force_dock ~= nil then
-            panel:dock( force_dock )
+            panel:dock(force_dock)
         end
 
         return panel
@@ -985,6 +968,7 @@ do
 
     falcon.label = label
 
+    ---@return ash.falcon.model_icon
     local function modelIcon( struct )
         assert( contex_panel ~= nil, "parent panel is required" )
 
@@ -1003,6 +987,7 @@ do
 
     falcon.modelIcon = modelIcon
 
+    ---@return ash.falcon.panel
     local function panel( struct )
         assert( contex_panel ~= nil, "parent panel is required" )
 
