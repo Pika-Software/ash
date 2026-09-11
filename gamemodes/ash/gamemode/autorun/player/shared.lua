@@ -2175,7 +2175,7 @@ end
 ---@param pl Player
 ---@param include_players boolean
 ---@param include_npc? boolean
----@retun number
+---@return number
 function ash_player.getFrags( pl, include_players, include_npc )
     local amount = 0
 
