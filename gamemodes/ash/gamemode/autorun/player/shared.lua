@@ -45,6 +45,7 @@ local Entity_IsValid = Entity.IsValid
 local Player_Alive = Player.Alive
 
 local Entity_GetNW2Int = Entity.GetNW2Int
+local Entity_SetNW2Int = Entity.SetNW2Int
 
 ash_player.isAlive = Player_Alive
 
@@ -2152,8 +2153,61 @@ end
 --- Get player deaths
 ---
 ---@param pl Player
+---@return number
 function ash_player.getDeaths( pl )
     return Entity_GetNW2Int( pl, "ash.deaths", 0 )
+end
+
+--- [SHARED]
+---
+--- Set player deaths
+---
+---@param pl Player
+---@param amount number
+function ash_player.setDeaths( pl, amount )
+    Entity_SetNW2Int( pl, "ash.deaths", amount )
+end
+
+--- [SHARED]
+---
+--- Get player frags
+---
+---@param pl Player
+---@param include_players boolean
+---@param include_npc? boolean
+---@retun number
+function ash_player.getFrags( pl, include_players, include_npc )
+    local amount = 0
+
+    if include_players then
+        amount = amount + Entity_GetNW2Int( pl, "ash.player.frags_player", 0 )
+    end
+
+    if include_npc then
+        amount = amount + Entity_GetNW2Int( pl, "ash.player.frags_npc", 0 )
+    end
+
+    return amount
+end
+
+--- [SHARED]
+---
+--- Set player frags (player)
+---
+---@param pl Player
+---@param amount number
+function ash_player.setFragsPlayer( pl, amount )
+    Entity_SetNW2Int( pl, "ash.player.frags_player", amount )
+end
+
+--- [SHARED]
+---
+--- Set player frags (NPC)
+---
+---@param pl Player
+---@param amount number
+function ash_player.setFragsNPC( pl, amount )
+    Entity_SetNW2Int( pl, "ash.player.frags_npc", amount )
 end
 
 -- ---@param pl Player

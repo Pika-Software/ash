@@ -455,8 +455,18 @@ do
             ash_player.ragdollCreate( pl )
         end
 
+        if pl ~= attacker and attacker:IsValid() and attacker:IsPlayer() then
+            Entity_SetNW2Int( attacker, "ash.player.frags_player", Entity_GetNW2Int( attacker, "ash.player.frags_player", 0 ) + 1 )
+        end
+
         hook_Run( "ash.player.PreDeath", pl, attacker, dmg_info )
     end, PRE_HOOK )
+
+    hook.Add( "OnNPCKilled", "Death", function( _, attacker )
+        if attacker ~= nil and attacker:IsValid() and attacker:IsPlayer() then
+            Entity_SetNW2Int( attacker, "ash.player.frags_npc", Entity_GetNW2Int( attacker, "ash.player.frags_npc", 0 ) + 1 )
+        end
+    end )
 
     hook.Add( "PlayerDeath", "Death", function( pl, inflictor, attacker )
         Entity_SetNW2Int( pl, "ash.deaths", Entity_GetNW2Int( pl, "ash.deaths", 0 ) + 1 )
