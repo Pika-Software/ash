@@ -207,14 +207,36 @@ do
 
         self:newMethod( "center", function( pnl )
             pnl:Center()
+
+            self.centerV = 0.5
+            self.centerH = 0.5
         end, true )
 
         self:newMethod( "centerVertical", function( pnl, f )
             pnl:CenterVertical( f )
+
+            self.centerV = f or 0.5
         end )
 
         self:newMethod( "centerHorizontal", function( pnl, f )
             pnl:CenterHorizontal( f )
+
+            self.centerH = f or 0.5
+        end )
+
+        self:newMethod( "uncenter", function( pnl, boolean_x, boolean_y )
+            if boolean_x == nil and boolean_y == nil then
+                self.centerV = nil
+                self.centerH = nil
+            else
+                if boolean_x then
+                    self.centerV = nil
+                end
+
+                if boolean_y then
+                    self.centerH = nil
+                end
+            end
         end )
 
         self:newMethod( "makePopup", function( pnl )
@@ -231,18 +253,19 @@ do
         end, true )
 
         self:newMethod( "setPos", function( pnl, x, y )
-            x = x or 0
-            y = y or 0
+            x = x or "0px"
+            y = y or "0px"
 
-            pnl:SetPos( x, y )
+            pnl:SetPos( ash_ui.scale( x ), ash_ui.scale( y ) )
         end )
 
         self:newMethod( "setX", function( pnl, x )
-            pnl:SetX( x )
+            pnl:SetX( ash_ui.scale( x ) )
         end )
 
+
         self:newMethod( "setY", function( pnl, y )
-            pnl:SetY( y )
+            pnl:SetY( ash_ui.scale( y ) )
         end )
 
         self:newMethod( "keyboardInput", function( pnl, boolean )
@@ -283,6 +306,22 @@ do
 
         self:set( "isVisible", true )
 
+        self:newMethod( "insertSizeToState", function( pnl, state )
+            self.stateSize = state
+            local data_size = { width = tostring( pnl:GetWide() ) .. "px", height = tostring( pnl:GetWide() ) .. "px" }
+            state:set( data_size )
+
+            self:invalidateLayout(true)
+        end )
+
+        self:newMethod( "copySizeFromState", function( pnl, state )
+            pnl:addState( state, function( st, data )
+                if pnl ~= nil and pnl:IsValid() then
+                    pnl:SetSize( data[ 1 ], data[ 2 ] )
+                end
+            end )
+        end )
+
         self:addAction( "think", "visible", function( pnl )
             pnl:SetVisible( pnl:get( "isVisible", false ) )
         end)
@@ -291,6 +330,48 @@ do
             pnl:build()
         end )
 
+
+        function self:PerformLayout( w, h )
+            local stateSize = self.stateSize
+
+            if stateSize ~= nil then
+                local stateData = stateSize:get() or { width = "0px", height = "0px" }
+
+                stateData.width = tostring( w ) .. "px"
+                stateData.height = tostring( h ) .. "px"
+
+                stateSize:set( stateData )
+            end
+
+            local childrens = self:GetChildren()
+
+            for i = 1, #childrens do
+                local pnl = childrens[ i ]
+
+                if pnl ~= nil and pnl:IsValid() then
+                    if pnl.centerV then
+                        pnl:CenterVertical( pnl.centerV )
+                    end
+
+                    if pnl.centerH then
+                        pnl:CenterHorizontal( pnl.centerH )
+                    end
+                end
+            end
+
+            self:runAction( "performLayout", w, h )
+        end
+
+    end
+
+    function BASE_PANEL:addPaint( func, name, isback )
+        if isback then
+            self.paintsBack[ name ] = func
+        else
+            self.paints[ name ] = func
+        end
+
+        return self
     end
 
     function BASE_PANEL:Paint( w, h )

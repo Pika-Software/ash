@@ -200,7 +200,6 @@ end, PRE_HOOK )
 local GetGlobal2Int = GetGlobal2Int
 local SetGlobal2Int = SetGlobal2Int
 local color_white = color_white
-local math_min = math.min
 
 ---@type table<string, Color[]>
 local colors = {}
@@ -328,7 +327,7 @@ if SERVER then
     ---@param team_name string
     ---@param score integer
     local function addScore( team_name, score )
-        return setScore( team_name, math_min( 0, getScore( team_name ) + score ) )
+        return setScore( team_name, getScore( team_name ) + score )
     end
 
     ash_team.addScore = addScore
