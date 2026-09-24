@@ -8,7 +8,7 @@ local OrderVectors = OrderVectors
 local ENT = ENT
 
 ENT.Type = "brush"
--- ENT.Base = "base_brush"
+ENT.Base = "base_brush"
 
 local hook_Run = hook.Run
 
@@ -20,14 +20,16 @@ function ENT:setup( mins, maxs )
 end
 
 function ENT:Initialize()
-    self:SetCollisionGroup( COLLISION_GROUP_IN_VEHICLE )
+    self:SetCollisionGroup( COLLISION_GROUP_DEBRIS_TRIGGER )
     self:SetMoveType( MOVETYPE_NONE )
     self:SetSolid( SOLID_BBOX )
     self:DrawShadow( false )
     self:SetNoDraw( true )
 
     self:SetTrigger( true )
-    self:setup( self.Mins, self.Maxs )
+    if self.Mins and self.Maxs then
+        self:setup( self.Mins, self.Maxs )
+    end
 
     self.EntityList = { [ 0 ] = 0 }
     self.EntityMap = {}

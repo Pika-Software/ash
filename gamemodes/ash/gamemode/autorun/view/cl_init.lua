@@ -204,4 +204,30 @@ do
 end
 
 
+do
+    hook.Add( "CalcViewModelView", "Defaults", function(  wep, vm, oldEyePos, oldEyeAng, eyePos, eyeAng  )
+        if ( not IsValid( wep ) ) then return end
+
+        local vm_origin, vm_angles = eyePos, eyeAng
+
+        -- Controls the position of all viewmodels
+        local func = wep.GetViewModelPosition
+        if ( func ) then
+            local pos, ang = func( wep, eyePos*1, eyeAng*1 )
+            vm_origin = pos or vm_origin
+            vm_angles = ang or vm_angles
+        end
+
+        -- Controls the position of individual viewmodels
+        func = wep.CalcViewModelView
+        if ( func ) then
+            local pos, ang = func( wep, vm, oldEyePos*1, oldEyeAng*1, eyePos*1, eyeAng*1 )
+            vm_origin = pos or vm_origin
+            vm_angles = ang or vm_angles
+        end
+
+        return vm_origin, vm_angles
+    end )
+end
+
 return ash_view

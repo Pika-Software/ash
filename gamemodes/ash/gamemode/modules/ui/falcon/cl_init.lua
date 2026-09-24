@@ -47,7 +47,7 @@ function State:set( value )
     local count = callbacks[ 0 ]
 
     for i = count, 1, -1 do
-        if callbacks[ i ][ 1 ]( self ) == false then
+        if callbacks[ i ][ 1 ]( self, value ) == false then
             table.remove( callbacks, i )
             callbacks[ 0 ] = callbacks[ 0 ] - 1
         end
@@ -322,6 +322,45 @@ do
             end )
         end )
 
+        self:newMethod( "invalidateLayoutParent", function( pnl )
+            local parent = pnl:GetParent()
+
+            if parent ~= nil and parent:IsValid() then
+                parent:invalidateLayout( true )
+            end
+        end )
+
+        self:newMethod( "sizeToChildrenParent", function( pnl, boolean_w, boolean_h, recursive, invalidateRecursive )
+            local parent = pnl:GetParent()
+
+            if parent ~= nil and parent:IsValid() and parent.sizeToChildren then
+                parent:sizeToChildren( boolean_w, boolean_h )
+
+                if recursive then
+                    local parent_parent = parent:GetParent( )
+
+                    if parent_parent ~= nil and parent_parent:IsValid() and parent_parent.sizeToChildren then
+
+                        if invalidateRecursive then
+                            parent_parent:invalidateLayout( true )
+                        end
+
+                        parent_parent:sizeToChildren( true, true )
+                    end
+                end
+            end
+        end )
+
+        self:newMethod( "scheme", function( pnl, data )
+            for i = 1, #data do
+                local v = data[ i ]
+                local func = pnl[ v[ 1 ] ]
+                if isfunction( func ) then
+                    func( pnl, v[ 2 ], v[ 3 ], v[ 4 ], v[ 5 ], v[ 6 ], v[ 7 ], v[ 8 ], v[ 9 ] )
+                end
+            end
+        end )
+
         self:addAction( "think", "visible", function( pnl )
             pnl:SetVisible( pnl:get( "isVisible", false ) )
         end)
@@ -329,7 +368,6 @@ do
         self:addAction( "resolution", "rebuild", function( pnl )
             pnl:build()
         end )
-
 
         function self:PerformLayout( w, h )
             local stateSize = self.stateSize
@@ -361,6 +399,9 @@ do
 
             self:runAction( "performLayout", w, h )
         end
+
+
+        --TODO: Dock CENTER
 
     end
 
@@ -464,7 +505,6 @@ do
         end
     end
 
-    ---@return ash.ui.falcon.base_panel
     function BASE_PANEL:struct( struct )
         for name, tbl in pairs( struct ) do
             self:addStep( name, unpack( tbl ) )
@@ -595,7 +635,15 @@ do
         for i = 1, steps_count do
             local v = steps[i]
             local t = v[ 2 ]
-            self:runMethod( v[ 1 ], t ~= true and unpack( t ) or nil )
+            local func = self[ v[ 1 ] ]
+
+            if func then
+                if #t > 1 then
+                    func( self, unpack( t ) )
+                elseif v[ 1 ] then
+                    func( self, t[ 1 ] )
+                end
+            end
         end
 
         return self
@@ -799,22 +847,67 @@ do
 
         local color_gray = Color( 200, 200, 200 )
         function PANEL:Init()
+            self:newMethod( "sizeToContent", function( pnl, boolean_w, boolean_h )
+                if boolean_w == nil and boolean_h == nil then
+                    local w, h = ash_ui.getTextSize( self:get( "text" ) , self:get( "font" ) )
+                    pnl:setSize( { width = tostring( w ) .. "px", height = tostring( h ) .. "px" } )
+                else
+                    local w, h = ash_ui.getTextSize( self:get( "text" ) , self:get( "font" ) )
+                    local size = {}
+                    if boolean_w then
+                        size.width = tostring( w ) .. "px"
+                    end
+
+                    if not boolean_h then
+                        size.height = tostring( h ) .. "px"
+                    end
+
+                    pnl:setSize( size )
+                end
+            end )
+
             self:newMethod( "setTextData", function( pnl, data )
                 if isstring( data ) then
                     self:set( "text", data )
                 else
-                    data.text = data.text or pnl:getValue( "text", "" )
-                    data.color = data.color or pnl:getValue( "color", color_white )
-                    data.font = data.font or pnl:getValue( "font", "DermaLarge" )
+                    local old_text = pnl:get( "text" )
+                    local new_text = data.text
+
+                    if data.text ~= nil and not isstring( new_text ) then
+                        if old_text ~= new_text then
+                            local removeStateCallback = pnl.removeStateCallback
+
+                            if removeStateCallback ~= nil then
+                                removeStateCallback()
+                            end
+
+                            pnl.removeStateCallback = new_text:addCallback( function( _, value )
+                                if pnl ~= nil and pnl:IsValid( ) then
+                                    if not pnl:get( "staticSize", false ) then
+                                        pnl:sizeToContent( )
+                                        if not pnl:get( "noResizeParent", false ) then
+                                            pnl:invalidateLayoutParent( )
+
+                                            local recursive = self:get( "recursiveResize", true )
+                                            pnl:sizeToChildrenParent( true, true, recursive, recursive )
+                                        end
+                                    end
+                                end
+                            end )
+                        end
+                    end
+
+                    data.text = data.text or pnl:get( "text", "" )
+                    data.color = data.color or pnl:get( "color", color_white )
+                    data.font = data.font or pnl:get( "font", "DermaLarge" )
 
                     self:set( "text", data.text )
                     self:set( "font", data.font )
                     self:set( "color", data.color )
                 end
 
-                if not self:getValue( "staticSize", false ) then
-                    local w, h = ash_ui.getTextSize( self:get( "text" ) , self:get( "font" ) )
-                    pnl:setSize( { width = tostring( w ) .. "px", height = tostring( h ) .. "px" } )
+                if not self:get( "staticSize", false ) then
+                    pnl:sizeToContent()
                 end
             end )
 
