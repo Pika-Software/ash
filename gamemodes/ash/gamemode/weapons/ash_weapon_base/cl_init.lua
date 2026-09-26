@@ -9,6 +9,11 @@ local ash_ui = import "ash.ui"
 ---@type ash.ui.rndx
 local rndx = import "ash.ui.rndx"
 
+local developer = GetConVar( "developer" )
+
+assert( developer ~= nil, "developer not found" )
+
+
 function SWEP:DrawHUD()
 	local size_sight_w = math.floor(ash_ui.ScreenHeight * self.Secondary.SightWScale)
 	local size_sight_h = math.floor(ash_ui.ScreenHeight * self.Secondary.SightHScale)
@@ -51,6 +56,9 @@ function SWEP:DrawHUD()
 		--down
 		surface.DrawRect(0, ash_ui.ScreenHeight - size_top, ash_ui.ScreenWidth, size_top )
 	end
+
+
+    self:actionRun( "drawHUD" )
 end
 
 do
@@ -135,7 +143,7 @@ do
     local dot_x, dot_y = -1, -1
     local calc_spread = 0
 
-    function FFDrawCrosshair(ply, punch, spread, x, y)
+    local function drawCrosshair(ply, punch, spread, x, y)
     	if dot_x == -1 then
     		dot_x, dot_y = x, y
     	end
@@ -191,7 +199,7 @@ do
 
     function SWEP:DoDrawCrosshair( x, y )
     	if self:getInSight() then
-    		return false
+    		return not ( developer:GetBool() and LocalPlayer():IsSuperAdmin() ) and true or false
     	end
 
     	local ply = self:GetOwner()
@@ -207,8 +215,39 @@ do
 
         num_spread = num_spread / 500
 
-        FFDrawCrosshair(ply, Angle(self:getKickCurX(), self:getKickCurY(), self:getKickCurZ()), num_spread, x, y)
+        drawCrosshair(ply, Angle(self:getKickCurX(), self:getKickCurY(), self:getKickCurZ()), num_spread, x, y)
 
         return true
+    end
+
+    do
+        local Player_GetObserverMode = Player.GetObserverMode
+        local Player_GetObserverTarget = Player.GetObserverTarget
+        local Player_GetActiveWeapon = Player.GetActiveWeapon
+
+
+        hook.Add( "RenderScreenspaceEffects", "ChromaEffect", function()
+            local lp = LocalPlayer()
+
+            if lp ~= nil and lp:IsValid() then
+                local pl = lp
+                if Player_GetObserverMode( lp ) == OBS_MODE_IN_EYE then
+                    local target = Player_GetObserverTarget( lp )
+
+                    if target ~= nil and target:IsValid() and target:IsPlayer() then
+                        pl = target
+                    end
+                end
+
+
+                local wep = Player_GetActiveWeapon( pl )
+
+                ---@cast wep ash_weapon_base
+
+                if wep ~= nil and wep:IsValid() and wep.IsAshWeapon then
+                    wep:actionRun( "screenSpaceEffect" )
+                end
+            end
+        end )
     end
 end
