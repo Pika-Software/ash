@@ -59,7 +59,7 @@ local util_Compress = glua_util.Compress
 local util_SHA256 = glua_util.SHA256
 
 local path_getDirectory = path.getDirectory
-local Color = std.Color
+local Color = _G.Color
 
 local hook_Add = glua_hook.Add
 local hook_Run = glua_hook.Run

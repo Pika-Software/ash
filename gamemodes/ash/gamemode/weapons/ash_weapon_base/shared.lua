@@ -77,6 +77,16 @@ local SharedRandom = util.SharedRandom
 ---@field getReloadManualTime fun( self: self ): number
 ---@field setManualReloadingStart fun( self: self, bool: boolean )
 ---@field getManualReloadingStart fun( self: self ): boolean
+---@field setIsReady fun( self: self, bool: boolean )
+---@field getIsReady fun( self: self ): boolean
+---@field setSightProgressTo fun( self: self, float: number )
+---@field getSightProgressTo fun( self: self ): number
+---@field setSightProgressFrom fun( self: self, float: number )
+---@field getSightProgressFrom fun( self: self ): number
+---@field setSightProgress fun( self: self, float: number )
+---@field getSightProgress fun( self: self ): number
+---@field setSightProgressSpeed fun( self: self, float: number )
+---@field getSightProgressSpeed fun( self: self ): number
 ---@field ViewKickList? Angle[]
 ---@field networks table<string, number>
 ---@field Spread Vector
@@ -84,6 +94,7 @@ local SharedRandom = util.SharedRandom
 ---@field SoundSilencer? string
 ---@field HitgroupScale? table<HITGROUP, number>
 ---@field FireModes ash_weapon_base.FireModes[]
+---@field SpreadSight? Vector
 local SWEP = SWEP
 
 local Angle_Forward = Angle.Forward
@@ -96,11 +107,16 @@ SWEP.IsAshWeapon = true
 SWEP.ViewModel = Model("models/frontfire/weapons/cstrike/c_rif_ak47.mdl")
 SWEP.WorldModel = Model("models/frontfire/weapons/w_rif_ak47.mdl")
 SWEP.ViewModelFOV = 70
-SWEP.ViewKickMax = Angle( 4, 1, 1 )
+SWEP.ViewKickMax = Angle( 25, 1, 1 )
 SWEP.HoldType = "ar2"
 SWEP.IsAkimbo = false
 SWEP.UseHands = true
 SWEP.ManualReloading = false
+SWEP.Chamber = false
+SWEP.DrawAmmo = true
+SWEP.ReadyAnim = false
+SWEP.ReloadEmptyAnim = false
+SWEP.SightSpeedStandart = 10
 
 SWEP.Primary.Automatic = false
 SWEP.Primary.IsAutomatic = false
@@ -111,6 +127,12 @@ SWEP.Primary.Damage = 30
 SWEP.Primary.DamageMin = 10
 SWEP.Primary.DistanceMin = 300
 SWEP.Primary.DistanceMax = 1000
+SWEP.Primary.ArmorScale = 0.5
+SWEP.Primary.CriticalChance = 0
+SWEP.Primary.Shaking = false
+SWEP.Primary.ShakeAmlitude = 1
+SWEP.Primary.ShakeFrequency = 15
+SWEP.Primary.ShakeDuration = 0.2
 
 SWEP.Primary.Sound = Sound("Weapon_M4A1.Single")
 
@@ -156,6 +178,9 @@ local defaults_animations = {
         normal = ACT_VM_RELOAD,
         silent = ACT_VM_RELOAD_SILENCED,
     },
+    [ "reload_empty" ] = {
+        normal = ACT_VM_RELOAD_EMPTY,
+    },
     [ "reload_manual_start" ] = {
         normal = ACT_SHOTGUN_RELOAD_START,
         silent = ACT_SHOTGUN_RELOAD_START,
@@ -168,6 +193,9 @@ local defaults_animations = {
         normal = ACT_SHOTGUN_RELOAD_FINISH,
         silent = ACT_SHOTGUN_RELOAD_FINISH,
     },
+    [ "ready" ] = {
+        normal = ACT_VM_DRAW_DEPLOYED,
+    }
 }
 
 function SWEP:addNetwork(ntype, name)
@@ -205,6 +233,10 @@ function SWEP:SetupDataTables()
     self:addNetwork("Float", "RateOfFire")
     self:addNetwork("Float", "NextBurstDelay")
     self:addNetwork("Float", "ReloadManualTime")
+    self:addNetwork("Float", "SightProgress")
+    self:addNetwork("Float", "SightProgressTo")
+    self:addNetwork("Float", "SightProgressFrom")
+    self:addNetwork("Float", "SightProgressSpeed")
 
     self:addNetwork("Bool", "BufferedClick")
     self:addNetwork("Bool", "InReload")
@@ -214,6 +246,7 @@ function SWEP:SetupDataTables()
     self:addNetwork("Bool", "InSight")
     self:addNetwork("Bool", "LeftGun")
     self:addNetwork("Bool", "ManualReloadingStart")
+    self:addNetwork("Bool", "IsReady")
 
     self:addNetwork("Int", "BurstCount")
     self:addNetwork("Int", "SightState")
@@ -226,10 +259,11 @@ function SWEP:SetupDataTables()
     self:actionRun("setupDataTables")
 
     if SERVER then
-        self:setKickReset(-1)
-        self:changeFireMode(1, true)
-        self:setSpreadAdded(vector_origin)
-        self:setSpreadMult(Vector( 1, 1, 1 ))
+        self:setKickReset( -1 )
+        self:changeFireMode( 1, true )
+        self:setSpreadAdded( vector_origin )
+        self:setSpreadMult( Vector( 1, 1, 1 ) )
+        self:setSightProgressSpeed( self.SightSpeedStandart )
     end
 end
 
@@ -316,17 +350,16 @@ function SWEP:Think()
     local shot_reset = self:getShootReset()
 
     if curTime >= shot_reset then
-        self:setShoot(math_approach(self:GetShoot(), 0, 30 * tick))
+        self:setShoot( math_approach( self:GetShoot(), 0, 30 * tick ) )
     end
 
     local returning = reset == -1
 
     if returning then
-        speed = 8
+        speed = 30
     else
         speed = 20
     end
-
 
     local curX = self:getKickCurX()
     local curY = self:getKickCurY()
@@ -463,6 +496,16 @@ function SWEP:Think()
         end
     end
 
+    local inSight = self:getInSight()
+
+    if inSight then
+        if not owner:KeyDown( IN_ATTACK2 ) then
+            self:toogleADS()
+        end
+    end
+
+    self:setSightProgress( Lerp( tick * self:getSightProgressSpeed(), self:getSightProgress(), self:getSightProgressTo() ) )
+
     self:actionRun( "think" )
 end
 
@@ -572,6 +615,13 @@ function SWEP:Deploy()
     local len = self:getAnimationTime( draw_anim )
     local curTime = CurTime()
 
+    if self.ReadyAnim and not self:getIsReady() then
+        self:setIsReady( true )
+
+        draw_anim = self:getAnimation( "ready" )
+        len = self:getAnimationTime( draw_anim )
+    end
+
     self:nextPrimaryFire(len)
     self:nextSecondaryFire(len)
     self:SetIdleTime(curTime + len)
@@ -595,6 +645,12 @@ function SWEP:Deploy()
 
     self:SetHoldType(self.HoldType)
     self:actionRun("deploy")
+    self.sightTime = 0
+
+
+    self:setSightProgress( 0 )
+    self:setSightProgressFrom( 0 )
+    self:setSightProgressTo( 0 )
 
     local owner = self:GetOwner()
 
@@ -634,12 +690,16 @@ function SWEP:calcSpread()
         spread = spread + self.SpreadMove
     end
 
-    if not self:getInSight() then
-        spread = spread + self.SpreadNoSight
-    end
+
 
     if not owner:OnGround() then
         spread = spread + self.SpreadOnAir
+    end
+
+    if not self:getInSight() then
+        spread = spread + self.SpreadNoSight
+    elseif self.SpreadSight then
+        spread = self.SpreadSight
     end
 
     spread = spread + self:getSpreadAdded()
@@ -662,6 +722,12 @@ function SWEP:Initialize()
     self:actionRun("initialized")
 
     self:setRateOfFire( self.Primary.Delay )
+
+    self:setSightProgress( 0 )
+    self:setSightProgressFrom( 0 )
+    self:setSightProgressTo( 0 )
+
+    self:setIsReady( false )
 end
 
 --- [SHARED]
@@ -692,7 +758,8 @@ function SWEP:canReload()
         return false
     end
 
-    if self:Clip1() >= self:GetMaxClip1() then
+    local max_clip = self:GetMaxClip1()
+    if self:Clip1() >= ( self.Chamber and max_clip + 1 or max_clip ) then
         return false
     end
 
@@ -716,7 +783,11 @@ function SWEP:Reload( reload_delay )
         return
     end
 
-    self:setInSight(false)
+    if self:getInSight() then
+        self:toogleADS()
+    end
+
+    self:setInSight( false )
     self:setRecoverSight( 0 )
 
     reload_delay = reload_delay or 0
@@ -724,6 +795,12 @@ function SWEP:Reload( reload_delay )
     local cur_time = CurTime()
     local anim, isSeq  = self:getAnimation("reload")
     local time = cur_time + self:getAnimationTime(anim)
+
+    if self.ReloadEmptyAnim and self:Clip1() == 0 then
+        anim, isSeq  = self:getAnimation("reload_empty")
+        time = cur_time + self:getAnimationTime(anim)
+    end
+
     if reload_delay > 0 then
         self:setReloadDelay(cur_time + reload_delay)
     else
@@ -756,6 +833,11 @@ function SWEP:ReloadFinished()
     local reserve_ammo = owner:GetAmmoCount(ammo_type)
     local current_clip = self:Clip1()
     local max_clip = self.Primary.ClipSize
+    max_clip = self.Chamber and max_clip + 1 or max_clip
+
+    if current_clip == 0 and self.Chamber then
+        max_clip = max_clip - 1
+    end
 
     if reserve_ammo <= 0 or current_clip >= max_clip then
         return
@@ -1234,6 +1316,10 @@ function SWEP:PrimaryAttack()
         return
     end
 
+    if CLIENT and IsFirstTimePredicted() and self.Primary.Shaking then
+        util.ScreenShake( vector_origin, self.Primary.ShakeAmlitude, self.Primary.ShakeFrequency, self.Primary.ShakeDuration, 0 )
+    end
+
     ---@cast owner Player
 
     self:fireBullet()
@@ -1276,17 +1362,33 @@ function SWEP:PrimaryAttack()
     self:actionRun("primaryAttack")
 end
 
-if CLIENT then
-    hook.Add("PlayerBindPress", "Defaults", function(owner, bind)
-        if bind == "+attack" then
-            local self = owner:GetActiveWeapon()
-            ---@cast self ash_weapon_base
+-- if CLIENT then
+--     hook.Add("PlayerBindPress", "Defaults", function(owner, bind)
+--         if bind == "+attack" then
+--             local self = owner:GetActiveWeapon()
+--             ---@cast self ash_weapon_base
 
-            if self ~= nil and self:IsValid() then
+--             if self ~= nil and self:IsValid() then
 
-            end
-        end
-    end)
+--             end
+--         end
+--     end)
+-- end
+
+function SWEP:toogleADS()
+    local sight = not self:getInSight()
+
+    self:setInSight( sight )
+    self:setSightState( sight and 1 or 0 )
+    self:nextSecondaryFire( 0.1 )
+
+    self:setSightProgressSpeed( self.SightSpeedStandart )
+
+    if sight then
+        self:setSightProgressTo( 1 )
+    else
+        self:setSightProgressTo( 0 )
+    end
 end
 
 function SWEP:attachSilencer()
@@ -1362,7 +1464,7 @@ end
 -- SWEP.Secondary.ViewModelSightPos = Vector( )
 -- SWEP.Secondary.ViewModelSightAng = Angle( )
 function SWEP:calcView(view)
-    view.origin, view.angles = LocalToWorld(vector_origin, Angle( self:getKickCurX(), self:getKickCurY(), self:getKickCurZ() ), view.origin, view.angles)
+    view.origin, view.angles = LocalToWorld( vector_origin, self:GetKick(), view.origin, view.angles )
 
     if self:getInSight() then
         view.fov = view.fov * (self.Secondary.SightStateZoom[ self:getSightState() ] or 1)
@@ -1372,46 +1474,27 @@ end
 function SWEP:CalcViewModelView( vm, oldpos, oldeyeang, pos, ang )
     local npos, nang = pos, ang
 
-    -- if self:getInSight() then
-    --     npos, nang = LocalToWorld( self.Secondary.ViewModelSightPos, self.Secondary.ViewModelSightAng, oldpos, oldeyeang )
-    -- end
-
-    -- local owner = self:GetOwner()
-
-    -- ---@cast owner Player
-
-    -- if owner ~= nil and owner:IsValid() and owner:IsPlayer() then
-
-    -- end
+    if self:getInSight() then
+        npos, nang = oldpos, oldeyeang
+    end
 
     local kick = self:GetKick()
 
+    local sight_pos, sight_ang = self.Secondary.ViewModelSightPos, self.Secondary.ViewModelSightAng
+
+    local scale_pos = self:getSightProgress()
+    if scale_pos then
+        sight_pos = sight_pos * scale_pos
+        sight_ang = sight_ang * scale_pos
+    end
+
     npos, nang = LocalToWorld( vector_origin, kick, npos, nang )
+    npos, nang = LocalToWorld( sight_pos, sight_ang, npos, nang )
 
     return npos, nang
 end
 
 
-function SWEP:GetViewModelPosition(EyePos, EyeAng)
-    local Mul = 1.0
-
-    local Offset = self.Secondary.ViewModelSightPos
-    local ang = self.Secondary.ViewModelSightPos
-
-    if (ang) then
-        EyeAng = EyeAng * 1
-        EyeAng:RotateAroundAxis(EyeAng:Right(),     ang.x * Mul)
-        EyeAng:RotateAroundAxis(EyeAng:Up(),        ang.y * Mul)
-        EyeAng:RotateAroundAxis(EyeAng:Forward(),   ang.z * Mul)
-    end
-
-    local Right     = EyeAng:Right()
-    local Up        = EyeAng:Up()
-    local Forward   = EyeAng:Forward()
-
-    EyePos = EyePos + Offset.x * Right * Mul
-    EyePos = EyePos + Offset.y * Forward * Mul
-    EyePos = EyePos + Offset.z * Up * Mul
-
-    return EyePos, EyeAng
+function SWEP:GetViewModelPosition(pos, ang)
+    return pos, ang
 end
