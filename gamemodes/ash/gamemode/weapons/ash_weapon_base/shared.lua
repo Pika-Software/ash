@@ -356,7 +356,7 @@ function SWEP:Think()
     local returning = reset == -1
 
     if returning then
-        speed = 30
+        speed = 10
     else
         speed = 20
     end
@@ -377,24 +377,28 @@ function SWEP:Think()
         y = math_approach(curY, targetY, step)
         z = math_approach(curZ, targetZ, step)
     else
-        local dx = targetX - curX
-        local dy = targetY - curY
-        local dz = targetZ - curZ
+        x = Lerp( step, curX, targetX )
+        y = Lerp( step, curY, targetY )
+        z = Lerp( step, curZ, targetZ )
 
-        local dist = math.sqrt(dx * dx + dy * dy + dz * dz)
+        -- local dx = targetX - curX
+        -- local dy = targetY - curY
+        -- local dz = targetZ - curZ
 
-        if dist > 0.0001 then
-            step = math.min(speed * tick, dist)
-            local scale = step / dist
+        -- local dist = math.sqrt(dx * dx + dy * dy + dz * dz)
 
-            x = curX + dx * scale
-            y = curY + dy * scale
-            z = curZ + dz * scale
-        else
-            x = targetX
-            y = targetY
-            z = targetZ
-        end
+        -- if dist > 0.0001 then
+        --     step = math.min(speed * tick, dist)
+        --     local scale = step / dist
+
+        --     x = curX + dx * scale
+        --     y = curY + dy * scale
+        --     z = curZ + dz * scale
+        -- else
+        --     x = targetX
+        --     y = targetY
+        --     z = targetZ
+        -- end
     end
 
     self:setKickCurX(x)
