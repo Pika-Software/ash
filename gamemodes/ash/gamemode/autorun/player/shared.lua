@@ -2347,4 +2347,14 @@ end
 
 -- TODO: bone manipulation hooks
 
+do
+    local Entity_GetNW2Bool = Entity.GetNW2Bool
+
+    hook.Add( "ash.entity.CanCollide", "DisableCollisionCorpse", function ( entity1, entity2 )
+        if entity2:IsPlayer() and Entity_GetNW2Bool( entity1, "ash.IsRagdoll", false ) then
+            return false
+        end
+    end )
+end
+
 return ash_player

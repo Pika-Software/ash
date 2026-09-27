@@ -80,6 +80,8 @@ end
 do
 
     local Entity_SetNWEntity = Entity.SetNWEntity
+    local Entity_SetNW2Bool = Entity.SetNW2Bool
+    local Entity_SetCustomCollisionCheck = Entity.SetCustomCollisionCheck
 
     --- [SERVER]
     ---
@@ -89,6 +91,8 @@ do
     ---@param ragdoll Entity
     function ash_player.setRagdoll( pl, ragdoll )
         Entity_SetNWEntity( pl, "m_eRagdoll", ragdoll )
+        Entity_SetNW2Bool( ragdoll, "ash.IsRagdoll", true )
+        Entity_SetCustomCollisionCheck( ragdoll, true )
     end
 
 end
@@ -156,6 +160,7 @@ do
             Entity_SetModel( ragdoll_entity, ash_player.getModel( pl ) )
             Entity_SetSkin( ragdoll_entity, ash_player.getSkin( pl ) )
 
+            SafeRemoveEntityDelayed( ragdoll_entity, 120 )
             ragdoll_entity:Spawn()
 
             local player_velocity = animator_getVelocity( pl )
