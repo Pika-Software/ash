@@ -26,7 +26,7 @@ local table = std.table
 local class = std.class
 local path = std.path
 local raw = std.raw
-local fs = std.fs
+-- local fs = std.fs
 
 local glua_cvars = _G.cvars
 local glua_timer = _G.timer
@@ -59,9 +59,72 @@ local util_Compress = glua_util.Compress
 local util_SHA256 = glua_util.SHA256
 
 local path_getDirectory = path.getDirectory
+local Color = _G.Color
 
 local hook_Add = glua_hook.Add
 local hook_Run = glua_hook.Run
+
+local watchdog_files = {}
+local watchdog_files_map = {}
+local watchdog_files_count = 0
+
+local watchdogCallback
+
+local file_Time = file.Time
+
+
+---@param path_to_file string
+---@param search_path string
+---@return boolean
+local function file_watchdog( path_to_file, search_path )
+    if string_sub( path_to_file, 1, 1 ) == "/" then
+        path_to_file = string_sub( path_to_file, 2 )
+    end
+
+    if not file_Exists( path_to_file, search_path ) then
+        return false
+    end
+
+    if watchdog_files_map[ path_to_file ] then
+        return false
+    end
+
+    watchdog_files_count = watchdog_files_count + 1
+
+
+    local data = {
+        path_to_file, search_path, file_Time( path_to_file, search_path )
+    }
+
+    watchdog_files_map[ path_to_file ] = data
+    watchdog_files[ watchdog_files_count ] = data
+
+    return true
+end
+
+timer.Create( "ash.file.think", 0.25, 0, function()
+    ::repairsfiles::
+
+    for i = 1, watchdog_files_count do
+        local v = watchdog_files[ i ]
+
+        local path_to_file = v[ 1 ]
+        local mount = v[ 2 ]
+
+        if not file_Exists( path_to_file, mount ) then
+            table.remove( watchdog_files, i )
+            goto repairsfiles
+        end
+
+        local cur_time_file = file_Time( v[ 1 ], v[ 2 ] )
+        if cur_time_file ~= v[ 3 ] then
+            v[ 3 ] = cur_time_file
+            if watchdogCallback ~= nil then
+                watchdogCallback( v[ 1 ] )
+            end
+        end
+    end
+end )
 
 ---
 --- The ash global namespace.
@@ -89,34 +152,40 @@ setmetatable( ash, {
     end
 } )
 
-local color = std.color
-
----@class dreamwork.std.color.Scheme
-local color_scheme = color.Scheme
+---@class dreamwork.std.ColorClass.scheme
+local color_scheme = {}
 ash.Colors = color_scheme
 
-color_scheme.ash_main = color.fromRGB( 180, 120, 255 )
+color_scheme.ash_main = Color( 180, 120, 255 )
 
-color_scheme.ash_white = color.fromRGB( 255, 255, 255 )
-color_scheme.ash_black = color.fromRGB( 0, 0, 0 )
-color_scheme.ash_red = color.fromRGB( 220, 80, 80 )
-color_scheme.ash_green = color.fromRGB( 80, 200, 100 )
-color_scheme.ash_blue = color.fromRGB( 50, 150, 250 )
-color_scheme.ash_yellow = color.fromRGB( 220, 220, 80 )
-color_scheme.ash_orange = color.fromRGB( 255, 128, 0 )
+color_scheme.ash_white = Color( 255, 255, 255 )
+color_scheme.ash_black = Color( 0, 0, 0 )
+color_scheme.ash_red = Color( 220, 80, 80 )
+color_scheme.ash_green = Color( 80, 200, 100 )
+color_scheme.ash_blue = Color( 50, 150, 250 )
+color_scheme.ash_yellow = Color( 220, 220, 80 )
+color_scheme.ash_orange = Color( 255, 128, 0 )
 
-color_scheme.ash_log = color.fromRGB( 240, 240, 240 )
-color_scheme.ash_time = color.fromRGB( 100, 100, 100 )
-color_scheme.ash_separator = color.fromRGB( 150, 150, 150 )
+color_scheme.ash_log = Color( 240, 240, 240 )
+color_scheme.ash_time = Color( 100, 100, 100 )
+color_scheme.ash_separator = Color( 150, 150, 150 )
 
-color_scheme.ash_client = color.fromRGB( 225, 170, 10 )
-color_scheme.ash_server = color.fromRGB( 5, 170, 250 )
+color_scheme.ash_client = Color( 225, 170, 10 )
+color_scheme.ash_server = Color( 5, 170, 250 )
+
+local ash_main = color_scheme.ash_main
 
 local logger = std.console.Logger( {
-    color = color_scheme.ash_main,
+    color = (ash_main.r * 65536) + (ash_main.g * 256) + ash_main.b,
     title = ash.Tag,
     interpolation = false
 } )
+
+-- local logger = std.console.Logger( {
+--     color = ash_main,
+--     title = ash.Tag,
+--     interpolation = false
+-- } )
 
 ash.Logger = logger
 
@@ -133,7 +202,7 @@ end
 local active_gamemode = engine.ActiveGamemode()
 ash.GamemodeName = active_gamemode
 
-if not fs.isDirectory( "/workspace/lua/" .. active_gamemode .. "/gamemode" ) then
+if not file_IsDir( active_gamemode .. "/gamemode", "LUA" ) then
     logger:error( "Could not find gamemode '%s', exiting...", active_gamemode )
     return
 end
@@ -174,8 +243,11 @@ end
 
 local error_display
 do
+    local msgc = _G.MsgC
+    local engine_consoleMessageColored = function( msg, color )
+        msgc( color, msg )
+    end
 
-    local engine_consoleMessageColored = dreamwork.engine.consoleMessageColored
     local err_color = color_scheme.error
 
     ---@param message ash.ErrorData | string
@@ -222,6 +294,7 @@ local clientFileSend
 if LUA_SERVER then
 
     local AddCSLuaFile = _G.AddCSLuaFile
+    local mount_point = "LUA"
 
     ---@param file_path string
     ---@param stack_level? integer
@@ -236,13 +309,9 @@ if LUA_SERVER then
             stack_level = stack_level + 1
         end
 
-        local file_object, is_directory = fs.lookup( "/workspace/gamemodes/" .. file_path )
+        local has_file, is_directory = file_Exists( file_path, "LUA" ), file_IsDir( file_path, mount_point )
 
-        if file_object == nil then
-            file_object, is_directory = fs.lookup( "/workspace/lua/" .. file_path )
-        end
-
-        if file_object == nil then
+        if not has_file then
             std.errorf( stack_level, dont_break, "File '%s' not found.", file_path )
             return false, "", ""
         end
@@ -252,13 +321,9 @@ if LUA_SERVER then
             return false, "", ""
         end
 
-        ---@cast file_object dreamwork.std.fs.File
-
-        local mount_point, mount_path = fs.whereis( file_object )
-
         ---@type File
         ---@diagnostic disable-next-line: assign-type-mismatch
-        local file_handler = file.Open( mount_path, "rb", mount_point )
+        local file_handler = file.Open( file_path, "rb", mount_point )
 
         if file_handler == nil then
             std.errorf( stack_level, dont_break, "File '%s' does not exist.", file_path )
@@ -285,12 +350,9 @@ if LUA_SERVER then
                 client_checksums[ file_path ] = file_sha256
 
                 if DEBUG then
-                    if mount_point == "MOD" then
-                        local fs_object
-                        fs_object, is_directory = fs.lookup( "/garrysmod/" .. mount_path )
-
-                        if not is_directory and fs_object ~= nil and fs.watchdog.watch( fs_object ) then
-                            logger:debug( "'%s' being watched for changes.", fs_object.path )
+                    if mount_point == "LUA" then
+                        if not is_directory and has_file and file_watchdog( file_path, "LUA" ) then
+                            logger:debug( "'%s' being watched for changes.", file_path )
                         end
                     end
                 end
@@ -409,7 +471,7 @@ end
 
 if LUA_SERVER then
 
-    fs.makeDirectory( "/garrysmod/data/ash/injections", true )
+    file.CreateDir( "ash/injections" )
 
     do
         local files = file_Find( "ash/injections/*.dat", "DATA" )
@@ -835,8 +897,8 @@ if _G[ active_gamemode ] == nil then
         Name = active_link.name,
         Logger = std.console.Logger( {
             title = active_gamemode .. "@" .. active_link.version,
-            interpolation = false,
-            color = 0xFFFFFF
+            color = Color( 255, 255, 255 ),
+            interpolation = false
         } )
     }
 end
@@ -874,6 +936,7 @@ environment.gc = std.gc
 environment.raw = raw
 
 environment.printf = std.printf
+environment.Color = Color
 
 environment.DEBUG = DEBUG
 environment._G = _G
@@ -941,9 +1004,8 @@ end
 
 do
 
-    local SysTime = SysTime
-
     local init_file = LUA_CLIENT and "/cl_init.lua" or "/init.lua"
+    local os_clock = os.clock
 
     ---@param name string
     ---@param location string
@@ -951,7 +1013,7 @@ do
     function Module:__init( name, location )
         self.Prefix = name .. "::"
         self.Realm = "unknown"
-        self.Time = SysTime()
+        self.Time = os_clock()
         self.Name = name
 
         if file_Exists( location, "LUA" ) and file_IsDir( location, "LUA" ) then
@@ -1136,6 +1198,7 @@ do
     local compiler_fn
 
     if LUA_SERVER then
+        local mount_point = "LUA"
 
         ---@param file_path string
         ---@param stack_level integer
@@ -1143,13 +1206,9 @@ do
         function compiler_fn( file_path, stack_level )
             stack_level = stack_level + 1
 
-            local file_object, is_directory = fs.lookup( "/workspace/gamemodes/" .. file_path )
+            local has_file, is_directory = file_Exists( file_path, mount_point ), file_IsDir( file_path, mount_point )
 
-            if file_object == nil then
-                file_object, is_directory = fs.lookup( "/workspace/lua/" .. file_path )
-            end
-
-            if file_object == nil then
+            if not has_file then
                 std.errorf( stack_level, false, "File '%s' not found.", file_path )
             end
 
@@ -1157,24 +1216,17 @@ do
                 std.errorf( stack_level, false, "File '%s' is a directory.", file_path )
             end
 
-            ---@cast file_object dreamwork.std.fs.File
-
-            local mount_point, mount_path = fs.whereis( file_object )
-
             if DEBUG then
-                if mount_point == "MOD" then
-                    local fs_object
-                    fs_object, is_directory = fs.lookup( "/garrysmod/" .. mount_path )
-
-                    if not is_directory and fs_object ~= nil and fs.watchdog.watch( fs_object ) then
-                        logger:debug( "'%s' being watched for changes.", fs_object.path )
+                if mount_point == "LUA" then
+                    if not is_directory and has_file and file_watchdog( file_path, mount_point ) then
+                        logger:debug( "'%s' being watched for changes.", file_path )
                     end
                 end
             end
 
             ---@type File
             ---@diagnostic disable-next-line: assign-type-mismatch
-            local file_handler = file.Open( mount_path, "rb", mount_point )
+            local file_handler = file.Open( file_path, "rb", mount_point )
 
             if file_handler == nil then
                 local success, result = pcall( CompileFile, file_path, true )
@@ -2193,14 +2245,11 @@ do
     handlers.autorun = handlers.modules
 
     if LUA_SERVER and DEBUG then
-
-        ---@param fs_object dreamwork.std.fs.File
-        ---@param is_directory boolean
-        fs.watchdog.Modified:attach( function( fs_object, is_directory )
-            if is_directory then return end
-
-            local gamemode_name, module_type, directory_path, file_name = string_match( fs_object.path, "^/garrysmod/addons/[^/]+/gamemodes/([^/]+)/gamemode/(%w+)/(.+)/(.+%.lua)$" )
-            if gamemode_name == nil or module_type == nil or directory_path == nil then return end
+        watchdogCallback = function( pth )
+            local gamemode_name, module_type, directory_path, file_name = string_match( pth, "([^/]+)/gamemode/([^/]+)/(.+)/([^/]+)" )
+            if gamemode_name == nil or module_type == nil or directory_path == nil then
+                return
+            end
 
             local handler = handlers[ module_type ]
             if handler == nil then return end
@@ -2209,6 +2258,7 @@ do
 
             if client_checksums[ lua_path ] ~= nil then
                 local has_changes, lua_code, file_sha256 = clientFileSend( lua_path, 2, true )
+
                 if has_changes then
                     std.setTimeout( function()
                         glua_net.Start( "ash.network" )
@@ -2223,8 +2273,7 @@ do
             end
 
             handler( gamemode_name, directory_path, lua_path )
-        end )
-
+        end
     end
 
     --- [SHARED]
@@ -2528,6 +2577,9 @@ do
 
     ---@diagnostic disable-next-line: param-type-mismatch
     environment.Matrix = addMetatable( "VMatrix", Matrix )
+
+    -- ---@diagnostic disable-next-line: param-type-mismatch
+    -- environment.Color = addMetatable( "Color", Color )
 
     environment.ConVar = addMetatable( "ConVar", CreateConVar )
 

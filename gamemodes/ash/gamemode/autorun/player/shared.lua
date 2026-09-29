@@ -44,6 +44,9 @@ local tick_interval = engine.TickInterval()
 local Entity_IsValid = Entity.IsValid
 local Player_Alive = Player.Alive
 
+local Entity_GetNW2Int = Entity.GetNW2Int
+local Entity_SetNW2Int = Entity.SetNW2Int
+
 ash_player.isAlive = Player_Alive
 
 --- [SHARED]
@@ -1459,6 +1462,34 @@ do
         return move_state
     end, POST_HOOK_RETURN )
 
+    if SERVER then
+        ---@param pl Player
+        hook.Add( "ash.player.Tick", "i hopes garry got as painful death as it possible", function( pl )
+            local move_type = players_move_type[ pl ]
+            local player_speed = 0
+
+            if move_type == 2 then -- walking
+                local water_level = entity_getWaterLevel( pl )
+                if players_on_ground[ pl ] then
+                    player_speed = hook_Run( "ash.player.WalkSpeed", pl, players_keys[ pl ], players_crouching[ pl ], water_level ) or 200
+                elseif water_level == 0 then
+                    player_speed = hook_Run( "ash.player.FallSpeed", pl, players_keys[ pl ], players_crouching[ pl ] ) or 10
+                else
+                    player_speed = hook_Run( "ash.player.SwimSpeed", pl, players_keys[ pl ], water_level ) or 150
+                end
+            elseif move_type == 9 then -- ladder movement
+                player_speed = hook_Run( "ash.player.LadderSpeed", pl, players_keys[ pl ] ) or 150
+            end
+
+            if pl:GetRunSpeed() ~= player_speed then return end
+
+            pl:SetSlowWalkSpeed( player_speed )
+            pl:SetWalkSpeed( player_speed )
+            pl:SetRunSpeed( player_speed )
+            pl:SetMaxSpeed( player_speed )
+        end, PRE_HOOK )
+    end
+
     ---@param pl Player
     ---@param mv CMoveData
     ---@diagnostic disable-next-line: redundant-parameter
@@ -1490,25 +1521,6 @@ do
 
             return true
         end
-
-        local move_type = players_move_type[ pl ]
-        local player_speed = 0
-
-        if move_type == 2 then -- walking
-            local water_level = entity_getWaterLevel( pl )
-            if players_on_ground[ pl ] then
-                player_speed = hook_Run( "ash.player.WalkSpeed", pl, players_keys[ pl ], players_crouching[ pl ], water_level ) or 200
-            elseif water_level == 0 then
-                player_speed = hook_Run( "ash.player.FallSpeed", pl, players_keys[ pl ], players_crouching[ pl ] ) or 10
-            else
-                player_speed = hook_Run( "ash.player.SwimSpeed", pl, players_keys[ pl ], water_level ) or 150
-            end
-        elseif move_type == 9 then -- ladder movement
-            player_speed = hook_Run( "ash.player.LadderSpeed", pl, players_keys[ pl ] ) or 150
-        end
-
-        MoveData_SetMaxClientSpeed( mv, player_speed )
-        MoveData_SetMaxSpeed( mv, player_speed )
     end, POST_HOOK_RETURN )
 
     if SERVER then
@@ -2136,6 +2148,68 @@ function ash_player.setCamera( pl, name )
     Entity_SetNW2Var( pl, "m_sCamera", name )
 end
 
+--- [SHARED]
+---
+--- Get player deaths
+---
+---@param pl Player
+---@return number
+function ash_player.getDeaths( pl )
+    return Entity_GetNW2Int( pl, "ash.deaths", 0 )
+end
+
+--- [SHARED]
+---
+--- Set player deaths
+---
+---@param pl Player
+---@param amount number
+function ash_player.setDeaths( pl, amount )
+    Entity_SetNW2Int( pl, "ash.deaths", amount )
+end
+
+--- [SHARED]
+---
+--- Get player frags
+---
+---@param pl Player
+---@param include_players boolean
+---@param include_npc? boolean
+---@return number
+function ash_player.getFrags( pl, include_players, include_npc )
+    local amount = 0
+
+    if include_players then
+        amount = amount + Entity_GetNW2Int( pl, "ash.player.frags_player", 0 )
+    end
+
+    if include_npc then
+        amount = amount + Entity_GetNW2Int( pl, "ash.player.frags_npc", 0 )
+    end
+
+    return amount
+end
+
+--- [SHARED]
+---
+--- Set player frags (player)
+---
+---@param pl Player
+---@param amount number
+function ash_player.setFragsPlayer( pl, amount )
+    Entity_SetNW2Int( pl, "ash.player.frags_player", amount )
+end
+
+--- [SHARED]
+---
+--- Set player frags (NPC)
+---
+---@param pl Player
+---@param amount number
+function ash_player.setFragsNPC( pl, amount )
+    Entity_SetNW2Int( pl, "ash.player.frags_npc", amount )
+end
+
 -- ---@param pl Player
 -- ---@param is_local boolean
 -- hook.Add( "ash.player.Initialized", "Sync", function( pl, is_local )
@@ -2272,5 +2346,15 @@ end
 -- end
 
 -- TODO: bone manipulation hooks
+
+do
+    local Entity_GetNW2Bool = Entity.GetNW2Bool
+
+    hook.Add( "ash.entity.CanCollide", "DisableCollisionCorpse", function ( entity1, entity2 )
+        if entity2:IsPlayer() and Entity_GetNW2Bool( entity1, "ash.IsRagdoll", false ) then
+            return false
+        end
+    end )
+end
 
 return ash_player

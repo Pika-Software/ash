@@ -1176,11 +1176,11 @@ hook.Add( "EntityFireBullets", "BulletCallback", function( arguments, entity, bu
             do_effects, do_damage = callback( attacker, trace_result, damage_info )
 
             if do_effects ~= nil then
-                result[ 1 ] = do_effects ~= false
+                result.do_effects = do_effects ~= false
             end
 
             if do_damage ~= nil then
-                result[ 2 ] = do_damage ~= false
+                result.do_damage = do_damage ~= false
             end
         end
 

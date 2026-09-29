@@ -156,4 +156,10 @@ hook.Add( "ash.player.ragdoll.PostCreate", "Defaults", function( ply )
     end
 end )
 
+hook.Add( "ash.player.PostSpawn", "Defaults", function( pl )
+    if pl:Alive() then
+        spectator.unSpecate( pl )
+    end
+end )
+
 return spectator

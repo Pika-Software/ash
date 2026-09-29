@@ -121,6 +121,10 @@ setmetatable( players, {
 } )
 
 hook.Add( "EntityNetworkedVarChanged", "Default", function( entity, name, previous_value, new_value )
+    if new_value == previous_value then
+        return
+    end
+
     if entity ~= nil and entity:IsValid() then
         if name == "ash.player.team" then
             if previous_value == nil then
@@ -196,7 +200,6 @@ end, PRE_HOOK )
 local GetGlobal2Int = GetGlobal2Int
 local SetGlobal2Int = SetGlobal2Int
 local color_white = color_white
-local math_min = math.min
 
 ---@type table<string, Color[]>
 local colors = {}
@@ -261,6 +264,16 @@ setmetatable( model_counts, {
 
 --- [SHARED]
 ---
+--- Get team models
+---
+---@param team_name string
+---@return string[] | nil
+function ash_team.getModels( team_name )
+    return models[ team_name ]
+end
+
+--- [SHARED]
+---
 --- Gets the score of the specified team.
 ---
 ---@param team_name string
@@ -314,7 +327,7 @@ if SERVER then
     ---@param team_name string
     ---@param score integer
     local function addScore( team_name, score )
-        return setScore( team_name, math_min( 0, getScore( team_name ) + score ) )
+        return setScore( team_name, getScore( team_name ) + score )
     end
 
     ash_team.addScore = addScore

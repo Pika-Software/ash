@@ -80,6 +80,8 @@ end
 do
 
     local Entity_SetNWEntity = Entity.SetNWEntity
+    local Entity_SetNW2Bool = Entity.SetNW2Bool
+    local Entity_SetCustomCollisionCheck = Entity.SetCustomCollisionCheck
 
     --- [SERVER]
     ---
@@ -89,6 +91,8 @@ do
     ---@param ragdoll Entity
     function ash_player.setRagdoll( pl, ragdoll )
         Entity_SetNWEntity( pl, "m_eRagdoll", ragdoll )
+        Entity_SetNW2Bool( ragdoll, "ash.IsRagdoll", true )
+        Entity_SetCustomCollisionCheck( ragdoll, true )
     end
 
 end
@@ -156,6 +160,7 @@ do
             Entity_SetModel( ragdoll_entity, ash_player.getModel( pl ) )
             Entity_SetSkin( ragdoll_entity, ash_player.getSkin( pl ) )
 
+            SafeRemoveEntityDelayed( ragdoll_entity, 120 )
             ragdoll_entity:Spawn()
 
             local player_velocity = animator_getVelocity( pl )
@@ -338,6 +343,9 @@ do
 
     local Entity_SetNW2Bool = Entity.SetNWBool
     local Entity_GetNW2Bool = Entity.GetNWBool
+    local Entity_SetNW2Int = Entity.SetNW2Int
+    local Entity_GetNW2Int = Entity.GetNW2Int
+
 
     local bit_band = bit.band
     local bit_bor = bit.bor
@@ -452,10 +460,21 @@ do
             ash_player.ragdollCreate( pl )
         end
 
+        if pl ~= attacker and attacker:IsValid() and attacker:IsPlayer() then
+            Entity_SetNW2Int( attacker, "ash.player.frags_player", Entity_GetNW2Int( attacker, "ash.player.frags_player", 0 ) + 1 )
+        end
+
         hook_Run( "ash.player.PreDeath", pl, attacker, dmg_info )
     end, PRE_HOOK )
 
+    hook.Add( "OnNPCKilled", "Death", function( _, attacker )
+        if attacker ~= nil and attacker:IsValid() and attacker:IsPlayer() then
+            Entity_SetNW2Int( attacker, "ash.player.frags_npc", Entity_GetNW2Int( attacker, "ash.player.frags_npc", 0 ) + 1 )
+        end
+    end )
+
     hook.Add( "PlayerDeath", "Death", function( pl, inflictor, attacker )
+        Entity_SetNW2Int( pl, "ash.deaths", Entity_GetNW2Int( pl, "ash.deaths", 0 ) + 1 )
         hook_Run( "ash.player.Death", pl, false, inflictor or NULL, attacker or NULL )
     end, PRE_HOOK )
 
@@ -506,6 +525,7 @@ do
 
         ---@type table<Player, boolean>
         local first_spawn = {}
+        gc.setup( first_spawn, "Player" )
         gc.setTableRules( first_spawn, true )
 
         ---@param pl Player
@@ -525,7 +545,7 @@ do
                 hook_Run( "ash.player.ChangeAliveStatus", pl, true )
             end
 
-            Entity_SetNW2Bool(pl, "ash.alive", true)
+            Entity_SetNW2Bool( pl, "ash.alive", true )
 
 
             if not first_spawn[ pl ] then
@@ -534,13 +554,6 @@ do
             end
 
             hook_Run( "ash.player.PreSpawn", pl, transition )
-
-            local max_speed = physenv.GetPerformanceSettings().MaxVelocity
-
-            pl:SetSlowWalkSpeed( max_speed )
-            pl:SetWalkSpeed( max_speed )
-            pl:SetRunSpeed( max_speed )
-            pl:SetMaxSpeed( max_speed )
 
             pl:SetCrouchedWalkSpeed( 1 )
 

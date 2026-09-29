@@ -48,6 +48,19 @@ hook.Add( "KeyRelease", "Defaults", function ( ply, key )
 	end
 end )
 
+do
+	local Player_GetObserverMode = Player.GetObserverMode
+	local OBS_MODE_FIXED = _G.OBS_MODE_FIXED
+
+	hook.Add( "InputMouseApply", "Defaults", function(  )
+		local lp = LocalPlayer()
+
+		if spectator.isSpectator( lp ) and Player_GetObserverMode( lp ) == OBS_MODE_FIXED then
+			return true
+		end
+	end, PRE_HOOK_RETURN )
+end
+
 net.Receive( "select_target", function()
 	local ply = LocalPlayer()
 

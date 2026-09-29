@@ -1,3 +1,5 @@
+---@meta
+
 ---@diagnostic disable: lowercase-global
 local std = dreamwork.std
 
@@ -32,6 +34,11 @@ __dir = ""
 ---@class ash.Angle : Angle
 ---@overload fun( pitch: number, yaw: number, roll: number ): Angle
 Angle = {}
+
+---@class ash.Color : Color
+---@field Lerp fun( f: number, from: Color, to: Color, do_alpha?: boolean ): Color
+---@overload fun( r: number, g: number, b: number, a: number ): Color
+Color = {}
 
 ---@class ash.ConVar : ConVar
 ---@overload fun( name: string, value: string, flags: number, description: string, min_value: number, max_value: number ): ConVar
@@ -323,5 +330,271 @@ gc = std.gc
 setTimeout = std.setTimeout
 printf = std.printf
 
+Color = std.Color
+
 ---@class flame : ash.Gamemode
 flame = flame or {}
+
+---@class ash.ui.falcon.size
+falcon_size = {}
+
+---@type string?
+falcon_size.width = nil
+
+---@type string?
+falcon_size.height = nil
+
+---@class ash.ui.falcon.base_panel : Panel
+---@field keyValue table<string, any>
+---@field steps table<string, any>
+---@field methods table<string, function>
+---@field states table
+---@field actions table<string, table<string, function>>
+---@field stateSize ash.ui.falcon.StateClass
+---@field centerV number
+---@field centerH number
+falcon_base_panel = {}
+
+---@generic T
+---@param self T
+---@param tbl table
+---@return T
+function falcon_base_panel:dockMargin(tbl) end
+
+---@generic T
+---@param self T
+---@param tbl table
+---@return T
+function falcon_base_panel:dockPadding(tbl) end
+
+---@generic T
+---@param self T
+---@param dock_type number
+---@return T
+function falcon_base_panel:dock(dock_type) end
+
+---@generic T
+---@param self T
+---@param alpha number
+---@return T
+function falcon_base_panel:alpha(alpha) end
+
+---@generic T
+---@param self T
+---@param visible boolean|table
+---@return T
+function falcon_base_panel:setVisible(visible) end
+
+---@generic T
+---@param self T
+---@param animation string
+---@param ... any
+---@return T
+function falcon_base_panel:animation(animation, ...) end
+
+---@generic T
+---@param self T
+---@return T
+function falcon_base_panel:center() end
+
+---@generic T
+---@param self T
+---@param f? number
+---@return T
+function falcon_base_panel:centerVertical(f) end
+
+---@generic T
+---@param self T
+---@param f? number
+---@return T
+function falcon_base_panel:centerHorizontal(f) end
+
+---@generic T
+---@param self T
+---@param sizeW? boolean
+---@param sizeH? boolean
+---@return T
+function falcon_base_panel:sizeToChildren( sizeW, sizeH ) end
+
+---@generic T
+---@param self T
+---@param layoutNow boolean? If true the panel will re-layout instantly and not wait for the next frame.
+---@return T
+function falcon_base_panel:invalidateLayout(layoutNow) end
+
+---@generic T
+---@param self T
+---@param data ash.ui.falcon.size
+---@return T
+function falcon_base_panel:setSize(data) end
+
+---@generic T
+---@param self T
+---@return T
+function falcon_base_panel:makePopup() end
+
+---@generic T
+---@param self T
+---@param bool boolean
+---@return T
+function falcon_base_panel:keyboardInput(bool) end
+
+---@generic T
+---@param self T
+---@param bool boolean
+---@return T
+function falcon_base_panel:mouseInput(bool) end
+
+---@param key string
+---@param default any
+---@return any
+function falcon_base_panel:get(key, default) end
+
+---@param key string
+---@param value any
+---@return any
+function falcon_base_panel:set(key, value) end
+
+---@param key string
+---@param value any
+---@return any
+function falcon_base_panel:setValue(key, value) end
+
+---@param key string
+---@param default any
+---@return any
+function falcon_base_panel:getValue(key, default) end
+
+---@param key string
+---@param ... any
+function falcon_base_panel:addStep(key, ...) end
+
+---@param key string
+---@param ... any
+function falcon_base_panel:runMethod(key, ...) end
+
+---@generic T
+---@param self T
+---@param struct table<string, table>
+---@return T
+function falcon_base_panel:struct(struct) end
+
+---@param key string
+---@param func function
+---@param noToStep? boolean
+function falcon_base_panel:newMethod(key, func, noToStep) end
+
+---@generic T
+---@param self T
+---@param class string
+---@param name string
+---@param callback function
+---@return T
+function falcon_base_panel:addAction(class, name, callback) end
+
+---@param class string
+---@param ... any
+function falcon_base_panel:runAction(class, ...) end
+
+---@generic T
+---@param self T
+---@return T
+function falcon_base_panel:show() end
+
+---@generic T
+---@param self T
+---@return T
+function falcon_base_panel:hide() end
+
+---@generic T
+---@param self T
+---@return T
+function falcon_base_panel:build() end
+
+---@generic T
+---@param self T
+---@param callback fun()
+---@return T
+function falcon_base_panel:context(callback) end
+
+---@generic T
+---@param self T
+---@param callback fun()
+---@return T
+function falcon_base_panel:tstack(callback) end
+
+---@generic T
+---@param self T
+---@param callback fun()
+---@return T
+function falcon_base_panel:bstack(callback) end
+
+---@generic T
+---@param self T
+---@param callback fun()
+---@return T
+function falcon_base_panel:lstack(callback) end
+
+---@generic T
+---@param self T
+---@param callback fun()
+---@return T
+function falcon_base_panel:rstack(callback) end
+
+---@generic T
+---@param self T
+---@param key string
+---@param value any
+---@return T
+function falcon_base_panel:set( key, value ) end
+
+---@generic T
+---@param self T
+---@param func function
+---@param name string
+---@param isback? boolean
+---@return T
+function falcon_base_panel:addPaint( func, name, isback ) end
+
+---@generic T
+---@param self T
+---@param state ash.ui.falcon.State
+---@return T
+function falcon_base_panel:insertSizeToState( state ) end
+
+---@generic T
+---@param self T
+---@param x? string
+---@param y? string
+---@return T
+function falcon_base_panel:setPos( x, y ) end
+
+---@generic T
+---@param self T
+---@param x string
+---@return T
+function falcon_base_panel:setX( x ) end
+
+---@generic T
+---@param self T
+---@param y string
+---@return T
+function falcon_base_panel:setX( y ) end
+
+---@generic T
+---@param self T
+---@param boolean_x? boolean
+---@param boolean_y? boolean
+---@return T
+function falcon_base_panel:uncenter( boolean_x, boolean_y ) end
+
+
+
+---@class ash.falcon.label : ash.ui.falcon.base_panel
+falcon_label = {}
+
+---@generic T
+---@param self T
+---@param data table
+---@return T
+function falcon_label:setTextData(data) end
