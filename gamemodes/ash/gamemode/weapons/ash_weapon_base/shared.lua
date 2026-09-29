@@ -77,6 +77,8 @@ local SharedRandom = util.SharedRandom
 ---@field getReloadManualTime fun( self: self ): number
 ---@field setManualReloadingStart fun( self: self, bool: boolean )
 ---@field getManualReloadingStart fun( self: self ): boolean
+---@field setIsRecover fun( self: self, bool: boolean )
+---@field getIsRecover fun( self: self ): boolean
 ---@field setIsReady fun( self: self, bool: boolean )
 ---@field getIsReady fun( self: self ): boolean
 ---@field setSightProgressTo fun( self: self, float: number )
@@ -107,7 +109,7 @@ SWEP.IsAshWeapon = true
 SWEP.ViewModel = Model("models/frontfire/weapons/cstrike/c_rif_ak47.mdl")
 SWEP.WorldModel = Model("models/frontfire/weapons/w_rif_ak47.mdl")
 SWEP.ViewModelFOV = 70
-SWEP.ViewKickMax = Angle( 25, 1, 1 )
+SWEP.ViewKickMax = Angle( 25, 3, 3 )
 SWEP.HoldType = "ar2"
 SWEP.IsAkimbo = false
 SWEP.UseHands = true
@@ -134,7 +136,7 @@ SWEP.Primary.ShakeAmlitude = 1
 SWEP.Primary.ShakeFrequency = 15
 SWEP.Primary.ShakeDuration = 0.2
 
-SWEP.Primary.Sound = Sound("Weapon_M4A1.Single")
+SWEP.Primary.Sound = Sound( "Weapon_M4A1.Single" )
 
 SWEP.Secondary.SightTexture = CLIENT and surface.GetTextureID("frontfire/sight/scope_cs")
 SWEP.Secondary.SightWScale = 1.3
@@ -156,6 +158,12 @@ SWEP.SpreadMax = Vector( 0, 7, 7 )
 SWEP.SpreadMove = Vector(0, 8, 8)
 SWEP.SpreadOnAir = Vector( 0, 15, 15 )
 SWEP.SpreadNoSight = Vector( 0, 0, 0 )
+
+SWEP.KickSpeed = 20
+SWEP.KickRecoverSpeed = 10
+SWEP.KickRandomMin = Angle( 0, 0, 0 )
+SWEP.KickRandomMax = Angle( 0, 0, 0 )
+
 
 local defaults_animations = {
     ["draw"] = {
@@ -247,6 +255,7 @@ function SWEP:SetupDataTables()
     self:addNetwork("Bool", "LeftGun")
     self:addNetwork("Bool", "ManualReloadingStart")
     self:addNetwork("Bool", "IsReady")
+    self:addNetwork("Bool", "IsRecover")
 
     self:addNetwork("Int", "BurstCount")
     self:addNetwork("Int", "SightState")
@@ -326,7 +335,6 @@ function SWEP:changeFireMode( mode, nomsg )
     self:setRateOfFire( data.delay or self.Primary.Delay )
 end
 
-local speed = 20
 function SWEP:Think()
     local owner = self:GetOwner()
     local curTime = CurTime()
@@ -339,13 +347,13 @@ function SWEP:Think()
 
     local reset = self:getKickReset()
 
-    if reset ~= -1 and curTime >= reset then
-        self:setKickReset(-1)
-        self:setKickX(0)
-        self:setKickY(0)
-        self:setKickZ(0)
-        reset = -1
-    end
+    -- if reset ~= -1 and curTime >= reset then
+    --     self:setKickReset(-1)
+    --     -- self:setKickX(0)
+    --     -- self:setKickY(0)
+    --     -- self:setKickZ(0)
+    --     reset = -1
+    -- end
 
     local shot_reset = self:getShootReset()
 
@@ -355,10 +363,10 @@ function SWEP:Think()
 
     local returning = reset == -1
 
+    local speed = self.KickSpeed
+
     if returning then
-        speed = 10
-    else
-        speed = 20
+        speed = self.KickRecoverSpeed
     end
 
     local curX = self:getKickCurX()
@@ -372,38 +380,35 @@ function SWEP:Think()
     local x, y, z
 
     local step = speed * tick
-    if not returning then
-        x = math_approach(curX, targetX, step)
-        y = math_approach(curY, targetY, step)
-        z = math_approach(curZ, targetZ, step)
-    else
-        x = Lerp( step, curX, targetX )
-        y = Lerp( step, curY, targetY )
-        z = Lerp( step, curZ, targetZ )
+    local step_return = ( curTime > reset and self.KickRecoverSpeed or 1 ) * tick
 
-        -- local dx = targetX - curX
-        -- local dy = targetY - curY
-        -- local dz = targetZ - curZ
+    local isRecover = self:getIsRecover()
 
-        -- local dist = math.sqrt(dx * dx + dy * dy + dz * dz)
 
-        -- if dist > 0.0001 then
-        --     step = math.min(speed * tick, dist)
-        --     local scale = step / dist
-
-        --     x = curX + dx * scale
-        --     y = curY + dy * scale
-        --     z = curZ + dz * scale
-        -- else
-        --     x = targetX
-        --     y = targetY
-        --     z = targetZ
-        -- end
+    if isRecover then
+        step = step_return
     end
+
+
+    x = math_approach(curX, targetX, step)
+    y = math_approach(curY, targetY, step)
+    z = math_approach(curZ, targetZ, step)
 
     self:setKickCurX(x)
     self:setKickCurY(y)
     self:setKickCurZ(z)
+
+    if not isRecover then
+        if curX == targetX and curY == targetY and curZ == targetZ then
+            self:setIsRecover( true )
+
+            self:setKickX( 0 )
+            self:setKickY( 0 )
+            self:setKickZ( 0 )
+        end
+    else
+        step = step_return
+    end
 
     if not self.Primary.Automatic then
         if owner:KeyPressed(IN_ATTACK) and curTime < self:GetNextPrimaryFire() then
@@ -929,7 +934,7 @@ function SWEP:getCurShoot()
 end
 
 function SWEP:addKick( ang )
-	local p, y, r = self:getKickX(), self:getKickY(), self:getKickZ()
+	local p, y, r = self:getKickCurX(), self:getKickCurY(), self:getKickCurZ()
 
     local viewPunchMax = self.ViewKickMax
 
@@ -937,9 +942,20 @@ function SWEP:addKick( ang )
 	y = math.clamp( y + ang.y, -viewPunchMax.y, viewPunchMax.y )
 	r = math.clamp( r + ang.r, -viewPunchMax.z, viewPunchMax.z )
 
+    local curtime = CurTime( )
+    local curatt = self:GetNextPrimaryFire( )
+    local diff = curtime - curatt
+
+    if diff > engine.TickInterval( ) or diff < 0 then
+        curatt = curtime
+    end
+
+    self:setKickReset( curtime + 0.1 )
+
 	self:setKickX( p )
 	self:setKickY( y )
 	self:setKickZ( r )
+    self:setIsRecover( false )
 
 	local owner = self:GetOwner()
 
@@ -949,7 +965,7 @@ function SWEP:addKick( ang )
 
 	local shoot = self:GetShoot()
 	---@cast owner Player
-	Player_SetViewPunchAngles( owner, ang * 1.2 )
+	Player_SetViewPunchAngles( owner, ang * 2 )
 end
 
 function SWEP:GetKick( )
@@ -1333,9 +1349,17 @@ function SWEP:PrimaryAttack()
 
 
     local delay = self:getRateOfFire()
-    self:addKick(ang)
-    self:setKickReset(curTime + 0.3 )
-    self:setShootReset(curTime + .5 )
+
+    local random_kick_min = self.KickRandomMin
+    local random_kick_max = self.KickRandomMax
+    local random_kick = Angle( SharedRandom( "ash_weapon_base.RandomKickY", random_kick_min.x, random_kick_max.x ), SharedRandom( "ash_weapon_base.RandomKickY", random_kick_min.y, random_kick_max.y ), SharedRandom( "ash_weapon_base.RandomKickZ", random_kick_min.z, random_kick_max.z ) )
+
+    if not random_kick:IsZero() then
+        ang = ang + random_kick
+    end
+
+    self:addKick( ang )
+    self:setShootReset( curTime + .5 )
     self:setShoot(self:getCurShoot() + 1)
     self:TakePrimaryAmmo( 1 )
 
