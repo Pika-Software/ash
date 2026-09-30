@@ -103,7 +103,7 @@ local function file_watchdog( path_to_file, search_path )
 end
 
 timer.Create( "ash.file.think", 0.25, 0, function()
-    for i = 1, watchdog_files_count do
+    for i = watchdog_files_count, 1, -1 do
         local v = watchdog_files[ i ]
 
         if v ~= nil then
@@ -112,13 +112,13 @@ timer.Create( "ash.file.think", 0.25, 0, function()
 
             if not file_Exists( path_to_file, mount ) then
                 table.remove( watchdog_files, i )
-            end
-
-            local cur_time_file = file_Time( v[ 1 ], v[ 2 ] )
-            if cur_time_file ~= v[ 3 ] then
-                v[ 3 ] = cur_time_file
-                if watchdogCallback ~= nil then
-                    watchdogCallback( v[ 1 ] )
+            else
+                local cur_time_file = file_Time( v[ 1 ], v[ 2 ] )
+                if cur_time_file ~= v[ 3 ] then
+                    v[ 3 ] = cur_time_file
+                    if watchdogCallback ~= nil then
+                        watchdogCallback( v[ 1 ] )
+                    end
                 end
             end
         end
