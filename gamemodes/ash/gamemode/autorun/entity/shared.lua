@@ -756,7 +756,7 @@ do
     local entity_list, entity_count = dreamwork.engine.getEntities()
     ash_entity.count = entity_count
 
-    dreamwork.engine.hookCatch( "dreamwork.engine.EntityCountChanged", function( _, _, new_entities, new_count )
+    dreamwork.engine.hookCatch( "dreamwork.entity.registry", "ash.entity", function( new_entities, new_count )
         entity_list, entity_count = new_entities, new_count
         ash_entity.count = entity_count
     end )
@@ -839,7 +839,7 @@ do
 
     ---@param entity Entity
     ---@param is_player boolean
-    dreamwork.engine.hookCatch( "dreamwork.engine.EntityCreated", function( entity, is_player )
+    dreamwork.engine.hookCatch( "dreamwork.entity.spawn", "ash.entity", function( entity, is_player )
         if hook_Run( "ash.entity.AllowCreation", entity ) == false then
             if entity ~= nil and entity:IsValid() then
                 entity:Remove()
@@ -887,7 +887,7 @@ do
 
     ---@param entity Entity
     ---@param is_player boolean
-    dreamwork.engine.hookCatch( "dreamwork.engine.EntityRemoved", function( entity, is_player )
+    dreamwork.engine.hookCatch( "dreamwork.entity.destroy", "ash.entity", function( entity, is_player )
         local class_name = Entity_GetClass( entity )
 
         local entities = entity_classes[ class_name ]
@@ -1572,7 +1572,7 @@ do
 
 end
 
-dreamwork.engine.hookCatch( "EntityGarbageCollected", function( entity )
+dreamwork.engine.hookCatch( "dreamwork.entity.gc", "ash.entity", function( entity )
     hook_Run( "ash.entity.GarbageCollected", entity )
 end )
 

@@ -103,24 +103,23 @@ local function file_watchdog( path_to_file, search_path )
 end
 
 timer.Create( "ash.file.think", 0.25, 0, function()
-    ::repairsfiles::
-
     for i = 1, watchdog_files_count do
         local v = watchdog_files[ i ]
 
-        local path_to_file = v[ 1 ]
-        local mount = v[ 2 ]
+        if v ~= nil then
+            local path_to_file = v[ 1 ]
+            local mount = v[ 2 ]
 
-        if not file_Exists( path_to_file, mount ) then
-            table.remove( watchdog_files, i )
-            goto repairsfiles
-        end
+            if not file_Exists( path_to_file, mount ) then
+                table.remove( watchdog_files, i )
+            end
 
-        local cur_time_file = file_Time( v[ 1 ], v[ 2 ] )
-        if cur_time_file ~= v[ 3 ] then
-            v[ 3 ] = cur_time_file
-            if watchdogCallback ~= nil then
-                watchdogCallback( v[ 1 ] )
+            local cur_time_file = file_Time( v[ 1 ], v[ 2 ] )
+            if cur_time_file ~= v[ 3 ] then
+                v[ 3 ] = cur_time_file
+                if watchdogCallback ~= nil then
+                    watchdogCallback( v[ 1 ] )
+                end
             end
         end
     end
@@ -1935,7 +1934,6 @@ do
 end
 
 do
-
     ---@type table<string, ash.Module>
     local modules = {}
     ash.Modules = modules
@@ -1966,9 +1964,11 @@ do
 
             local main_fn = debug.getfmain( stack_level )
             if main_fn ~= nil then
-                local fn_path = debug.getfpath( main_fn )
+                local fn_path = debug.getfsource( main_fn )
                 if fn_path ~= nil then
-                    segments[ 1 ] = string_match( fn_path, "^/workspace/lua/([^/]+)/gamemode/" )
+                    fn_path = string.gsub( fn_path, "@", "" )
+
+                    segments[ 1 ] = string_match( fn_path , "([^/]+)/gamemode/" )
                 end
             end
 
@@ -1997,6 +1997,7 @@ do
             location = root_name .. "/gamemode/modules/" .. folder_name
             if not file_IsDir( location, "LUA" ) then return nil end
         end
+
 
         if segments_count > 2 then
             location = location .. "/" .. table_concat( segments, "/", 3, segments_count )
@@ -2229,10 +2230,13 @@ do
         end,
         modules = function( gamemode_name, directory_path )
             local segments, segment_count = string.byteSplit( directory_path, 0x2F --[[ / ]] )
-            if segment_count == 0 then return end
+            if segment_count == 0 then
+                return
+            end
 
             for i = segment_count, 1, -1 do
                 local module_object = modules[ gamemode_name .. "." .. table_concat( segments, ".", 1, i ) ]
+
                 if module_object ~= nil then
                     ---@cast module_object ash.Module
                     module_object:reload()
@@ -2437,6 +2441,7 @@ do
 
         glua_net.Receive( "ash.network", function()
             local uint1_1 = glua_net.ReadUInt( 2 )
+
             if uint1_1 == 0 then
                 glua_timer.Create( "ash.reload", 1, 1, ash.reload )
             elseif uint1_1 == 1 then
@@ -2474,10 +2479,14 @@ do
                 logger:debug( "Received file '%s' checksum SHA-256 '%s'.", lua_path, file_sha256 )
 
                 local gamemode_name, module_type, directory_path = string_match( lua_path, "^([^/]+)/gamemode/(%w+)/(.+)/.+%.lua$" )
-                if gamemode_name == nil or module_type == nil or directory_path == nil then return end
+                if gamemode_name == nil or module_type == nil or directory_path == nil then
+                    return
+                end
 
                 local handler = handlers[ module_type ]
-                if handler == nil then return end
+                if handler == nil then
+                    return
+                end
 
                 handler( gamemode_name, directory_path, lua_path )
             end

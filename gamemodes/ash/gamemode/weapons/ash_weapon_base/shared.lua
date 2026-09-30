@@ -245,6 +245,8 @@ function SWEP:SetupDataTables()
     self:addNetwork("Float", "SightProgressTo")
     self:addNetwork("Float", "SightProgressFrom")
     self:addNetwork("Float", "SightProgressSpeed")
+    self:addNetwork("Float", "RecoverProgress")
+    self:addNetwork("Float", "RecoverProgressTo")
 
     self:addNetwork("Bool", "BufferedClick")
     self:addNetwork("Bool", "InReload")
@@ -380,23 +382,8 @@ function SWEP:Think()
     local x, y, z
 
     local step = speed * tick
-    local step_return = ( curTime > reset and self.KickRecoverSpeed or 1 ) * tick
 
     local isRecover = self:getIsRecover()
-
-
-    if isRecover then
-        step = step_return
-    end
-
-
-    x = math_approach(curX, targetX, step)
-    y = math_approach(curY, targetY, step)
-    z = math_approach(curZ, targetZ, step)
-
-    self:setKickCurX(x)
-    self:setKickCurY(y)
-    self:setKickCurZ(z)
 
     if not isRecover then
         if curX == targetX and curY == targetY and curZ == targetZ then
@@ -407,8 +394,22 @@ function SWEP:Think()
             self:setKickZ( 0 )
         end
     else
-        step = step_return
+        local recover = self:getRecoverProgress()
+
+        recover = math_approach( recover, self:getRecoverProgressTo(), 30 * tick )
+
+        self:setRecoverProgress( recover )
+
+        step = ( recover ) * tick
     end
+
+    x = math_approach( curX, targetX, step )
+    y = math_approach( curY, targetY, step )
+    z = math_approach( curZ, targetZ, step )
+
+    self:setKickCurX(x)
+    self:setKickCurY(y)
+    self:setKickCurZ(z)
 
     if not self.Primary.Automatic then
         if owner:KeyPressed(IN_ATTACK) and curTime < self:GetNextPrimaryFire() then
@@ -951,6 +952,8 @@ function SWEP:addKick( ang )
     end
 
     self:setKickReset( curtime + 0.1 )
+    self:setRecoverProgressTo( self.KickRecoverSpeed )
+    self:setRecoverProgress( 0 )
 
 	self:setKickX( p )
 	self:setKickY( y )
