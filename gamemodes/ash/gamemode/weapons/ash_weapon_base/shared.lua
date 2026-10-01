@@ -440,7 +440,7 @@ function SWEP:Think()
             self:setInReload(false)
             self:actionRun("reload")
             if self:canReload() then
-                self:ReloadFinished()
+                self:reloadFinished()
             end
         end
     end
@@ -818,6 +818,35 @@ function SWEP:canReload()
     end
 
     return true
+end
+
+function SWEP:reloadFinished()
+    local owner = self:GetOwner()
+    ---@cast owner Player
+
+    if not (owner ~= nil and owner:IsValid()) then
+        return
+    end
+
+    local ammo_type = self:GetPrimaryAmmoType()
+    local reserve_ammo = owner:GetAmmoCount(ammo_type)
+    local current_clip = self:Clip1()
+    local max_clip = self.Primary.ClipSize
+    max_clip = self.Chamber and max_clip + 1 or max_clip
+
+    if current_clip == 0 and self.Chamber then
+        max_clip = max_clip - 1
+    end
+
+    if reserve_ammo <= 0 or current_clip >= max_clip then
+        return
+    end
+
+    local take_ammo = math.min(max_clip - current_clip, reserve_ammo)
+
+    owner:RemoveAmmo(take_ammo, ammo_type)
+
+    self:SetClip1(current_clip + take_ammo)
 end
 
 ---@param reload_delay? number
