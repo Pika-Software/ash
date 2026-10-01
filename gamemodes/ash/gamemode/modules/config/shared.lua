@@ -1,6 +1,6 @@
 local file = file
 local table_isEmpty = table.isEmpty
-local checksum = dreamwork.std.checksum
+local checksum = util.CRC
 
 ---@class ash.config
 local config = {}
@@ -17,7 +17,7 @@ local function read( path, only_static )
             local decoded = util.JSONToTable( file_data )
             if decoded ~= nil and not table_isEmpty( decoded ) then
                 return {
-                    [ 0 ] = checksum.CRC32.digest( file_data ),
+                    [ 0 ] = checksum( file_data ),
                     [ 1 ] = file_data,
                     [ 2 ] = decoded,
                 }
@@ -30,7 +30,7 @@ local function read( path, only_static )
         local decoded = util.JSONToTable( file_data_static )
         if decoded ~= nil and not table_isEmpty( decoded ) then
             return {
-                [ 0 ] = checksum.CRC32.digest( file_data_static ),
+                [ 0 ] = checksum( file_data_static ),
                 [ 1 ] = file_data_static,
                 [ 2 ] = decoded,
             }
