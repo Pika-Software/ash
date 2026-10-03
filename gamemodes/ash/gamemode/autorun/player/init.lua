@@ -938,7 +938,7 @@ end, POST_HOOK_RETURN )
 
 hook.Add( "GetFallDamage", "LandingHandler", function( pl, speed )
     return hook_Run( "ash.player.FallDamage", pl, speed ) or 0
-end, POST_HOOK_RETURN )
+end, PRE_HOOK_RETURN )
 
 hook.Add( "CanPlayerSuicide", "SuicideHandler", function( arguments, pl )
     if arguments[ 2 ] == false or hook_Run( "ash.player.CanSuicide", pl ) == false then
