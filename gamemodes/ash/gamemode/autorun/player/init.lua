@@ -936,8 +936,8 @@ hook.Add( "PlayerSay", "ChatHandler", function( arguments, sender, message, is_t
     return ""
 end, POST_HOOK_RETURN )
 
-hook.Add( "GetFallDamage", "LandingHandler", function()
-    return 0
+hook.Add( "GetFallDamage", "LandingHandler", function( pl, speed )
+    return hook_Run( "ash.player.FallDamage", pl, speed ) or 0
 end, POST_HOOK_RETURN )
 
 hook.Add( "CanPlayerSuicide", "SuicideHandler", function( arguments, pl )
