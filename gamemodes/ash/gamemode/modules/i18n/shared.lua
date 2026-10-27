@@ -1,5 +1,5 @@
 local string_interpolate = string.interpolate
-local string_byteTrim = string.byteTrim
+local string_byteTrim = string.trimByte
 local string_gmatch = string.gmatch
 local string_gsub = string.gsub
 local string_len = string.len
@@ -8,8 +8,7 @@ local string_len = string.len
 local std = dreamwork.std
 local raw_get = std.raw.get
 
-local encoding = std.encoding
-local unicode_unescape = encoding.unicode.unescape
+local unicode_unescape = std.unicode.unescape
 
 local http = std.http
 local fs = std.fs

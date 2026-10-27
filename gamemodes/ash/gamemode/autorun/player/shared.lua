@@ -1481,7 +1481,7 @@ do
                 player_speed = hook_Run( "ash.player.LadderSpeed", pl, players_keys[ pl ] ) or 150
             end
 
-            if pl:GetRunSpeed() ~= player_speed then return end
+            if pl:GetRunSpeed() == player_speed then return end
 
             pl:SetSlowWalkSpeed( player_speed )
             pl:SetWalkSpeed( player_speed )

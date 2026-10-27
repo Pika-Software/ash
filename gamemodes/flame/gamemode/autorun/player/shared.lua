@@ -289,7 +289,7 @@ end
 ---@return integer g
 ---@return integer b
 function flame_player.V3toRGB( str )
-    local segments = string.byteSplit( string.byteTrim( str, 0x20 --[[ space ]] ), 0x20 --[[ space ]] )
+    local segments = string.byteSplit( string.trimByte( str, 0x20 --[[ space ]] ), 0x20 --[[ space ]] )
 
     return math.clamp( (tonumber( segments[ 1 ] or 0, 10 ) or 0) * 255, 0, 255 ),
         math.clamp( (tonumber( segments[ 2 ] or 0, 10 ) or 0) * 255, 0, 255 ),
@@ -302,7 +302,7 @@ end
 ---@return integer b
 ---@return integer a
 function flame_player.StoRGB( str )
-    local segments = string.byteSplit( string.byteTrim( str, 0x20 --[[ space ]] ), 0x20 --[[ space ]] )
+    local segments = string.byteSplit( string.trimByte( str, 0x20 --[[ space ]] ), 0x20 --[[ space ]] )
 
     return math.clamp( tonumber( segments[ 1 ] or 0, 10 ) or 0, 0, 255 ),
         math.clamp( tonumber( segments[ 2 ] or 0, 10 ) or 0, 0, 255 ),

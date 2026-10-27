@@ -12,6 +12,7 @@ local LUA_SERVER = std.LUA_SERVER
 local ErrorNoHaltWithStack = _G.ErrorNoHaltWithStack
 
 local setmetatable = std.setmetatable
+local setTimeout = std.setTimeout
 local setfenv = std.setfenv
 local getfenv = std.getfenv
 local xpcall = std.xpcall
@@ -26,6 +27,7 @@ local table = std.table
 local class = std.class
 local path = std.path
 local raw = std.raw
+local http = std.http
 -- local fs = std.fs
 
 local glua_cvars = _G.cvars
@@ -155,6 +157,16 @@ setmetatable( ash, {
 local color_scheme = {}
 ash.Colors = color_scheme
 
+do
+
+    local to_col = std.color.toRGB
+
+    for k, v in pairs( std.color.Scheme ) do
+        color_scheme[ k ] = Color( to_col( v ) )
+    end
+
+end
+
 color_scheme.ash_main = Color( 180, 120, 255 )
 
 color_scheme.ash_white = Color( 255, 255, 255 )
@@ -171,6 +183,16 @@ color_scheme.ash_separator = Color( 150, 150, 150 )
 
 color_scheme.ash_client = Color( 225, 170, 10 )
 color_scheme.ash_server = Color( 5, 170, 250 )
+
+setmetatable( color_scheme, {
+    __index = function( self, value )
+        if std.isNumber( value ) then
+            local c = Color( value, value, value )
+            self[ value ] = c
+            return c
+        end
+    end
+} )
 
 local ash_main = color_scheme.ash_main
 
@@ -920,11 +942,41 @@ setmetatable( environment, {
     end
 } )
 
-environment.setTimeout = std.setTimeout
+if http == nil then
+    local Future = std.Future
+    local HTTP = HTTP
+
+    http = {}
+
+    function http.get( url )
+        local f = Future()
+
+        setTimeout( function()
+            HTTP( {
+                url = url,
+                success = function( status_code, body, headers )
+                    f:setResult( {
+                        status = status_code,
+                        headers = headers,
+                        body = body
+                    } )
+                end,
+                failed = function( reason )
+                    f:setError( reason )
+                end
+            } )
+        end )
+
+        return f:await()
+    end
+
+end
+
+environment.setTimeout = setTimeout
 environment.console = std.console
 environment.futures = std.futures
 environment.sqlite = std.sqlite
-environment.http = std.http
+environment.http = http
 environment.string = string
 environment.math = std.math
 environment.table = table
@@ -1968,7 +2020,7 @@ do
                 if fn_path ~= nil then
                     fn_path = string.gsub( fn_path, "@", "" )
 
-                    segments[ 1 ] = string_match( fn_path , "([^/]+)/gamemode/" )
+                    segments[ 1 ] = string_match( fn_path, "([^/]+)/gamemode/" )
                 end
             end
 
@@ -1997,7 +2049,6 @@ do
             location = root_name .. "/gamemode/modules/" .. folder_name
             if not file_IsDir( location, "LUA" ) then return nil end
         end
-
 
         if segments_count > 2 then
             location = location .. "/" .. table_concat( segments, "/", 3, segments_count )
@@ -2264,7 +2315,7 @@ do
                 local has_changes, lua_code, file_sha256 = clientFileSend( lua_path, 2, true )
 
                 if has_changes then
-                    std.setTimeout( function()
+                    setTimeout( function()
                         glua_net.Start( "ash.network" )
                         glua_net.WriteUInt( 2, 2 )
                         glua_net.WriteString( lua_path )

@@ -67,6 +67,14 @@ hook.Add( "Tick", "Ticking", function()
     end
 end )
 
+hook.Add( "PlayerButtonDown", "InputHandler", function( pl, key_id )
+    hook_Run( "ash.player.Input", pl, key_id, true, false )
+end, PRE_HOOK )
+
+hook.Add( "PlayerButtonUp", "InputHandler", function( pl, key_id )
+    hook_Run( "ash.player.Input", pl, key_id, false, false )
+end, PRE_HOOK )
+
 --- [SERVER]
 ---
 --- Checks if the player is uses family shared account.

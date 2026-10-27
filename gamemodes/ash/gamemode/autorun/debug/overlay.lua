@@ -1,8 +1,4 @@
-local std = dreamwork.std
 local angle_zero = angle_zero
-
-local assert = std.assert
-local arg = std.arg
 
 local os_clock = os.clock
 
@@ -57,9 +53,6 @@ end )
 ---@param write_depth? boolean
 ---@param lifetime? number
 local function line( start_position, end_position, r, g, b, write_depth, lifetime )
-    assert( arg( start_position, 1, "Vector" ) )
-    assert( arg( end_position, 2, "Vector" ) )
-
     start_position = Vector( start_position )
     end_position = Vector( end_position )
 
@@ -82,9 +75,6 @@ overlay.line = line
 ---@param lifetime? number
 ---@diagnostic disable-next-line: duplicate-set-field
 function overlay.cross( origin, size, r, g, b, write_depth, lifetime )
-    assert( arg( origin, 1, "Vector" ) )
-    assert( arg( size, 2, "number" ) )
-
     size = size / 2
 
     local color = Color( r or 255, g or 255, b or 255, 255 )
@@ -120,8 +110,6 @@ local matColorIgnoreZ = Material( "color_ignorez" )
 ---@param lifetime? number
 ---@diagnostic disable-next-line: duplicate-set-field
 function overlay.box( filled, origin, angles, mins, maxs, r, g, b, write_depth, lifetime )
-    assert( arg( origin, 1, "Vector" ) )
-
     origin = Vector( origin )
 
     local color = Color( r or 255, g or 255, b or 255, 255 )
@@ -129,12 +117,7 @@ function overlay.box( filled, origin, angles, mins, maxs, r, g, b, write_depth, 
 
     if angles == nil then
         angles = angle_zero
-    else
-        assert( arg( angles, 2, "Angle" ) )
     end
-
-    assert( arg( mins, 3, "Vector" ) )
-    assert( arg( maxs, 4, "Vector" ) )
 
     mins = Vector( mins )
     maxs = Vector( maxs )
@@ -174,10 +157,6 @@ end
 ---@param lifetime? number
 ---@diagnostic disable-next-line: duplicate-set-field
 function overlay.text( str, origin, size, r, g, b, write_depth, lifetime )
-    assert( arg( str, 1, "string" ) )
-    assert( arg( origin, 2, "Vector" ) )
-    assert( arg( size, 3, "number" ) )
-
     origin = Vector( origin )
 
     local color = Color( r or 255, g or 255, b or 255, 255 )
