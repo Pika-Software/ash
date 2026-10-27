@@ -1,6 +1,5 @@
 local angle_zero = angle_zero
-
-local os_clock = os.clock
+local CurTime = CurTime
 
 local render_DrawWireframeBox = render.DrawWireframeBox
 local render_SetMaterial = render.SetMaterial
@@ -27,13 +26,13 @@ local death_times = {}
 local function gen( lifetime, fn )
     local queue_size = render_queue[ 0 ] + 1
     render_queue[ queue_size ] = fn
-    death_times[ queue_size ] = os_clock() + math.max( lifetime or 0, 0.5 )
+    death_times[ queue_size ] = CurTime() + math.max( lifetime or 0, 0.5 )
     render_queue[ 0 ] = queue_size
 end
 
 timer.Create( "OverlayTicks", 0.5, 0, function()
     local queue_size = render_queue[ 0 ] or 0
-    local now = os_clock()
+    local now = CurTime()
 
     for i = queue_size, 1, -1 do
         if now > death_times[ i ] then
@@ -178,7 +177,7 @@ function overlay.text( str, origin, size, r, g, b, write_depth, lifetime )
     end )
 end
 
-hook.Add( "PostDrawTranslucentRenderables", "Render", function( is_depth, is_skybox, is_3d_skybox )
+hook.Add( "PreDrawOpaqueWorld", "Render", function( is_depth, is_skybox, is_3d_skybox )
     if is_skybox then return end
 
     for i = render_queue[ 0 ], 1, -1 do
