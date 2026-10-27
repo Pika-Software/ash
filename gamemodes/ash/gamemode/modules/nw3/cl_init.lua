@@ -49,4 +49,8 @@ hook.Add( "ash.entity.Created", "Defaults", function( entity )
 	end
 end )
 
+hook.Add( "ash.nw3.Update", "Defaults", function( entity, key, value, value_old )
+	ash.Logger:debug( "nw3 update %s, key = %s, value = %s, old_value = %s", tostring( entity ), tostring( key ), tostring( value ), tostring( value_old ) )
+end )
+
 return nw3

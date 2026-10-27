@@ -173,14 +173,15 @@ local types = {
 nw3.types = types
 
 nw3.SEND_PVS = 0
-nw3.SEND_PAS = 2
-nw3.SEND_ALL = 3
-nw3.SEND_LOCAL = 4
+nw3.SEND_PAS = 1
+nw3.SEND_ALL = 2
+nw3.SEND_LOCAL = 3
 
 local net_SendPVS = net.SendPVS
 local net_SendPAS = net.SendPAS
 local net_Broadcast = net.Broadcast
 local net_Send = net.Send
+local net_Abort = net.Abort
 
 Entity_GetPos = Entity.GetPos
 
@@ -194,9 +195,13 @@ local send_type = {
 	[ nw3.SEND_ALL ] = function( )
 		net_Broadcast()
 	end,
-	[ nw3.SEND_LOCAL ] = function( _, pl )
-		if pl ~= nil and pl:IsValid() then
+	[ nw3.SEND_LOCAL ] = function( entity )
+		local pl = nw3.get( entity, "owner" )
+
+		if pl ~= nil and pl:IsValid() and pl:IsPlayer() then
 			net_Send( pl )
+		else
+			net_Abort()
 		end
 	end,
 }
@@ -366,5 +371,7 @@ hook.Add( "EntityRemoved", "RemoveEntityFromList", function( entity, full_update
 
 	entity_list_map[ entity ] = nil
 end )
+
+nw3.register( "owner", "entity", nw3.SEND_PVS )
 
 return nw3
