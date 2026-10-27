@@ -319,6 +319,8 @@ end )
 
 do
 
+    local Entity_LookupBone = Entity.LookupBone
+
     local util_TraceLine = util.TraceLine
 
     ---@type TraceResult
@@ -332,17 +334,39 @@ do
     ---@param pl Player
     ---@param data Bullet
     local function data_setup( pl, data )
-        local eye_pos = pl:EyePos()
+        local start_pos
+
+        local forearm_bone_id = Entity_LookupBone( pl, "ValveBiped.Bip01_R_Forearm" )
+        if forearm_bone_id ~= nil then
+            local matrix = pl:GetBoneMatrix( forearm_bone_id )
+            if matrix ~= nil then
+                start_pos = matrix:GetTranslation()
+            end
+        end
+
+        if start_pos == nil then
+            start_pos = pl:EyePos()
+        end
+
         local shoot_pos = pl:GetShootPos()
         data.Src = shoot_pos
 
-        trace.start = eye_pos
-        trace.endpos = eye_pos + pl:GetAimVector() * 16384
-        trace.filter = pl
+        local dir = shoot_pos - start_pos
+        dir:Normalize()
+        data.Dir = dir
 
-        util_TraceLine( trace )
+        -- local eye_pos = pl:EyePos()
+        -- trace.start = eye_pos
+        -- trace.endpos = eye_pos + pl:GetAimVector() * 16384
 
-        data.Dir = ((trace_result.HitPos or trace.endpos) - shoot_pos):GetNormalized()
+        -- trace.start = shoot_pos
+        -- trace.endpos = shoot_pos + dir * 16384
+        -- trace.filter = pl
+
+        -- util_TraceLine( trace )
+
+        -- debug.overlay.line( shoot_pos, trace_result.HitPos or trace.endpos, 255, 0, 0, true, 10 )
+        -- data.Dir = ((trace_result.HitPos or trace.endpos) - shoot_pos):GetNormalized()
     end
 
     ---@param entity Entity
