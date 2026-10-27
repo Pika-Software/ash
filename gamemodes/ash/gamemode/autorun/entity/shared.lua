@@ -1156,39 +1156,43 @@ do
 
 end
 
----@param arguments table
----@param entity Entity
----@param bullet Bullet
-hook.Add( "EntityFireBullets", "BulletCallback", function( arguments, entity, bullet )
-    if arguments[ 2 ] == false then return false end
+do
 
-    local callback = bullet.Callback
+    local result = {}
 
-    bullet.Callback = function( attacker, trace_result, damage_info )
-        local do_effects, do_damage = hook_Run( "ash.entity.BulletImpact", bullet, attacker, trace_result, damage_info )
+    ---@param arguments table
+    ---@param entity Entity
+    ---@param bullet Bullet
+    hook.Add( "EntityFireBullets", "BulletCallback", function( arguments, entity, bullet )
+        if arguments[ 2 ] == false then return false end
 
-        local result = {
-            do_effects ~= false,
-            do_damage ~= false
-        }
+        local callback = bullet.Callback
 
-        if callback ~= nil then
-            do_effects, do_damage = callback( attacker, trace_result, damage_info )
+        bullet.Callback = function( attacker, trace_result, damage_info )
+            local do_effects, do_damage = hook_Run( "ash.entity.BulletImpact", bullet, attacker, trace_result, damage_info )
 
-            if do_effects ~= nil then
-                result.do_effects = do_effects ~= false
+            result.do_effects = do_effects ~= false
+            result.do_damage = do_damage ~= false
+
+            if callback ~= nil then
+                do_effects, do_damage = callback( attacker, trace_result, damage_info )
+
+                if do_effects ~= nil then
+                    result.do_effects = do_effects ~= false
+                end
+
+                if do_damage ~= nil then
+                    result.do_damage = do_damage ~= false
+                end
             end
 
-            if do_damage ~= nil then
-                result.do_damage = do_damage ~= false
-            end
+            return result
         end
 
-        return result
-    end
+        return true
+    end, POST_HOOK_RETURN )
 
-    return true
-end, POST_HOOK_RETURN )
+end
 
 do
 

@@ -1,5 +1,6 @@
 ---@class ash.player
 local ash_player = ...
+local player_isInNoclip = ash_player.isInNoclip
 
 ---@type ash.entity
 local ash_entity = import "ash.entity"
@@ -512,7 +513,7 @@ do
             if unhandled_move_types[ move_type ] then
                 activity = getStandActivity( pl )
                 goto activity_selected
-            elseif flight_move_types[ move_type ] or ash_player.inInNoclip( pl ) then
+            elseif flight_move_types[ move_type ] or player_isInNoclip( pl ) then
                 activity = getFlightActivity( pl )
                 goto activity_selected
             end

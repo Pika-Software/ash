@@ -107,6 +107,10 @@ do
             return entity:IsPlayer()
         end )
 
+        if player_filter.count == 0 then
+            player_filter:update()
+        end
+
         local bot_filter = ash_entity.Filter( function( entity )
             ---@cast entity Player
             return entity:IsPlayer() and entity:IsBot()
@@ -1332,7 +1336,7 @@ do
     ---
     ---@param pl Player
     ---@return boolean is_in_noclip
-    function ash_player.inInNoclip( pl )
+    function ash_player.isInNoclip( pl )
         return Entity_GetNW2Var( pl, "ash.noclip", false ) == true
     end
 
@@ -1496,12 +1500,8 @@ do
     hook.Add( "Move", "SpeedController", function( arguments, pl, mv )
         if players_in_vehicle[ pl ] then return end
 
-        local suppress_engine = arguments[ 2 ]
-        if suppress_engine ~= nil then
-            return suppress_engine
-        end
-
-        if ash_player.inInNoclip( pl ) then -- noclip movement
+        -- noclip must win over any other Move hook, otherwise the engine walk code runs (gravity) for that tick
+        if ash_player.isInNoclip( pl ) then -- noclip movement
             local player_speed = hook_Run( "ash.player.NoclipSpeed", pl, players_keys[ pl ] ) or 1000
 
             if pl:GetCollisionGroup() ~= 10 then
@@ -1512,7 +1512,7 @@ do
             MoveData_SetMaxSpeed( mv, player_speed )
 
             local origin = MoveData_GetOrigin( mv )
-            local velocity = ((directions[ pl ] * player_speed) - MoveData_GetVelocity( mv )) * tick_interval
+            local velocity = (((directions[ pl ] or vector_origin) * player_speed) - MoveData_GetVelocity( mv )) * tick_interval
 
             MoveData_SetVelocity( mv, velocity )
 
@@ -1520,6 +1520,11 @@ do
             MoveData_SetOrigin( mv, origin )
 
             return true
+        end
+
+        local suppress_engine = arguments[ 2 ]
+        if suppress_engine ~= nil then
+            return suppress_engine
         end
     end, POST_HOOK_RETURN )
 
@@ -1534,7 +1539,7 @@ do
         ---@param pl Player
         ---@param wheel number
         hook.Add( "ash.player.MouseWheel", "NoclipSpeed", function( pl, wheel )
-            if ash_player.inInNoclip( pl ) then
+            if ash_player.isInNoclip( pl ) then
                 if ash_player.isInVehicle( pl ) then return end
 
                 local noclip_speed = Entity_GetNW2Var( pl, "m_fNoclipSpeed", 500 )
@@ -1576,7 +1581,7 @@ do
     if CLIENT then
 
         hook.Add( "ash.player.ShouldDrawHUD", "NoclipHUD", function( pl, name )
-            if name == "CHudWeaponSelection" and ash_player.inInNoclip( pl ) then
+            if name == "CHudWeaponSelection" and ash_player.isInNoclip( pl ) then
                 return false
             end
         end )
@@ -1803,11 +1808,76 @@ do
 
     local in_call = false
 
+    local unstuck_offsets = {}
+
+    for distance = 16, 128, 16 do
+        unstuck_offsets[ #unstuck_offsets + 1 ] = Vector( 0, 0, distance )
+        unstuck_offsets[ #unstuck_offsets + 1 ] = Vector( 0, 0, -distance )
+
+        for yaw = 0, 315, 45 do
+            local direction = Angle( 0, yaw, 0 ):Forward()
+            unstuck_offsets[ #unstuck_offsets + 1 ] = direction * distance
+            unstuck_offsets[ #unstuck_offsets + 1 ] = direction * distance + Vector( 0, 0, distance )
+        end
+    end
+
+    ---@param pl Player
+    ---@param position Vector
+    ---@return boolean
+    local function is_hull_free( pl, position )
+        trace.start = position
+        trace.endpos = position
+        trace.mins, trace.maxs = pl:GetCollisionBounds()
+        trace.filter = pl
+
+        util.TraceHull( trace )
+        return not trace_result.StartSolid
+    end
+
+    --- Finds a position near the player where their hull is not inside of anything, dropped to the ground if it's close.
+    ---@param pl Player
+    ---@return Vector | nil
+    local function find_exit_position( pl )
+        local origin = pl:GetPos()
+        local position
+
+        if is_hull_free( pl, origin ) then
+            position = origin
+        else
+            for i = 1, #unstuck_offsets do
+                local candidate = origin + unstuck_offsets[ i ]
+                if is_hull_free( pl, candidate ) then
+                    position = candidate
+                    break
+                end
+            end
+        end
+
+        if position == nil then
+            return nil
+        end
+
+        trace.start = position
+        trace.endpos = position - Vector( 0, 0, 128 )
+
+        util.TraceHull( trace )
+
+        if trace_result.Hit and not trace_result.StartSolid then
+            return trace_result.HitPos * 1
+        end
+
+        return position
+    end
+
     ---@param pl Player
     hook.Add( "PlayerNoClip", "NoclipController", function( pl )
         if in_call then return end
 
-        local previous_value = ash_player.inInNoclip( pl ) == true
+        -- the server owns the noclip state; a client-side guess that the server rejects
+        -- never gets corrected and desyncs prediction (rubberbanding / falling)
+        if CLIENT then return false end
+
+        local previous_value = ash_player.isInNoclip( pl ) == true
         local requested = not previous_value
         local value = false
 
@@ -1832,29 +1902,37 @@ do
             end
         end
 
+        local exit_position
+
+        if previous_value and not value and Player_Alive( pl ) then
+            exit_position = find_exit_position( pl )
+
+            if exit_position == nil then
+                pl:ChatPrint( "You can't leave noclip here, move out of the wall first." )
+                return false
+            end
+        end
+
         Entity_SetNW2Var( pl, "ash.noclip", value )
         pl:SetCollisionGroup( value and 10 or 0 )
 
-        if not value and value ~= previous_value and SERVER then
-            trace.start = pl:EyePos()
-            trace.endpos = trace.start - ash_player.getAngles( pl ):Up() * 128
-
-            trace.mins, trace.maxs = pl:GetCollisionBounds()
-            trace.filter = pl
-
-            util.TraceHull( trace )
-
-            if trace_result.Hit and not trace_result.StartSolid then
-                setTimeout( function()
-                    if IsValid( pl ) then
-                        pl:SetPos( trace_result.HitPos )
-                    end
-                end )
-            end
+        if exit_position ~= nil then
+            setTimeout( function()
+                if IsValid( pl ) then
+                    pl:SetPos( exit_position )
+                    pl:SetLocalVelocity( vector_origin )
+                end
+            end )
         end
 
         return false
     end, PRE_HOOK_RETURN )
+
+    hook.Add( "ash.player.animator.PlaybackRate", "NoclipController", function( pl )
+        if ash_player.isInNoclip( pl ) then
+            return 0
+        end
+    end )
 
     ---@param pl Player
     hook.Add( "ash.player.Spawn", "NoclipController", function( pl )
@@ -2350,7 +2428,7 @@ end
 do
     local Entity_GetNW2Bool = Entity.GetNW2Bool
 
-    hook.Add( "ash.entity.CanCollide", "DisableCollisionCorpse", function ( entity1, entity2 )
+    hook.Add( "ash.entity.CanCollide", "DisableCollisionCorpse", function( entity1, entity2 )
         if entity2:IsPlayer() and Entity_GetNW2Bool( entity1, "ash.IsRagdoll", false ) then
             return false
         end
