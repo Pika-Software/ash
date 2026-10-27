@@ -575,13 +575,23 @@ do
 
 end
 
-hook.Add( "PlayerButtonDown", "InputHandler", function( pl, key_id )
-    hook_Run( "ash.player.Input", pl, key_id, true, player_isLocal( pl ) )
-end, PRE_HOOK )
+do
 
-hook.Add( "PlayerButtonUp", "InputHandler", function( pl, key_id )
-    hook_Run( "ash.player.Input", pl, key_id, false, player_isLocal( pl ) )
-end, PRE_HOOK )
+    local IsFirstTimePredicted = IsFirstTimePredicted
+
+    hook.Add( "PlayerButtonDown", "InputHandler", function( pl, key_id )
+        if not IsFirstTimePredicted() then return end
+
+        hook_Run( "ash.player.Input", pl, key_id, true, player_isLocal( pl ) )
+    end, PRE_HOOK )
+
+    hook.Add( "PlayerButtonUp", "InputHandler", function( pl, key_id )
+        if not IsFirstTimePredicted() then return end
+
+        hook_Run( "ash.player.Input", pl, key_id, false, player_isLocal( pl ) )
+    end, PRE_HOOK )
+
+end
 
 hook.Add( "AdjustMouseSensitivity", "InputHandler", function( arguments, default_sensitivity, fov, default_fov )
     local fraction = arguments[ 2 ]

@@ -207,7 +207,7 @@ do
     end )
 
     local Player_GetInfoNum = Player.GetInfoNum
-    hook.Add("PlayerCanHearPlayersVoice", "Default", function(listener, speaker)
+    hook.Add( "PlayerCanHearPlayersVoice", "Default", function( listener, speaker )
         return speaker == listener or speakers[ speaker ][ listener ], Player_GetInfoNum( listener, "flame_player_3dvoice", 0 ) > 0 and true or false
     end )
 

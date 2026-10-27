@@ -251,7 +251,6 @@ do
         self:SetMouseInputEnabled( true )
         self:SetKeyboardInputEnabled( false )
 
-        input_SetCursorPos( self.CursorX, self.CursorY )
         Panel_InvalidateLayout( self, true )
 
         CloseDermaMenus()
@@ -262,8 +261,6 @@ do
             self:SetHangOpen( false )
             return
         end
-
-        self.CursorX, self.CursorY = input_GetCursorPos()
 
         CloseDermaMenus()
 
@@ -439,6 +436,8 @@ do
 
     end
 
+    local x, y = 0, 0
+
     hook.Add( "OnContextMenuOpen", "DefaultHandler", function()
         local hud_panel = GetHUDPanel()
         if not (hud_panel ~= nil and Panel_IsValid( hud_panel ) and Panel_IsVisible( hud_panel )) or hook_Run( "ContextMenuOpen" ) == false then
@@ -469,6 +468,7 @@ do
             end
 
             hook_Run( "ContextMenuOpened", context_menu )
+            input_SetCursorPos( x, y )
         end
     end )
 
@@ -477,6 +477,8 @@ do
         ---@diagnostic disable-next-line: assign-type-mismatch
         local context_menu = ash_ui.getPanel( "flame.ui.ContextMenu" )
         if context_menu ~= nil and Panel_IsValid( context_menu ) then
+            x, y = input_GetCursorPos()
+
             if DEBUG then
                 context_menu:Remove()
             else
