@@ -470,7 +470,7 @@ do
         ---@param velocity Vector
         ---@diagnostic disable-next-line: redundant-parameter
         hook.Add( "CalcMainActivity", "AnimationController", function( arguments, pl, velocity )
-            velocities[pl] = velocity
+            velocities[ pl ] = velocity
 
             local on_ground = pl:IsOnGround()
             local speed = math.ceil( Vector_LengthSqr( velocity ) )
@@ -636,11 +636,7 @@ do
                     end
                 end
             elseif flight_move_types[ move_type ] then
-                if Vector_LengthSqr( velocities[ pl ] ) > 22500 then
-                    rate = 0.00
-                else
-                    rate = 0.25
-                end
+                rate = 0.00
             elseif move_type == 9 then
                 rate = 0.25
             end

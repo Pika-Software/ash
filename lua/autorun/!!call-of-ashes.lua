@@ -153,7 +153,7 @@ setmetatable( ash, {
     end
 } )
 
----@class dreamwork.std.ColorClass.scheme
+---@type table<(string | integer), Color>
 local color_scheme = {}
 ash.Colors = color_scheme
 
