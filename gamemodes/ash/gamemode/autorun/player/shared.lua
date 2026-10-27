@@ -1504,10 +1504,6 @@ do
         if ash_player.isInNoclip( pl ) then -- noclip movement
             local player_speed = hook_Run( "ash.player.NoclipSpeed", pl, players_keys[ pl ] ) or 1000
 
-            if pl:GetCollisionGroup() ~= 10 then
-                pl:SetCollisionGroup( 10 )
-            end
-
             MoveData_SetMaxClientSpeed( mv, player_speed )
             MoveData_SetMaxSpeed( mv, player_speed )
 
@@ -1797,6 +1793,8 @@ end, POST_HOOK_RETURN )
 
 do
 
+    local Entity_SetMoveType = Entity.SetMoveType
+
     ---@type TraceResult
     local trace_result = {}
 
@@ -1914,7 +1912,7 @@ do
         end
 
         Entity_SetNW2Var( pl, "ash.noclip", value )
-        pl:SetCollisionGroup( value and 10 or 0 )
+        Entity_SetMoveType( pl, value and 8 or 2 )
 
         if exit_position ~= nil then
             setTimeout( function()
@@ -1937,7 +1935,7 @@ do
     ---@param pl Player
     hook.Add( "ash.player.Spawn", "NoclipController", function( pl )
         Entity_SetNW2Var( pl, "ash.noclip", false )
-        pl:SetCollisionGroup( 0 )
+        Entity_SetMoveType( pl, 2 )
     end, PRE_HOOK )
 
 end

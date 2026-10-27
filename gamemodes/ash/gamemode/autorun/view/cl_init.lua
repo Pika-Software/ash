@@ -3,9 +3,6 @@ local hook_Run = hook.Run
 ---@type ash.ui
 local ash_ui = import "ash.ui"
 
----@type ash.player
-local ash_player = import "ash.player"
-
 ---@class ash.view
 ---@field AimVector Vector The aim vector.
 ---@field Data ash.view.Data The view data.
@@ -86,9 +83,9 @@ do
     ---@diagnostic disable-next-line: undefined-global
     local MainEyeAngles = MainEyeAngles
 
-    local net_Start = net.Start
-    local net_WriteFloat = net.WriteFloat
     local net_SendToServer = net.SendToServer
+    local net_WriteFloat = net.WriteFloat
+    local net_Start = net.Start
 
     hook.Add( "ash.view.AimVector", "Sync", function( _, aim )
         net_Start( "sync", true )
@@ -133,24 +130,24 @@ do
 
     ash_view.Entity = GetViewEntity() or NULL
 
-    timer.Create("ViewEntity", 0.5, 0, function()
+    timer.Create( "ViewEntity", 0.5, 0, function()
         local entity = GetViewEntity() or NULL
         if entity ~= ash_view.Entity then
-            hook_Run("ash.view.Entity", ash_view.Entity, entity)
+            hook_Run( "ash.view.Entity", ash_view.Entity, entity )
             ash_view.Entity = entity
         end
-    end)
+    end )
 end
 
 do
     ---@type ViewData
     local view = {
-        ["origin"] = Vector(),
-    	["angles"] = Angle(),
-    	["fov"] = 60,
-    	["znear"] = 0,
-    	["zfar"] = 0,
-    	["drawviewer"] = false,
+        [ "origin" ] = Vector(),
+        [ "angles" ] = Angle(),
+        [ "fov" ] = 60,
+        [ "znear" ] = 0,
+        [ "zfar" ] = 0,
+        [ "drawviewer" ] = false,
     }
 
     ---@class Weapon
@@ -160,22 +157,22 @@ do
     local Player_GetActiveWeapon = Player.GetActiveWeapon
 
     hook.Add( "CalcView", "Default", function( pl, origin, angles, fov, znear, zfar )
-    	local veh = Player_GetVehicle( pl )
+        local veh = Player_GetVehicle( pl )
         local wep = Player_GetActiveWeapon( pl )
 
-    	---@cast wep SWEP
+        ---@cast wep SWEP
 
-    	view.origin = origin
-    	view.angles = angles
-    	view.fov = fov
-    	view.znear = znear
-    	view.zfar = zfar
-    	view.drawviewer = false
+        view.origin = origin
+        view.angles = angles
+        view.fov = fov
+        view.znear = znear
+        view.zfar = zfar
+        view.drawviewer = false
 
-    	hook.Run( "ash.view.CalcView", pl, view, origin, angles, fov, znear, zfar )
+        hook.Run( "ash.view.CalcView", pl, view, origin, angles, fov, znear, zfar )
 
         if veh ~= nil and veh:IsValid() then
-            if hook.Run("ash.view.CalcVehicleView", veh, pl, view) == false then
+            if hook.Run( "ash.view.CalcVehicleView", veh, pl, view ) == false then
                 return view
             end
         end
@@ -184,44 +181,44 @@ do
             return view
         end
 
-    	player_manager.RunClass( pl, "CalcView", view )
+        player_manager.RunClass( pl, "CalcView", view )
 
-    	if wep ~= nil and wep:IsValid() then
-    		local calcView = wep.CalcView
+        if wep ~= nil and wep:IsValid() then
+            local calcView = wep.CalcView
             if calcView ~= nil then
-                origin, angles, fov = calcView(wep, pl, Vector(view.origin), Angle(view.angles), view.fov)
+                origin, angles, fov = calcView( wep, pl, Vector( view.origin ), Angle( view.angles ), view.fov )
                 view.origin, view.angles, view.fov = origin or view.origin, angles or view.angles, fov or view.fov
             end
 
-    		local ashCalcView = wep.calcView
+            local ashCalcView = wep.calcView
             if ashCalcView then
                 ashCalcView( wep, view )
             end
-    	end
+        end
 
-    	return view
+        return view
     end )
 end
 
 
 do
-    hook.Add( "CalcViewModelView", "Defaults", function(  wep, vm, oldEyePos, oldEyeAng, eyePos, eyeAng  )
-        if ( not IsValid( wep ) ) then return end
+    hook.Add( "CalcViewModelView", "Defaults", function( wep, vm, oldEyePos, oldEyeAng, eyePos, eyeAng )
+        if (not IsValid( wep )) then return end
 
         local vm_origin, vm_angles = eyePos, eyeAng
 
         -- Controls the position of all viewmodels
         local func = wep.GetViewModelPosition
-        if ( func ) then
-            local pos, ang = func( wep, eyePos*1, eyeAng*1 )
+        if (func) then
+            local pos, ang = func( wep, eyePos * 1, eyeAng * 1 )
             vm_origin = pos or vm_origin
             vm_angles = ang or vm_angles
         end
 
         -- Controls the position of individual viewmodels
         func = wep.CalcViewModelView
-        if ( func ) then
-            local pos, ang = func( wep, vm, oldEyePos*1, oldEyeAng*1, eyePos*1, eyeAng*1 )
+        if (func) then
+            local pos, ang = func( wep, vm, oldEyePos * 1, oldEyeAng * 1, eyePos * 1, eyeAng * 1 )
             vm_origin = pos or vm_origin
             vm_angles = ang or vm_angles
         end

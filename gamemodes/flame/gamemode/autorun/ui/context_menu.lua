@@ -439,9 +439,7 @@ do
 
     end
 
-    local x, y = input_GetCursorPos()
-
-    hook.Add( "OnContextMenuOpen", "Defaults", function()
+    hook.Add( "OnContextMenuOpen", "DefaultHandler", function()
         local hud_panel = GetHUDPanel()
         if not (hud_panel ~= nil and Panel_IsValid( hud_panel ) and Panel_IsVisible( hud_panel )) or hook_Run( "ContextMenuOpen" ) == false then
             return
@@ -471,11 +469,10 @@ do
             end
 
             hook_Run( "ContextMenuOpened", context_menu )
-            input.SetCursorPos( x, y )
         end
     end )
 
-    hook.Add( "OnContextMenuClose", "Defaults", function()
+    hook.Add( "OnContextMenuClose", "DefaultHandler", function()
         ---@type flame.ui.ContextMenu
         ---@diagnostic disable-next-line: assign-type-mismatch
         local context_menu = ash_ui.getPanel( "flame.ui.ContextMenu" )
@@ -487,7 +484,6 @@ do
             end
 
             hook_Run( "ContextMenuClosed", context_menu )
-            x, y = input_GetCursorPos()
         end
     end )
 

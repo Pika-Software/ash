@@ -13,13 +13,17 @@ local ash_view = include( "shared.lua" )
 do
 
     local Vector_SetUnpacked = Vector.SetUnpacked
+
     local Entity_SetNW2Var = Entity.SetNW2Var
     local Entity_IsValid = Entity.IsValid
+
     local net_ReadFloat = net.ReadFloat
+
     local hook_Run = hook.Run
 
     local temp_vector = Vector( 0, 0, 0 )
 
+    ---@param pl Player
     net.Receive( "sync", function( _, pl )
         if Entity_IsValid( pl ) and pl:Alive() then
             Vector_SetUnpacked( temp_vector, net_ReadFloat(), net_ReadFloat(), net_ReadFloat() )
