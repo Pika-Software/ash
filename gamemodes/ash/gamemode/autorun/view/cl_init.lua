@@ -142,8 +142,8 @@ end
 do
     ---@type ViewData
     local view = {
-        [ "origin" ] = Vector(),
-        [ "angles" ] = Angle(),
+        [ "origin" ] = Vector( 0, 0, 0 ),
+        [ "angles" ] = Angle( 0, 0, 0 ),
         [ "fov" ] = 60,
         [ "znear" ] = 0,
         [ "zfar" ] = 0,
