@@ -164,8 +164,7 @@ do
 
         view.origin = origin
         view.angles = angles
-        vi
-        ew.fov = fov
+        view.fov = fov
         view.znear = znear
         view.zfar = zfar
         view.drawviewer = false
