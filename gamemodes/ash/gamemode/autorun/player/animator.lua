@@ -1,5 +1,6 @@
 ---@class ash.player
 local ash_player = ...
+local player_isInNoclip = ash_player.isInNoclip
 
 ---@type ash.entity
 local ash_entity = import "ash.entity"
@@ -476,6 +477,10 @@ do
             local speed = math.ceil( Vector_LengthSqr( velocity ) )
             local player_is_running = math.ceil( speed ) >= runspeed
 
+            local on_ground = pl:IsOnGround()
+            local speed = math.ceil( Vector_LengthSqr( velocity ) )
+            local player_is_running = math.ceil( speed ) >= runspeed
+
             if SERVER or entity_isInPVS( pl ) then
                 activity = arguments[ 2 ]
                 if activity == nil then
@@ -512,7 +517,7 @@ do
             if unhandled_move_types[ move_type ] then
                 activity = getStandActivity( pl )
                 goto activity_selected
-            elseif flight_move_types[ move_type ] or ash_player.inInNoclip( pl ) then
+            elseif flight_move_types[ move_type ] or player_isInNoclip( pl ) then
                 activity = getFlightActivity( pl )
                 goto activity_selected
             end
@@ -636,11 +641,7 @@ do
                     end
                 end
             elseif flight_move_types[ move_type ] then
-                if Vector_LengthSqr( velocities[ pl ] ) > 22500 then
-                    rate = 0.00
-                else
-                    rate = 0.25
-                end
+                rate = 0.00
             elseif move_type == 9 then
                 rate = 0.25
             end

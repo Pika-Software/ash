@@ -1,10 +1,5 @@
-local std = dreamwork.std
 local angle_zero = angle_zero
-
-local assert = std.assert
-local arg = std.arg
-
-local os_clock = os.clock
+local CurTime = CurTime
 
 local render_DrawWireframeBox = render.DrawWireframeBox
 local render_SetMaterial = render.SetMaterial
@@ -31,13 +26,13 @@ local death_times = {}
 local function gen( lifetime, fn )
     local queue_size = render_queue[ 0 ] + 1
     render_queue[ queue_size ] = fn
-    death_times[ queue_size ] = os_clock() + math.max( lifetime or 0, 0.5 )
+    death_times[ queue_size ] = CurTime() + math.max( lifetime or 0, 0.5 )
     render_queue[ 0 ] = queue_size
 end
 
 timer.Create( "OverlayTicks", 0.5, 0, function()
     local queue_size = render_queue[ 0 ] or 0
-    local now = os_clock()
+    local now = CurTime()
 
     for i = queue_size, 1, -1 do
         if now > death_times[ i ] then
@@ -57,9 +52,6 @@ end )
 ---@param write_depth? boolean
 ---@param lifetime? number
 local function line( start_position, end_position, r, g, b, write_depth, lifetime )
-    assert( arg( start_position, 1, "Vector" ) )
-    assert( arg( end_position, 2, "Vector" ) )
-
     start_position = Vector( start_position )
     end_position = Vector( end_position )
 
@@ -82,9 +74,6 @@ overlay.line = line
 ---@param lifetime? number
 ---@diagnostic disable-next-line: duplicate-set-field
 function overlay.cross( origin, size, r, g, b, write_depth, lifetime )
-    assert( arg( origin, 1, "Vector" ) )
-    assert( arg( size, 2, "number" ) )
-
     size = size / 2
 
     local color = Color( r or 255, g or 255, b or 255, 255 )
@@ -120,8 +109,6 @@ local matColorIgnoreZ = Material( "color_ignorez" )
 ---@param lifetime? number
 ---@diagnostic disable-next-line: duplicate-set-field
 function overlay.box( filled, origin, angles, mins, maxs, r, g, b, write_depth, lifetime )
-    assert( arg( origin, 1, "Vector" ) )
-
     origin = Vector( origin )
 
     local color = Color( r or 255, g or 255, b or 255, 255 )
@@ -129,12 +116,7 @@ function overlay.box( filled, origin, angles, mins, maxs, r, g, b, write_depth, 
 
     if angles == nil then
         angles = angle_zero
-    else
-        assert( arg( angles, 2, "Angle" ) )
     end
-
-    assert( arg( mins, 3, "Vector" ) )
-    assert( arg( maxs, 4, "Vector" ) )
 
     mins = Vector( mins )
     maxs = Vector( maxs )
@@ -174,10 +156,6 @@ end
 ---@param lifetime? number
 ---@diagnostic disable-next-line: duplicate-set-field
 function overlay.text( str, origin, size, r, g, b, write_depth, lifetime )
-    assert( arg( str, 1, "string" ) )
-    assert( arg( origin, 2, "Vector" ) )
-    assert( arg( size, 3, "number" ) )
-
     origin = Vector( origin )
 
     local color = Color( r or 255, g or 255, b or 255, 255 )
@@ -199,7 +177,7 @@ function overlay.text( str, origin, size, r, g, b, write_depth, lifetime )
     end )
 end
 
-hook.Add( "PostDrawTranslucentRenderables", "Render", function( is_depth, is_skybox, is_3d_skybox )
+hook.Add( "PreDrawOpaqueWorld", "Render", function( is_depth, is_skybox, is_3d_skybox )
     if is_skybox then return end
 
     for i = render_queue[ 0 ], 1, -1 do

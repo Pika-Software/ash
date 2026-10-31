@@ -38,13 +38,14 @@ do
 
     end
 
+    ---@diagnostic disable-next-line: duplicate-set-field
     function GM:GetGameDescription()
         return gamemode_description
     end
 
 end
 
-dreamwork.engine.hookCatch( "GamemodeSelected", function( name, t )
+dreamwork.engine.hookCatch( "dreamwork.gamemode.select", "ash", function( name, t )
     if name == "base" and t ~= nil then
         std.table.clearKeys( t )
     end

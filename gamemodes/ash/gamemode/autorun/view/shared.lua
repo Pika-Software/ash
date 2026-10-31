@@ -16,7 +16,7 @@ local trace_cast = ash_trace.cast
 ---@class ash.view
 local ash_view = {}
 
---- [SERVER]
+--- [SHARED]
 ---
 --- Gets the player's aim vector.
 ---

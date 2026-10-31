@@ -370,7 +370,7 @@ end
 
 do
 
-    local math_isint = math.isint
+    local math_isInteger = math.isInteger
     local setTimeout = setTimeout
     local util_CRC = util.CRC
 
@@ -394,7 +394,7 @@ do
         ---@param key string
         ---@param value number
         number = function( material, key, value )
-            if math_isint( value ) then
+            if math_isInteger( value ) then
                 Material_SetInt( material, key, value )
             else
                 Material_SetFloat( material, key, value )

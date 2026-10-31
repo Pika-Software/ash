@@ -67,6 +67,14 @@ hook.Add( "Tick", "Ticking", function()
     end
 end )
 
+hook.Add( "PlayerButtonDown", "InputHandler", function( pl, key_id )
+    hook_Run( "ash.player.Input", pl, key_id, true, false )
+end, PRE_HOOK )
+
+hook.Add( "PlayerButtonUp", "InputHandler", function( pl, key_id )
+    hook_Run( "ash.player.Input", pl, key_id, false, false )
+end, PRE_HOOK )
+
 --- [SERVER]
 ---
 --- Checks if the player is uses family shared account.
@@ -936,9 +944,9 @@ hook.Add( "PlayerSay", "ChatHandler", function( arguments, sender, message, is_t
     return ""
 end, POST_HOOK_RETURN )
 
-hook.Add( "GetFallDamage", "LandingHandler", function()
-    return 0
-end, POST_HOOK_RETURN )
+hook.Add( "GetFallDamage", "LandingHandler", function( pl, speed )
+    return hook_Run( "ash.player.FallDamage", pl, speed ) or 0
+end, PRE_HOOK_RETURN )
 
 hook.Add( "CanPlayerSuicide", "SuicideHandler", function( arguments, pl )
     if arguments[ 2 ] == false or hook_Run( "ash.player.CanSuicide", pl ) == false then

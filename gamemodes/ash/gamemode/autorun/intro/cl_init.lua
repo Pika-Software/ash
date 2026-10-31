@@ -39,16 +39,17 @@ local function WriteTextToRT( text, font )
     render.Clear( 0, 0, 0, 255 )
 
     cam_Start2D()
-        surface.SetFont( font or "DermaLarge" )
-        surface.SetTextColor( 255,255,255,255 )
+    surface.SetFont( font or "DermaLarge" )
+    surface.SetTextColor( 255, 255, 255, 255 )
 
-        local lines, line_count = string.byteSplit( text, 0x0A --[[ \n ]] )
+    local lines, line_count = string.byteSplit( text, 0x0A --[[ \n ]] )
 
-        for i = 1, line_count, 1 do
-            local tw, th = surface.GetTextSize( text )
-            surface.SetTextPos( ( RT_SIZE - tw ) / 2, ( RT_SIZE - th ) / 2 + ( i - 1 ) * th / line_count )
-            surface.DrawText( lines[ i ] )
-        end
+    for i = 1, line_count, 1 do
+        local tw, th = surface.GetTextSize( text )
+        surface.SetTextPos( (RT_SIZE - tw) / 2, (RT_SIZE - th) / 2 + (i - 1) * th / line_count )
+        surface.DrawText( lines[ i ] )
+    end
+
     cam_End2D()
 
     render.OverrideAlphaWriteEnable( false, false )
@@ -61,9 +62,9 @@ local function WriteImageToRT( mat )
     render.Clear( 0, 0, 0, 255 )
 
     cam_Start2D()
-        surface.SetMaterial( mat )
-        surface_SetDrawColor( 255, 255, 255, 255 )
-        surface.DrawTexturedRect( 0, 0, RT_SIZE, RT_SIZE )
+    surface.SetMaterial( mat )
+    surface_SetDrawColor( 255, 255, 255, 255 )
+    surface.DrawTexturedRect( 0, 0, RT_SIZE, RT_SIZE )
     cam_End2D()
 
     render.OverrideAlphaWriteEnable( false, false )
@@ -79,7 +80,7 @@ local function BuildDotMatrixFromRT()
     for y = 0, RT_SIZE - 1, DOT_SPACING do
         for x = 0, RT_SIZE - 1, DOT_SPACING do
             local r, g, b, a = render.ReadPixel( x, y )
-            if ( a == nil or a > 10 ) and ( r > 10 or g > 10 or b > 10 ) then
+            if (a == nil or a > 10) and (r > 10 or g > 10 or b > 10) then
                 index = index + 1
 
                 local dot = dots[ index ]
@@ -130,6 +131,7 @@ hook.Add( "ash.Loaded", "Welcome", function()
     ash.Logger:debug( "Generated hash '%s' for IP '%s'.", hash, game.GetIPAddress() )
 
     if ash_intro.value == hash then return end
+
     ash_intro.value = hash
 
     WriteTextToRT( "</Powered by Ash>", "ash.intro.Text" )
@@ -148,7 +150,7 @@ hook.Add( "ash.Loaded", "Welcome", function()
         futures.sleep( 2 )
         if fading then return end
 
-        hue, saturation, lightness = ash_ui.Colors.dreamwork_main:toHSV()
+        hue, saturation, lightness = ash_ui.Colors.dreamwork_main:ToHSV()
 
         -- WriteTextToRT( "Developers:\n- Unknown Developer\n- AngoNex\n", "ash.intro.TextSmall" )
         -- BuildDotMatrixFromRT()
@@ -170,7 +172,8 @@ hook.Add( "ash.Loaded", "Welcome", function()
     }
 
     hook.Add( "ash.player.Input", "Welcome", function( pl, key_id, is_down, is_local )
-        if not ( is_down and is_local ) or skip_keys[ key_id ] == nil then return end
+        if not (is_down and is_local) or skip_keys[ key_id ] == nil then return end
+
         hook.Remove( "ash.player.Input", "Welcome" )
         fading = true
     end )
@@ -213,13 +216,13 @@ hook.Add( "ash.Loaded", "Welcome", function()
                 }
 
                 dot.p1 = {
-                    x = dot.x + ( math_random() - 0.5 ) * randOffset,
-                    y = dot.y + ( math_random() - 0.5 ) * randOffset
+                    x = dot.x + (math_random() - 0.5) * randOffset,
+                    y = dot.y + (math_random() - 0.5) * randOffset
                 }
 
                 dot.p2 = {
-                    x = target_x + ( math_random() - 0.5 ) * randOffset,
-                    y = target_y + ( math_random() - 0.5 ) * randOffset
+                    x = target_x + (math_random() - 0.5) * randOffset,
+                    y = target_y + (math_random() - 0.5) * randOffset
                 }
 
                 dot.p3 = {
@@ -244,7 +247,7 @@ hook.Add( "ash.Loaded", "Welcome", function()
             local dx = dot.x - target_x
             local dy = dot.y - target_y
             local dist = math_sqrt( dx * dx + dy * dy )
-            local brightness = ( 1 - dist / 30 )
+            local brightness = (1 - dist / 30)
 
             local color = HSVToColor( hue + x % 15, saturation, lightness )
             surface_DrawCircle( ox + x, oy + y, DOT_RADIUS, color.r, color.g, color.b, alpha * brightness )

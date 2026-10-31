@@ -1,3 +1,6 @@
+local surface_GetAlphaMultiplier = surface.GetAlphaMultiplier
+local surface_SetAlphaMultiplier = surface.SetAlphaMultiplier
+
 ---@class ash.ui.falcon
 local falcon = {}
 
@@ -311,7 +314,7 @@ do
             local data_size = { width = tostring( pnl:GetWide() ) .. "px", height = tostring( pnl:GetWide() ) .. "px" }
             state:set( data_size )
 
-            self:invalidateLayout(true)
+            self:invalidateLayout( true )
         end )
 
         self:newMethod( "copySizeFromState", function( pnl, state )
@@ -337,7 +340,7 @@ do
                 parent:sizeToChildren( boolean_w, boolean_h )
 
                 if recursive then
-                    local parent_parent = parent:GetParent( )
+                    local parent_parent = parent:GetParent()
 
                     if parent_parent ~= nil and parent_parent:IsValid() and parent_parent.sizeToChildren then
 
@@ -361,9 +364,13 @@ do
             end
         end )
 
+        self:newMethod( "clipping", function( pnl, boolean )
+            pnl:NoClipping( not boolean )
+        end, true )
+
         self:addAction( "think", "visible", function( pnl )
             pnl:SetVisible( pnl:get( "isVisible", false ) )
-        end)
+        end )
 
         self:addAction( "resolution", "rebuild", function( pnl )
             pnl:build()
@@ -400,7 +407,6 @@ do
             self:runAction( "performLayout", w, h )
         end
 
-
         --TODO: Dock CENTER
 
     end
@@ -416,8 +422,8 @@ do
     end
 
     function BASE_PANEL:Paint( w, h )
-        for _, func in pairs(self.paintsBack) do
-            func(self, w, h)
+        for _, func in pairs( self.paintsBack ) do
+            func( self, w, h )
         end
 
         if self:get( "blur.draw", false ) then
@@ -479,7 +485,7 @@ do
     BASE_PANEL.setValue = BASE_PANEL.set
     BASE_PANEL.getValue = BASE_PANEL.get
 
-    function BASE_PANEL:addStep(key, ...)
+    function BASE_PANEL:addStep( key, ... )
         local steps = self.steps
         local steps_count = steps[ 0 ]
 
@@ -509,6 +515,7 @@ do
         for name, tbl in pairs( struct ) do
             self:addStep( name, unpack( tbl ) )
         end
+
         return self
     end
 
@@ -518,7 +525,7 @@ do
     function BASE_PANEL:newMethod( key, func, noToStep )
         self[ key ] = function( pnl, ... )
             if not noToStep then
-                pnl:addStep(key, ...)
+                pnl:addStep( key, ... )
             end
 
             func( pnl, ... )
@@ -633,7 +640,7 @@ do
         local steps_count = #steps
 
         for i = 1, steps_count do
-            local v = steps[i]
+            local v = steps[ i ]
             local t = v[ 2 ]
             local func = self[ v[ 1 ] ]
 
@@ -669,7 +676,6 @@ do
 
         return self
     end
-
 
     function BASE_PANEL:bstack( callback )
         local old_context_panel = contex_panel
@@ -707,9 +713,9 @@ do
         return self
     end
 
-    hook.Add( "Think", "PanelThink", function()
+    timer.Create( "ash.falcon.think", 0.25, 0, function()
         for i = panels_count, 1, -1 do
-            local panel = panels[i]
+            local panel = panels[ i ]
             ---@cast panel ash.falcon.panel
 
             if panel ~= nil and panel:IsValid() then
@@ -720,7 +726,7 @@ do
                 panels_count = panels_count - 1
             end
         end
-    end)
+    end )
 
     hook.Add( "ash.ui.ScreenResolution", "ResolutionChanged", function()
         for i = 1, panels_count do
@@ -730,7 +736,7 @@ do
                 panel:runAction( "resolution" )
             end
         end
-    end)
+    end )
 
     do
         ---@class ash.falcon.panel : ash.ui.falcon.base_panel
@@ -849,10 +855,10 @@ do
         function PANEL:Init()
             self:newMethod( "sizeToContent", function( pnl, boolean_w, boolean_h )
                 if boolean_w == nil and boolean_h == nil then
-                    local w, h = ash_ui.getTextSize( self:get( "text" ) , self:get( "font" ) )
+                    local w, h = ash_ui.getTextSize( self:get( "text" ), self:get( "font" ) )
                     pnl:setSize( { width = tostring( w ) .. "px", height = tostring( h ) .. "px" } )
                 else
-                    local w, h = ash_ui.getTextSize( self:get( "text" ) , self:get( "font" ) )
+                    local w, h = ash_ui.getTextSize( self:get( "text" ), self:get( "font" ) )
                     local size = {}
                     if boolean_w then
                         size.width = tostring( w ) .. "px"
@@ -882,11 +888,11 @@ do
                             end
 
                             pnl.removeStateCallback = new_text:addCallback( function( _, value )
-                                if pnl ~= nil and pnl:IsValid( ) then
+                                if pnl ~= nil and pnl:IsValid() then
                                     if not pnl:get( "staticSize", false ) then
-                                        pnl:sizeToContent( )
+                                        pnl:sizeToContent()
                                         if not pnl:get( "noResizeParent", false ) then
-                                            pnl:invalidateLayoutParent( )
+                                            pnl:invalidateLayoutParent()
 
                                             local recursive = self:get( "recursiveResize", true )
                                             pnl:sizeToChildrenParent( true, true, recursive, recursive )
@@ -940,7 +946,7 @@ do
             if align == TEXT_ALIGN_LEFT then
                 draw_text( text, font, 0, h * 0.5 - (ht * 0.5), color, TEXT_ALIGN_LEFT )
             elseif align == TEXT_ALIGN_CENTER then
-                draw_text( text, font, w * 0.5, h * 0.5 - (ht * 0.5) , color, TEXT_ALIGN_CENTER )
+                draw_text( text, font, w * 0.5, h * 0.5 - (ht * 0.5), color, TEXT_ALIGN_CENTER )
             elseif align == TEXT_ALIGN_RIGHT then
                 draw_text( text, font, w, h * 0.5 - (ht * 0.5), color, TEXT_ALIGN_RIGHT )
             elseif align == TEXT_ALIGN_BOTTOM then
@@ -999,6 +1005,7 @@ do
         ---@field setImage fun(pnl: ash.falcon.image, img: any, params: string? )
         ---@field image_type integer
         ---@field image any
+        ---@filed opts_svg table
         local PANEL = {}
 
         local surface_SetDrawColor = surface.SetDrawColor
@@ -1026,13 +1033,28 @@ do
         function PANEL:Paint( w, h )
             local img_type = self.image_type
 
+            local size_w, size_h = w * self:get( "image.scaleW", 1 ), h * self:get( "image.scaleH", 1 )
+            local x, y = w * 0.5 - (size_w * 0.5), h * 0.5 - (size_h * 0.5)
+
             if self.image then
                 if img_type == 0 then
                     surface_SetDrawColor( self:getValue( "image.color", color_white ) )
                     surface_SetMaterial( self.image )
-                    surface_DrawTexturedRect( 0, 0, w, h )
+                    surface_DrawTexturedRect( x, y, size_w, size_h )
                 elseif img_type == 1 then
-                    self.image:Render( 0, 0, w, h )
+                    local svg_method = self:get( "svg.method", "render" )
+                    if svg_method == "render" then
+                        local opts_svg = self.opts_svg or {}
+                        self.opts_svg = opts_svg
+                        local alpha = surface_GetAlphaMultiplier()
+                        opts_svg.alpha = alpha
+
+                        surface_SetAlphaMultiplier( 1 )
+                        self.image:Render( x, y, size_w, size_h, opts_svg )
+                        surface_SetAlphaMultiplier( alpha )
+                    elseif svg_method == "draw" then
+                        self.image:Draw( x, y, size_w, size_h )
+                    end
                 end
             end
         end
@@ -1098,7 +1120,6 @@ do
             panel:dock( force_dock )
         end
 
-
         return panel
     end
 
@@ -1124,17 +1145,17 @@ do
     falcon.layout = layout
 
     ---@return ash.falcon.label
-    local function label(struct)
-        assert(contex_panel ~= nil, "parent panel is required")
+    local function label( struct )
+        assert( contex_panel ~= nil, "parent panel is required" )
 
-        local panel = contex_panel:Add("ash.falcon.label")
+        local panel = contex_panel:Add( "ash.falcon.label" )
         ---@cast panel ash.falcon.label
 
-        panel:struct(struct)
+        panel:struct( struct )
             :build()
 
         if force_dock ~= nil then
-            panel:dock(force_dock)
+            panel:dock( force_dock )
         end
 
         return panel
@@ -1192,7 +1213,6 @@ do
         if force_dock ~= nil then
             pnl:dock( force_dock )
         end
-
 
         return pnl
     end
