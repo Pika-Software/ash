@@ -1,7 +1,19 @@
+---@type ash.firing
+local ash_firing = import "firing"
+
+---@type ash.nw3
+local ash_nw3 = import "ash.nw3"
+
+local ash_nw3_get = ash_nw3.get
+local ash_nw3_set = ash_nw3.set
+
+
 local math_approach = math.approach
 local math_max = math.max
 local math_min = math.min
 local SharedRandom = util.SharedRandom
+local math_randomseed = _G.math.randomseed
+local math_randomf = math.randomf
 
 ---@class ash_weapon_base.FireModes : table
 ---@field name? string
@@ -86,6 +98,8 @@ local SharedRandom = util.SharedRandom
 ---@field setSightProgressTo fun( self: self, float: number )
 ---@field getSightProgressTo fun( self: self ): number
 ---@field setSightProgressFrom fun( self: self, float: number )
+---@field getBulletCountOnShoot fun( self: self ): number
+---@field setBulletCountOnShoot fun( self: self, integer: number )
 ---@field getSightProgressFrom fun( self: self ): number
 ---@field setSightProgress fun( self: self, float: number )
 ---@field getSightProgress fun( self: self ): number
@@ -140,6 +154,7 @@ SWEP.Primary.Shaking = false
 SWEP.Primary.ShakeAmlitude = 1
 SWEP.Primary.ShakeFrequency = 15
 SWEP.Primary.ShakeDuration = 0.2
+SWEP.Primary.BulletCountOnShoot = 1
 
 SWEP.Primary.Sound = Sound( "Weapon_M4A1.Single" )
 
@@ -229,6 +244,40 @@ function SWEP:addNetwork(ntype, name)
     self[ "set" .. name ] = self[ "Set" .. name ]
 end
 
+do
+    local fallbacks = {
+        [ "boolean" ] = false,
+        [ "entity" ] = NULL,
+        [ "angle" ] = angle_zero,
+        [ "vector" ] = vector_origin,
+        [ "string" ] = "",
+    }
+
+    function SWEP:addNW3( network_type, name )
+        local full_name = "ash.weapon." .. self:GetClass() .. "." .. name
+
+        ash_nw3.register( full_name, network_type, ash_nw3.SEND_PVS )
+
+        local fallback = fallbacks[ network_type ]
+
+        if fallback == nil then
+            if string.hasPrefix( network_type, "uint" ) or string.hasPrefix( network_type, "int" ) then
+                fallback = 0
+            elseif network_type == "float" or network_type == "double" then
+                fallback = 0
+            end
+        end
+
+        self[ "get" .. name ] = function( s )
+            return ash_nw3_get( s, full_name, fallback )
+        end
+
+        self[ "set" .. name ] = function( s, value )
+            return ash_nw3_set( s, full_name, value )
+        end
+    end
+end
+
 function SWEP:SetupDataTables()
     self:addNetwork("Float", "KickX")
     self:addNetwork("Float", "KickY")
@@ -272,11 +321,18 @@ function SWEP:SetupDataTables()
     self:addNetwork("Int", "SightState")
     self:addNetwork("Int", "FireMode")
     self:addNetwork("Int", "BurstCountCur")
+    self:addNetwork("Int", "BulletCountOnShoot")
 
     self:addNetwork("Vector", "SpreadAdded")
     self:addNetwork("Vector", "SpreadMult")
 
     self:actionRun("setupDataTables")
+
+    self:addNW3( "boolean", "InScope" )
+    self:addNW3( "boolean", "Automatic" )
+
+    self:addNW3( "float", "DelayFire" )
+    self:addNW3( "uint8", "Skin" )
 
     if SERVER then
         self:setKickReset( -1 )
@@ -500,7 +556,7 @@ function SWEP:Think()
 
         if owner:GetAmmoCount( self:GetPrimaryAmmoType() ) > 0 then
             self:sendWeaponAnim( anim, isSeq )
-            self:setReloadManualTime( curTime + ( self:getAnimationTime( anim ) * 1.1 ) )
+            self:setReloadManualTime( curTime + ( self:getAnimationTime( anim ) * 1.2 ) )
 
             local new_clip_size = self:Clip1() + 1
             local max_clip = self:GetMaxClip1()
@@ -513,7 +569,7 @@ function SWEP:Think()
                 self:setReloadManualTime( 0 )
                 self:setManualReloadingStart( false )
 
-                self:SetIdleTime( curTime + ( self:getAnimationTime( anim ) * 1.5 ) )
+                self:SetIdleTime( curTime + ( self:getAnimationTime( anim ) * 1.2 ) )
             else
                 owner:RemoveAmmo( 1, primary_ammo_type )
             end
@@ -530,9 +586,9 @@ function SWEP:Think()
     local inSight = self:getInSight()
 
     if inSight then
-        if not owner:KeyDown( IN_ATTACK2 ) then
-            self:toogleADS()
-        end
+        -- if not owner:KeyDown( IN_ATTACK2 ) then
+        --     self:toogleADS()
+        -- end
     end
 
     self:setSightProgress( Lerp( tick * self:getSightProgressSpeed(), self:getSightProgress(), self:getSightProgressTo() ) )
@@ -683,7 +739,6 @@ function SWEP:Deploy()
     self:setManualReloadingStart( false )
 
     self:SetHoldType(self.HoldType)
-    self:actionRun("deploy")
     self.sightTime = 0
 
 
@@ -702,6 +757,8 @@ function SWEP:Deploy()
     if self:GetMaxClip1() > 0 and self:Clip1() <= 0 and owner:GetAmmoCount( self:GetPrimaryAmmoType() ) > 0 then
         self:Reload( len )
     end
+
+    self:actionRun("deploy")
 
     return true
 end
@@ -728,8 +785,6 @@ function SWEP:calcSpread()
     if velocity >= 25 then
         spread = spread + self.SpreadMove
     end
-
-
 
     if not owner:OnGround() then
         spread = spread + self.SpreadOnAir
@@ -765,6 +820,9 @@ function SWEP:Initialize()
     self:setSightProgress( 0 )
     self:setSightProgressFrom( 0 )
     self:setSightProgressTo( 0 )
+    self:setBulletCountOnShoot( self.Primary.BulletCountOnShoot )
+
+    self:setAutomatic( self.Primary.IsAutomatic )
 
     self:setIsReady( false )
 end
@@ -802,7 +860,7 @@ function SWEP:canReload()
     end
 
     local max_clip = self:GetMaxClip1()
-    if self:Clip1() >= ( self.Chamber and max_clip + 1 or max_clip ) then
+    if self:Clip1() >= ( ( self.Chamber and not self.ManualReloading ) and max_clip + 1 or max_clip ) then
         return false
     end
 
@@ -1072,47 +1130,16 @@ local trace = {
     output = trace_result
 }
 
-local server_hit_pos
-local server_start_pos
+local server_hits = {}
 if CLIENT then
     net.Receive("primary_fire", function()
-        server_hit_pos = net.ReadVector()
-        server_start_pos = net.ReadVector()
+        local start = Vector( net.ReadDouble(), net.ReadDouble(), net.ReadDouble() )
+        local hit = Vector( net.ReadDouble(), net.ReadDouble(), net.ReadDouble() )
+        timer.Simple( 0.25, function()
+            server_hits[ #server_hits + 1 ] = { start, hit }
+        end )
+
     end)
-end
-
-local client_hit_pos
-local client_start_pos
-local dist_limit = 65536
-
-local other_hists = {}
-
-if CLIENT then
-    local color_red = Color(255, 0, 0)
-    local color_yellow = Color(255, 255, 0)
-
-    local color_start = Color(255, 0, 255)
-    local color_end = Color(100, 200, 255)
-    -- hook.Add("PostDrawOpaqueRenderables", "Defaults", function()
-
-    --     if client_hit_pos then
-    --         -- render.DrawLine(client_start_pos, client_hit_pos, color_white, true)
-    --         -- render.DrawWireframeSphere(client_hit_pos, 4, 8, 8, color_white, true)
-    --         render.DrawWireframeSphere(client_start_pos, 4, 8, 8, color_black, true)
-    --     end
-
-    --     -- if server_hit_pos then
-    --     --     render.DrawLine(server_start_pos, server_hit_pos, color_red, true)
-    --     -- end
-
-    --     for i = 1, #other_hists do
-    --         local data = other_hists[i]
-    --         -- render.DrawLine(data[1], data[2], color_yellow, true)
-
-    --         render.DrawWireframeSphere(data[1], 4, 8, 8, color_start, true)
-    --         render.DrawWireframeSphere(data[2], 4, 8, 8, color_end, true)
-    --     end
-    -- end)
 end
 
 --- [SHARED]
@@ -1147,22 +1174,6 @@ end
 
 function SWEP:getPrimaryDamageMin( )
     return self.Primary.DamageMin
-end
-
-if CLIENT then
-    net.Receive("bullet_effect", function()
-        local hit_pos = Vector(net.ReadDouble(), net.ReadDouble(), net.ReadDouble())
-        local hit_normal = Vector(net.ReadDouble(), net.ReadDouble(), net.ReadDouble())
-        local surface_props = net.ReadUInt(8)
-
-        util.Decal("Impact.Concrete", hit_pos + hit_normal, hit_pos - hit_normal)
-
-        local ed = EffectData()
-        ed:SetOrigin(hit_pos)
-        ed:SetNormal(hit_normal)
-        ed:SetSurfaceProp(surface_props)
-        util.Effect("Impact", ed)
-    end)
 end
 
 ---@type ash.trace.Output
@@ -1239,130 +1250,284 @@ function SWEP:canPrimaryAttack()
 	return true
 end
 
-function SWEP:fireBullet()
-    local owner = self:GetOwner()
-    ---@cast owner Player
+if CLIENT then
+    local data = {}
 
-    if not (owner ~= nil and owner:IsValid()) then
-        return
-    end
+    ---@return table
+    function SWEP:clientShootInfo()
+        local owner = self:GetOwner()
+        ---@cast owner Player
 
-    local curTime = CurTime()
-
-    if CLIENT and IsFirstTimePredicted() then
-        local dir = self:getDir() * 0.5
-
-        local spread = self:calcSpread()
-        spread = spread / 1000
-
-        spread = Vector(0, SharedRandom("frontfire.spread.x", -spread.y, spread.y),
-            SharedRandom("frontfire.spread.z", -spread.z, spread.z))
-
-        dir = LocalToWorld(spread, angle_zero, dir, owner:GetAngles())
-
-        local start = owner:GetShootPos()
-        trace.start = start
-        trace.endpos = start + dir * dist_limit
-        trace.mask = MASK_SHOT
-
-        ---@type table<Entity, boolean>
-        local filter_map = { [owner] = true }
-
-        ---@type Entity[]
-        local filter = {
-            [1] = owner,
-        }
-
-        trace.filter = filter
-
-        trace_cast(trace)
-
-        util.Decal("Impact.Concrete", trace_result.HitPos + trace_result.Normal,
-            trace_result.HitPos - trace_result.Normal)
-
-        local ed = EffectData()
-        ed:SetOrigin(trace_result.HitPos)
-        ed:SetNormal(trace_result.Normal)
-        ed:SetSurfaceProp(trace_result.SurfaceProps)
-        util.Effect("Impact", ed)
-
-        local entity = trace_result.Entity
-        if entity ~= nil and not filter_map[entity] then
-            filter[#filter + 1] = entity
-            filter_map[entity] = true
+        if not (owner ~= nil and owner:IsValid()) then
+            return {}
         end
 
-        client_hit_pos = trace_result.StartPos
-        client_start_pos = trace_result.HitPos
+        local shootpos = owner:GetShootPos()
+        local dir = self:getDir()
+        local time = os.clock()
 
-        local last_hit = trace_result.HitPos
+        data.shootpos = shootpos
+        data.dir = dir
+        data.time = time
+        data.seed = CurTime()
+        data.spread = self:calcSpread()
 
-        table.clearIndexes(other_hists)
+        self:actionRun( "clientShot", data )
 
-        local hits = { [1] = { trace_result.StartPos, trace_result.HitPos, trace_result.Entity, trace_result.HitGroup } }
-        local hits_count = 1
-
-        local dist_travel = 0
-        local max_dist = 32
-
-        for i = 1, 4 do
-            penetraitTrace(dir, filter, filter_map)
-
-            local dist = last_hit:Distance(trace_result.StartPos)
-
-            dist_travel = dist_travel + dist
-
-            if dist_travel > max_dist then
-                break
-            end
-
-            other_hists[#other_hists + 1] = { trace_result.StartPos, trace_result.HitPos }
-            hits_count = hits_count + 1
-            hits[hits_count] = { trace_result.StartPos, trace_result.HitPos, trace_result.Entity, trace_result.HitGroup }
-
-            last_hit = trace_result.HitPos
-        end
-
-        net.Start("primary_fire")
-        net.WriteUInt(hits_count, 5)
-        net.WriteDouble(dir.x)
-        net.WriteDouble(dir.y)
-        net.WriteDouble(dir.z)
-        for i = 1, hits_count do
-            local v = hits[i]
-            local s_pos = v[1]
-            local h_pos = v[2]
-
-            net.WriteDouble(s_pos.x)
-            net.WriteDouble(s_pos.y)
-            net.WriteDouble(s_pos.z)
-            net.WriteDouble(h_pos.x)
-            net.WriteDouble(h_pos.y)
-            net.WriteDouble(h_pos.z)
-            net.WriteEntity(v[3])
-            net.WriteUInt(v[4], 5)
-        end
-        net.SendToServer()
+        return data
     end
-
-    local anim, isSeq = self:getAnimation( "attack_primary" )
-    local anim_time = self:getAnimationTime( anim )
-
-    owner:MuzzleFlash()
-    owner:SetAnimation( PLAYER_ATTACK1 )
-    self:setBufferedClick( false)
-    self:sendWeaponAnim( anim, isSeq )
-
-    if self.PumpAnim then
-        anim, isSeq = self:getAnimation( "pump" )
-        self:sendWeaponAnim( anim, isSeq, anim_time )
-    else
-        self:SetIdleTime( curTime + anim_time )
-    end
-
-    self:EmitSound( self:getSilencer() and self.Primary.SoundSilencer or self.Primary.Sound )
 end
 
+
+---@type Bullet
+local bullet = {}
+
+local bullet_effect = { effects = false, damage = false }
+
+---@param tr TraceResult
+local function bulletCallback( _, tr, dmginfo )
+    local target = tr.target
+
+    if target and target:IsValid() and ( target:IsNPC() or target:IsPlayer() ) then
+        bullet_effect.effects = false
+    else
+        bullet_effect.effects = true
+    end
+
+    dmginfo:SetDamage( 0 )
+
+    return bullet_effect
+end
+
+
+local distance_limit = 65536
+
+local hits = {}
+
+---@param owner Player
+---@param position Vector
+---@param angle Angle
+---@param time number
+function SWEP:primaryAttack( owner, position, angle, time )
+    local dir = Angle_Forward( angle )
+
+    if not self:getInScope() then
+        dir = LocalToWorld( Vector( 0, ash_firing.randomNumber( owner, -0.1, 0.1 ), ash_firing.randomNumber( owner, -0.1, 0.1 ) ), angle_zero, dir, angle )
+    end
+
+    self:setDelayFire( CurTime() + 0.1 )
+
+    local tr_result = ash_firing.fireBullet( time, owner, position, dir )
+    self:sendWeaponAnim( self:getAnimation( "attack_primary" ) )
+
+    if CLIENT then
+        hits[ #hits + 1 ] = { tr_result.StartPos, tr_result.HitPos, Color( 255, 255, 0 ), CurTime() + 30 }
+
+        local vm = owner:GetViewModel()
+
+    else
+        local pos_hit = tr_result.HitPos
+        local pos_start = tr_result.StartPos
+
+        net.Start( "bullet_effect" )
+            net.WriteFloat( pos_start[ 1 ] )
+            net.WriteFloat( pos_start[ 2 ] )
+            net.WriteFloat( pos_start[ 3 ] )
+
+            net.WriteFloat( pos_hit[ 1 ] )
+            net.WriteFloat( pos_hit[ 2 ] )
+            net.WriteFloat( pos_hit[ 3 ] )
+        net.Send( owner )
+    end
+end
+
+
+---@param owner Player
+---@param position Vector
+---@param angle Angle
+function SWEP:secondaryAttack( owner, position, angle )
+    self:setInScope( not self:getInScope() )
+
+    print( "InScope:",  self:getInScope() )
+end
+
+---@param owner Player
+function SWEP:reload( owner )
+    if CLIENT then
+        local vm = owner:GetViewModel()
+
+        if vm ~= nil and vm:IsValid() then
+            local seq = vm:SelectWeightedSequence( ACT_VM_RELOAD )
+            if seq ~= -1 then
+                vm:SendViewModelMatchingSequence( seq )
+                vm:SetCycle( 0 )
+                vm:SetPlaybackRate( 1 )
+            end
+        end
+    end
+end
+
+if CLIENT then
+    net.Receive("bullet_effect", function()
+        local t = { Vector( net.ReadFloat(), net.ReadFloat(), net.ReadFloat() ) , Vector( net.ReadFloat(), net.ReadFloat(), net.ReadFloat() ), Color( 255, 0, 0 ), CurTime() + 5 }
+        timer.Simple( 0.25, function()
+            hits[ #hits + 1 ] = t
+        end )
+    end)
+
+    hook.Add( "PostDrawOpaqueRenderables", "Debug", function()
+        for i = 1, #hits do
+            local v = hits[ i ]
+
+            render.DrawLine( v[ 1 ], v[ 2 ], v[ 3 ], true )
+            render.DrawSphere( v[ 2 ], 2, 16, 16, v[ 3 ] )
+
+            if CurTime() > v[ 4 ] then
+                table.remove( hits, i )
+
+                break
+            end
+        end
+    end )
+end
+
+function SWEP:PrimaryAttack()
+
+end
+
+-- function SWEP:primaryAttack( owner, data )
+--     local dir = data.dir
+--     local shootpos = data.shootpos
+
+--     local spread = data.spread
+--     spread = spread / 500
+
+--     local targets = {}
+--     local targets_count = 0
+
+--     for i = 1, self:getBulletCountOnShoot() do
+--         local x, y = math.randomf( -spread.y, spread.y ), math.randomf( -spread.z, spread.z )
+
+--         local dir_spread = LocalToWorld( Vector( 0, x, y ), angle_zero, dir, owner:EyeAngles() )
+--         local start = shootpos
+--         trace.start = start
+--         trace.filter = owner
+--         trace.endpos = start + dir_spread * dist_limit
+--         trace.mask = MASK_SHOT
+
+--         trace_cast( trace )
+
+--         local target = trace_result.Entity
+
+--         if target ~= nil and target:IsPlayer() then
+--             targets_count = targets_count + 1
+
+--             targets[ targets_count ] = target
+--         end
+
+--         -- bullet.Attacker = owner
+--         -- bullet.Inflictor = self
+--         -- bullet.Damage = 0
+--         -- bullet.Force = 1
+--         -- bullet.Distance = dist_limit
+--         -- bullet.HullSize = 0
+--         -- bullet.Tracer = 1
+--         -- bullet.IgnoreEntity = owner
+--         -- bullet.Spread = vector_origin
+--         -- bullet.Dir = dir_spread
+--         -- bullet.Src = shootpos
+--         -- bullet.Num = 1
+--         -- bullet.TracerName = "Tracer"
+--         -- bullet.Callback = bulletCallback
+
+--         -- owner:FireBullets( bullet, true )
+
+--         -- if CLIENT then
+--         --     client_hits[ #client_hits + 1 ] = { trace_result.StartPos, trace_result.HitPos }
+--         -- else
+--         --     local start_pos = trace_result.StartPos
+--         --     local hit_pos = trace_result.HitPos
+
+--         --     net.Start( "primary_fire" )
+--         --         net.WriteDouble( start_pos[ 1 ] )
+--         --         net.WriteDouble( start_pos[ 2 ] )
+--         --         net.WriteDouble( start_pos[ 3 ] )
+
+--         --         net.WriteDouble( hit_pos[ 1 ] )
+--         --         net.WriteDouble( hit_pos[ 2 ] )
+--         --         net.WriteDouble( hit_pos[ 3 ] )
+--         --     net.Send( owner )
+--         -- end
+--     end
+
+--     return targets
+-- end
+
+
+-- function SWEP:fireBullet()
+--     local owner = self:GetOwner()
+--     ---@cast owner Player
+
+--     if not (owner ~= nil and owner:IsValid()) then
+--         return
+--     end
+
+--     local curTime = CurTime()
+
+--     if CLIENT and IsFirstTimePredicted() then
+--         local data = self:clientShootInfo()
+
+--         table.clearKeys( client_hits )
+--         table.clearKeys( server_hits )
+
+--         math_randomseed( data.seed )
+
+--         self:primaryAttack( owner, data )
+
+--         math_randomseed( os.time()  )
+
+
+--         local dir = data.dir
+--         local shootpos = data.shootpos
+--         local spread = data.spread
+
+--         net.Start( "primary_fire" )
+--             net.WriteDouble( data.time )
+
+--             net.WriteDouble( data.seed )
+
+--             net.WriteDouble( shootpos[ 1 ] )
+--             net.WriteDouble( shootpos[ 2 ] )
+--             net.WriteDouble( shootpos[ 3 ] )
+
+--             net.WriteDouble( dir[ 1 ] )
+--             net.WriteDouble( dir[ 2 ] )
+--             net.WriteDouble( dir[ 3 ] )
+
+--             net.WriteFloat( spread.y )
+--             net.WriteFloat( spread.z )
+--         net.SendToServer()
+--     end
+
+--     local anim, isSeq = self:getAnimation( "attack_primary" )
+--     local anim_time = self:getAnimationTime( anim )
+
+--     owner:MuzzleFlash()
+--     owner:SetAnimation( PLAYER_ATTACK1 )
+--     self:setBufferedClick( false)
+--     self:sendWeaponAnim( anim, isSeq )
+
+--     if self.PumpAnim then
+--         anim, isSeq = self:getAnimation( "pump" )
+--         self:sendWeaponAnim( anim, isSeq, anim_time )
+--     else
+--         self:SetIdleTime( curTime + anim_time )
+--     end
+
+--     self:EmitSound( self:getSilencer() and self.Primary.SoundSilencer or self.Primary.Sound )
+-- end
+
+--[[
 function SWEP:PrimaryAttack()
     if not self:canPrimaryAttack() then
         return
@@ -1386,8 +1551,6 @@ function SWEP:PrimaryAttack()
 
     ---@cast owner Player
 
-    self:fireBullet()
-
     self:setReloadManualTime( 0 )
     self:setManualReloadingStart( false )
 
@@ -1399,11 +1562,11 @@ function SWEP:PrimaryAttack()
 
     local random_kick_min = self.KickRandomMin
     local random_kick_max = self.KickRandomMax
-    local random_kick = Angle( SharedRandom( "ash_weapon_base.RandomKickY", random_kick_min.x, random_kick_max.x ), SharedRandom( "ash_weapon_base.RandomKickY", random_kick_min.y, random_kick_max.y ), SharedRandom( "ash_weapon_base.RandomKickZ", random_kick_min.z, random_kick_max.z ) )
+    -- local random_kick = Angle( SharedRandom( "ash_weapon_base.RandomKickY", random_kick_min.x, random_kick_max.x ), SharedRandom( "ash_weapon_base.RandomKickY", random_kick_min.y, random_kick_max.y ), SharedRandom( "ash_weapon_base.RandomKickZ", random_kick_min.z, random_kick_max.z ) )
 
-    if not random_kick:IsZero() then
-        ang = ang + random_kick
-    end
+    -- if not random_kick:IsZero() then
+    --     ang = ang + random_kick
+    -- end
 
     self:addKick( ang )
     self:setShootReset( curTime + .5 )
@@ -1436,6 +1599,8 @@ function SWEP:PrimaryAttack()
     self:setLeftGun( not self:getLeftGun() )
     self:actionRun("primaryAttack")
 end
+
+]]
 
 -- if CLIENT then
 --     hook.Add("PlayerBindPress", "Defaults", function(owner, bind)
@@ -1535,41 +1700,4 @@ function SWEP:SecondaryAttack()
 
 end
 
---
--- SWEP.Secondary.ViewModelSightPos = Vector( )
--- SWEP.Secondary.ViewModelSightAng = Angle( )
-function SWEP:calcView(view)
-    view.origin, view.angles = LocalToWorld( vector_origin, self:GetKick(), view.origin, view.angles )
 
-    if self:getInSight() then
-        view.fov = view.fov * (self.Secondary.SightStateZoom[ self:getSightState() ] or 1)
-    end
-end
-
-function SWEP:CalcViewModelView( vm, oldpos, oldeyeang, pos, ang )
-    local npos, nang = pos, ang
-
-    if self:getInSight() then
-        npos, nang = oldpos, oldeyeang
-    end
-
-    local kick = self:GetKick()
-
-    local sight_pos, sight_ang = self.Secondary.ViewModelSightPos, self.Secondary.ViewModelSightAng
-
-    local scale_pos = self:getSightProgress()
-    if scale_pos then
-        sight_pos = sight_pos * scale_pos
-        sight_ang = sight_ang * scale_pos
-    end
-
-    npos, nang = LocalToWorld( vector_origin, kick, npos, nang )
-    npos, nang = LocalToWorld( sight_pos, sight_ang, npos, nang )
-
-    return npos, nang
-end
-
-
-function SWEP:GetViewModelPosition(pos, ang)
-    return pos, ang
-end

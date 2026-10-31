@@ -1,3 +1,6 @@
+local surface_GetAlphaMultiplier = surface.GetAlphaMultiplier
+local surface_SetAlphaMultiplier = surface.SetAlphaMultiplier
+
 ---@class ash.ui.falcon
 local falcon = {}
 
@@ -360,6 +363,10 @@ do
                 end
             end
         end )
+
+        self:newMethod( "clipping", function( pnl, boolean )
+            pnl:NoClipping( not boolean )
+        end, true )
 
         self:addAction( "think", "visible", function( pnl )
             pnl:SetVisible( pnl:get( "isVisible", false ) )
@@ -999,6 +1006,7 @@ do
         ---@field setImage fun(pnl: ash.falcon.image, img: any, params: string? )
         ---@field image_type integer
         ---@field image any
+        ---@filed opts_svg table
         local PANEL = {}
 
         local surface_SetDrawColor = surface.SetDrawColor
@@ -1026,13 +1034,28 @@ do
         function PANEL:Paint( w, h )
             local img_type = self.image_type
 
+            local size_w, size_h = w * self:get( "image.scaleW", 1 ), h * self:get( "image.scaleH", 1 )
+            local x, y = w * 0.5 - ( size_w * 0.5 ), h * 0.5 - ( size_h * 0.5 )
+
             if self.image then
                 if img_type == 0 then
                     surface_SetDrawColor( self:getValue( "image.color", color_white ) )
                     surface_SetMaterial( self.image )
-                    surface_DrawTexturedRect( 0, 0, w, h )
+                    surface_DrawTexturedRect( x, y, size_w, size_h )
                 elseif img_type == 1 then
-                    self.image:Render( 0, 0, w, h )
+                    local svg_method = self:get( "svg.method", "render" )
+                    if svg_method == "render" then
+                        local opts_svg = self.opts_svg or {}
+                        self.opts_svg = opts_svg
+                        local alpha = surface_GetAlphaMultiplier()
+                        opts_svg.alpha = alpha
+
+                        surface_SetAlphaMultiplier( 1 )
+                        self.image:Render( x, y, size_w, size_h, opts_svg )
+                        surface_SetAlphaMultiplier( alpha )
+                    elseif svg_method == "draw" then
+                        self.image:Draw( x, y, size_w, size_h )
+                    end
                 end
             end
         end

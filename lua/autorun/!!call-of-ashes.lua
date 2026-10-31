@@ -1449,6 +1449,8 @@ function Module:postload()
             local prefix = self.Prefix
 
             for i = 1, #networks, 1 do
+                logger:debug( "Add network string %s", prefix .. networks[ i ]  )
+
                 glua_util.AddNetworkString( prefix .. networks[ i ] )
             end
         end

@@ -588,6 +588,11 @@ function falcon_base_panel:setX( y ) end
 ---@return T
 function falcon_base_panel:uncenter( boolean_x, boolean_y ) end
 
+---@generic T
+---@param self T
+---@param boolean boolean
+---@return T
+function falcon_base_panel:clipping( boolean ) end
 
 
 ---@class ash.falcon.label : ash.ui.falcon.base_panel

@@ -51,6 +51,9 @@ net.Receive( "request", function()
         local path_folder = "ash_config/"
         for i = 1, #split - 1 do
             path_folder = path_folder .. split[ i ]
+
+            print( "path_folder", path_folder )
+
             ash.Logger:debug( "Creating directory: " .. path_folder )
             file.CreateDir( path_folder )
             path_folder = path_folder .. "/"
@@ -72,20 +75,30 @@ net.Receive( "request", function()
 
 end )
 
-hook.Add( "Think", "Defaults", function()
-    if config_queue_count <= 0 and IsValid( LocalPlayer() ) then return end
+
+local net_Start = net.Start
+local net_WriteString = net.WriteString
+local net_WriteUInt = net.WriteUInt
+local net_SendToServer = net.SendToServer
+
+timer.Create( "ash.config.queue", .25, 0, function()
+    if config_queue_count <= 0 and IsValid( LocalPlayer() ) then
+        return
+    end
 
     for i = config_queue_count, 1, -1 do
         local data = config_queue[ i ]
-        config_queue[ i ] = nil
         config_queue_count = config_queue_count - 1
 
-        net.Start( "request" )
-        net.WriteString( data[ 1 ] )
-        net.WriteUInt( data[ 2 ], 32 )
-        net.SendToServer()
 
-        ash.Logger:debug( "requesting config", data[ 1 ] )
+        net_Start( "request" )
+        net_WriteString( data[ 1 ] )
+        net_WriteUInt( data[ 2 ], 32 )
+        net_SendToServer()
+
+        table.remove( config_queue, i )
+
+        break
     end
 end )
 

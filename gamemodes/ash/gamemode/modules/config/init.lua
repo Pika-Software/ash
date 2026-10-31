@@ -1,12 +1,13 @@
 MODULE.ClientFiles = {
     "cl_init.lua",
 }
----@class ash.config
-local config = include( "shared.lua" )
 
 MODULE.Networks = {
     "request",
 }
+
+---@class ash.config
+local config = include( "shared.lua" )
 
 local allowed_receive = {}
 
