@@ -714,7 +714,7 @@ do
         return self
     end
 
-    hook.Add( "Think", "PanelThink", function()
+    timer.Create( "ash.falcon.think", 0.25, 0, function()
         for i = panels_count, 1, -1 do
             local panel = panels[i]
             ---@cast panel ash.falcon.panel
@@ -727,7 +727,7 @@ do
                 panels_count = panels_count - 1
             end
         end
-    end)
+    end )
 
     hook.Add( "ash.ui.ScreenResolution", "ResolutionChanged", function()
         for i = 1, panels_count do
