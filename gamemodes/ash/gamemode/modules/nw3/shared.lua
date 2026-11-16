@@ -1,6 +1,3 @@
-local string_format = string.format
-
-
 ---@class ash.nw3
 local nw3 = {}
 
@@ -8,11 +5,13 @@ local registered_vars = {}
 nw3.registered_vars = registered_vars
 
 
+local math_clamp = math.clamp
+local math_clamp = math.clamp
 local types = {
 	[ "uint8" ] = {
 		--Write
 		function( _, value )
-			net.WriteUInt( value, 8 )
+			net.WriteUInt( math_clamp( value, 0, 255 ), 8 )
 		end,
 
 		--Read
@@ -24,7 +23,7 @@ local types = {
 	[ "uint16" ] = {
 		--Write
 		function( _, value )
-			net.WriteUInt( value, 16 )
+			net.WriteUInt( math_clamp( value, 0, 65535 ), 16 )
 		end,
 
 		--Read
@@ -36,7 +35,7 @@ local types = {
 	[ "uint32" ] = {
 		--Write
 		function( _, value )
-			net.WriteUInt( value, 32 )
+			net.WriteUInt( math_clamp( value, 0, 4294967295 ), 32 )
 		end,
 
 		--Read
@@ -48,7 +47,7 @@ local types = {
 	[ "int8" ] = {
 		--Write
 		function( _, value )
-			net.WriteInt( value, 8 )
+			net.WriteInt( math_clamp( value, -128, 127 ), 8 )
 		end,
 
 		--Read
@@ -60,7 +59,7 @@ local types = {
 	[ "int16" ] = {
 		--Write
 		function( _, value )
-			net.WriteInt( value, 16 )
+			net.WriteInt( math_clamp( value, -32768, 32767 ), 16 )
 		end,
 
 		--Read
@@ -72,7 +71,7 @@ local types = {
 	[ "int32" ] = {
 		--Write
 		function( _, value )
-			net.WriteInt( value, 32 )
+			net.WriteInt( math_clamp( value, -2147483648, 2147483647 ), 32 )
 		end,
 
 		--Read
@@ -89,7 +88,7 @@ local types = {
 
 		--Read
 		function( _ )
-			return net.ReadFloat(  )
+			return net.ReadFloat( )
 		end,
 		"number",
 	},
@@ -100,8 +99,8 @@ local types = {
 		end,
 
 		--Read
-		function(  )
-			return net.ReadDouble(  )
+		function( )
+			return net.ReadDouble( )
 		end,
 		"number",
 	},
@@ -112,8 +111,8 @@ local types = {
 		end,
 
 		--Read
-		function(  )
-			return net.ReadString(  )
+		function( )
+			return net.ReadString( )
 		end,
 		"string",
 	},
@@ -126,10 +125,10 @@ local types = {
 		end,
 
 		--Read
-		function(  )
-			return Vector( net.ReadFloat(  ), net.ReadFloat(  ), net.ReadFloat(  ) )
+		function( )
+			return Vector( net.ReadFloat( ), net.ReadFloat( ), net.ReadFloat( ) )
 		end,
-		"vector",
+		"Vector",
 	},
 	[ "angle" ] = {
 		--Write
@@ -141,25 +140,26 @@ local types = {
 
 		--Read
 		function( )
-			return Vector( net.ReadFloat(  ), net.ReadFloat(  ), net.ReadFloat(  ) )
+			return Angle( net.ReadFloat( ), net.ReadFloat( ), net.ReadFloat( ) )
 		end,
-		"angle",
+		"Angle",
 	},
 	[ "entity" ] = {
 		--Write
-		function( entity, value )
+		function( _, value )
 			net.WriteEntity( value )
 		end,
 
 		--Read
 		function( )
-			return net.ReadEntity()
+			return net.ReadEntity( )
 		end,
-		"entity",
+
+		"Entity",
 	},
 	[ "boolean" ] = {
 		--Write
-		function( entity, value )
+		function( _, value )
 			net.WriteBool( not value and false or value )
 		end,
 
@@ -177,13 +177,39 @@ nw3.SEND_PAS = 1
 nw3.SEND_ALL = 2
 nw3.SEND_LOCAL = 3
 
+--- Same as SEND_PVS, but the owner never receives the value.
+--- Use it for everything the owner predicts by himself.
+nw3.SEND_PVS_OTHERS = 4
+
 local net_SendPVS = net.SendPVS
 local net_SendPAS = net.SendPAS
 local net_Broadcast = net.Broadcast
 local net_Send = net.Send
 local net_Abort = net.Abort
 
-Entity_GetPos = Entity.GetPos
+local Entity_GetPos = Entity.GetPos
+
+--- [SHARED]
+---
+--- Returns the player who owns the entity ( player owns himself ).
+---
+---@param entity Entity
+---@return Player?
+local function getOwner( entity )
+	if entity:IsPlayer() then
+		---@cast entity Player
+		return entity
+	end
+
+	local pl = nw3.get( entity, "owner" )
+
+	if pl ~= nil and pl:IsValid() and pl:IsPlayer() then
+		---@cast pl Player
+		return pl
+	end
+end
+
+nw3.getOwner = getOwner
 
 local send_type = {
 	[ nw3.SEND_PVS ] = function( entity )
@@ -196,17 +222,29 @@ local send_type = {
 		net_Broadcast()
 	end,
 	[ nw3.SEND_LOCAL ] = function( entity )
-		local pl = nw3.get( entity, "owner" )
+		local pl = getOwner( entity )
 
-		if pl ~= nil and pl:IsValid() and pl:IsPlayer() then
+		if pl ~= nil then
 			net_Send( pl )
 		else
 			net_Abort()
 		end
 	end,
+	[ nw3.SEND_PVS_OTHERS ] = function( entity )
+		local filter = RecipientFilter()
+		filter:AddPVS( Entity_GetPos( entity ) )
+
+		local owner = getOwner( entity )
+
+		if owner ~= nil then
+			filter:RemovePlayer( owner )
+		end
+
+		net_Send( filter )
+	end,
 }
 
----@type table< Entity, table< number, any > >
+---@type table< Entity, table< string, any > >
 local entity_key_value = setmetatable( {}, {
     __index = function( self, entity )
         local tbl = {}
@@ -280,45 +318,62 @@ end
 
 --- [SHARED]
 ---
+--- Checks that value matches the registered type.
+---
+---@param data table registered_vars entry
+---@param value any
+---@return boolean
+function nw3.checkType( data, value )
+	local expected = data[ 1 ][ 3 ]
+
+	if expected == "Entity" then
+		return isentity( value )
+	end
+
+	return type( value ) == expected
+end
+
+local checkType = nw3.checkType
+
+--- [SHARED]
+---
 --- Set value by key.
 ---
 ---@param entity Entity
 ---@param key string
 ---@param value any
-function nw3.set( entity, key, value )
+---@param nosend? boolean
+function nw3.set( entity, key, value, nosend )
 	local data = registered_vars[ key ]
 
 	if not data then
 		error( "[NW3] Unregisterd key" )
 	end
 
-	local key_type = type( value )
-	if key_type ~= data[ 1 ][ 3 ] then
-		error( "[NW3] Unregisterd type: " .. key_type )
+	if not checkType( data, value ) then
+		error( "[NW3] Wrong type: " .. type( value ) )
 	end
 
-	local tvalue = entity_key_value[ entity ][ key ]
+	local keys = entity_key_value[ entity ]
+	local tvalue = keys[ key ]
 	local value_old
 
 	if tvalue == nil then
 		tvalue = { key, value }
 
 		local values = entity_values[ entity ]
-		local count_values = values[ 0 ]
-
-		count_values = count_values + 1
+		local count_values = values[ 0 ] + 1
 
 		values[ count_values ] = tvalue
-
 		values[ 0 ] = count_values
+
+		keys[ key ] = tvalue
 	else
 		value_old = tvalue[ 2 ]
 	end
 
 	tvalue[ 1 ] = key
 	tvalue[ 2 ] = value
-
-	entity_key_value[ entity ][ key ] = tvalue
 
 	if not entity_list_map[ entity ] then
 		entity_list_map[ entity ] = true
@@ -334,7 +389,7 @@ function nw3.set( entity, key, value )
 	if value_old ~= value then
 		hook.Run( "ash.nw3.Update", entity, key, value, value_old )
 
-		if SERVER then
+		if SERVER and not nosend then
 			nw3.send( entity, key, value )
 		end
 	end
@@ -348,7 +403,14 @@ end
 ---@param key string
 ---@param fallback? any
 function nw3.get( entity, key, fallback )
-	local tvalue = entity_key_value[ entity ][ key ]
+	-- rawget: do not create empty tables for every entity that is only asked ( trace filters etc )
+	local keys = rawget( entity_key_value, entity )
+
+	if keys == nil then
+		return fallback
+	end
+
+	local tvalue = keys[ key ]
 
 	if tvalue == nil then
 		return fallback
@@ -370,6 +432,9 @@ hook.Add( "EntityRemoved", "RemoveEntityFromList", function( entity, full_update
 	end
 
 	entity_list_map[ entity ] = nil
+
+	rawset( entity_key_value, entity, nil )
+	rawset( entity_values, entity, nil )
 end )
 
 nw3.register( "owner", "entity", nw3.SEND_PVS )

@@ -45,7 +45,7 @@ do
 
 end
 
-dreamwork.engine.hookCatch( "dreamwork.gamemode.select", "ash", function( name, t )
+dreamwork.engine.hook.catch( "dreamwork.gamemode.select", "ash", function( name, t )
     if name == "base" and t ~= nil then
         std.table.clearKeys( t )
     end

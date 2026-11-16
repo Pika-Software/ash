@@ -200,6 +200,84 @@ do
     end )
 end
 
+do
+    ---@class Weapon
+    ---@field UseHands boolean?
+    ---@field ViewModelFlip boolean?
+    ---@field postDrawViewModel fun( self: self, vm: Entity, pl: Player, flags: integer )
+
+    local Player_GetHands = Player.GetHands
+    local Entity_GetParent = Entity.GetParent
+    local Entity_DrawModel = Entity.DrawModel
+    local Entity_IsValid = Entity.IsValid
+    local Weapon_IsScripted = Weapon.IsScripted
+
+    local render_CullMode = render.CullMode
+
+    local MATERIAL_CULLMODE_CW = MATERIAL_CULLMODE_CW
+    local MATERIAL_CULLMODE_CCW = MATERIAL_CULLMODE_CCW
+
+    ---@param pl Player
+    ---@param vm Entity
+    ---@param wep SWEP
+    ---@param flags integer
+    local function drawHands( pl, vm, wep, flags )
+        local hands = Player_GetHands( pl )
+
+        if hands == nil or not Entity_IsValid( hands ) then
+            return
+        end
+
+        local parent = Entity_GetParent( hands )
+
+        if parent == nil or not Entity_IsValid( parent ) then
+            return
+        end
+
+        if not hook.Run( "PreDrawPlayerHands", hands, vm, pl, wep, flags ) then
+            local flip = wep.ViewModelFlip
+
+            if flip then
+                render_CullMode( MATERIAL_CULLMODE_CW )
+            end
+
+            Entity_DrawModel( hands, flags )
+
+            render_CullMode( MATERIAL_CULLMODE_CCW )
+        end
+
+        hook.Run( "PostDrawPlayerHands", hands, vm, pl, wep, flags )
+    end
+
+    hook.Add( "PostDrawViewModel", "Default", function( vm, pl, wep, flags )
+        if wep == nil or not wep:IsValid() then
+            return false
+        end
+
+        ---@cast wep SWEP
+
+        if wep.UseHands or not Weapon_IsScripted( wep ) then
+            drawHands( pl, vm, wep, flags )
+        end
+
+        player_manager.RunClass( pl, "PostDrawViewModel", vm, wep, flags )
+
+        local postDrawViewModel = wep.PostDrawViewModel
+
+        if postDrawViewModel ~= nil then
+            return postDrawViewModel( wep, vm, wep, pl, flags )
+        end
+
+        local ashPostDrawViewModel = wep.postDrawViewModel
+
+        if ashPostDrawViewModel ~= nil then
+            ashPostDrawViewModel( wep, vm, pl, flags )
+        end
+
+        return false
+    end )
+end
+
 
 do
     hook.Add( "CalcViewModelView", "Defaults", function( wep, vm, oldEyePos, oldEyeAng, eyePos, eyeAng )

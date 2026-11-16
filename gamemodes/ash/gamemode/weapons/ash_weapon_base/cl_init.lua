@@ -6,14 +6,26 @@ local SWEP = SWEP
 ---@type ash.ui
 local ash_ui = import "ash.ui"
 
+---@type ash.ui.svg
+local ash_svg = import "ash.ui.svg"
+
 ---@type ash.ui.rndx
 local rndx = import "ash.ui.rndx"
 
 local developer = GetConVar( "developer" )
 
+local math_floor = math.floor
+local math_ceil = math.ceil
+
+local string_format = string.format
+local string_upper = string.upper
+
+local input_LookupBinding = input.LookupBinding
+
 assert( developer ~= nil, "developer not found" )
 
 
+local math_approach = math.approach
 local color_red = Color( 255, 0, 0 )
 local scale = 0.8
 
@@ -26,6 +38,25 @@ local scale_map = ash_ui.scaleMap( {
     [ "LineDown" ] = "25vmin",
     [ "LineYSize" ] = "2px",
 } )
+
+
+ash_ui.font( "ash_weapon.Text1", {
+    font = "Inter",
+    extended = true,
+    size = "4vmin",
+    weight = 600,
+    blursize = 0,
+    scanlines = 0,
+    antialias = true,
+    underline = false,
+    italic = false,
+    strikeout = false,
+    symbol = false,
+    rotary = false,
+    shadow = true,
+    additive = false,
+    outline = false,
+})
 
 local line_count = 4
 local function drawScope()
@@ -63,17 +94,17 @@ local function drawScope()
 end
 
 function SWEP:DrawHUD()
-    local size_sight_w = math.floor( ash_ui.ScreenHeight * self.Secondary.SightWScale )
-    local size_sight_h = math.floor( ash_ui.ScreenHeight * self.Secondary.SightHScale )
+    local size_sight_w = math_floor( ash_ui.ScreenHeight * self.Secondary.SightWScale )
+    local size_sight_h = math_floor( ash_ui.ScreenHeight * self.Secondary.SightHScale )
     local midX = ash_ui.ScreenCenterX
     local midY = ash_ui.ScreenCenterY
     local color = self.Secondary.SightColor
 
     local texture = self.Secondary.SightTexture
     if not self.Secondary.SightNoDraw and self:getInSight() and texture then
-        local center_sight_w = math.floor( size_sight_w * 0.5 )
-        local center_sight_h = math.floor( size_sight_h * 0.5 )
-        local size_top = math.floor( (ash_ui.ScreenHeight * 0.5) - math.floor( size_sight_h * 0.5 ) )
+        local center_sight_w = math_floor( size_sight_w * 0.5 )
+        local center_sight_h = math_floor( size_sight_h * 0.5 )
+        local size_top = math_floor( (ash_ui.ScreenHeight * 0.5) - math_floor( size_sight_h * 0.5 ) )
 
         --lines
         if self.Secondary.SightDrawLines then
@@ -106,14 +137,32 @@ function SWEP:DrawHUD()
         surface.DrawRect( 0, ash_ui.ScreenHeight - size_top, ash_ui.ScreenWidth, size_top )
     end
 
+    if self:getIsMissfire() then
+        local bind_name = input_LookupBinding( "+reload" ) or "UNKNOWN"
+
+        draw.SimpleText( string_format( "Missfire, press %s", string_upper( bind_name ) ), "ash_weapon.Text1", ash_ui.ScreenCenterX, ash_ui.ScreenCenterY * 1.1, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP )
+    end
+
+    draw.SimpleText( string_format( "Reability amount: %d", self:getReabilityAmount() ), "ash_weapon.Text1", ash_ui.ScreenCenterX, ash_ui.ScreenCenterY * 1.2, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP )
+
     self:actionRun( "drawHUD" )
 end
 
-function SWEP:calcView( view )
-    view.origin, view.angles = LocalToWorld( vector_origin, self:GetKick(), view.origin, view.angles )
+do
 
-    if self:getInSight() then
-        view.fov = view.fov * (self.Secondary.SightStateZoom[ self:getSightState() ] or 1)
+
+
+    function SWEP:calcView( view )
+        view.origin, view.angles = LocalToWorld( vector_origin, self:GetKick(), view.origin, view.angles )
+
+        if self:getInSight() then
+            local state_zoom = ( self.Secondary.SightStateZoom[ self:getSightState() ] or 1)
+
+            local result = view.fov * ( state_zoom )
+
+
+            view.fov = result
+        end
     end
 end
 
@@ -130,11 +179,31 @@ do
 
     local Entity_GetSkin = Entity.GetSkin
     local Entity_SetSkin = Entity.SetSkin
+    local Entity_GetVelocity = Entity.GetVelocity
+
+    local Vector_Length = Vector.Length
+    SWEP.SightEffectScale = 0.1
+
+
     function SWEP:CalcViewModelView( vm, oldpos, oldeyeang, pos, ang )
+        local owner = self:GetOwner()
+
+        ---@cast owner Entity
+        if not ( owner ~= nil and owner:IsValid( ) ) then
+            return
+        end
+
         local npos, nang = pos, ang
 
         if self:getInSight() then
-            npos, nang = oldpos, oldeyeang
+            local sight_effect_scale = self.SightEffectScale
+            if Vector_Length( Entity_GetVelocity( owner ) ) > 30 then
+                npos = LerpVector( sight_effect_scale, oldpos, pos )
+                nang = LerpAngle( sight_effect_scale, oldeyeang, ang )
+            else
+                npos = oldpos
+                nang = oldeyeang
+            end
         end
 
         local kick = self:GetKick()
@@ -158,6 +227,20 @@ do
         else
             if Entity_GetSkin( vm ) ~= 0 then
                 Entity_SetSkin( vm, 0 )
+            end
+        end
+
+        if vm:GetModel() == self.ViewModel then
+            local progress = Lerp( ( CurTime() - self:getVMTime() ) / self:getVMDuration(), 0, 1 )
+            vm:SetSequence( self:getVMWeightedSequence() )
+            vm:SetCycle( progress )
+            vm:SetPlaybackRate( 1 )
+
+            if progress >= 1 and self:getVMToIdle() then
+                local seq = vm:SelectWeightedSequence( self:getSilencer() and ACT_VM_IDLE_SILENCED or ACT_VM_IDLE )
+                self:setVMTime( CurTime() )
+                self:setVMWeightedSequence( seq )
+                self:setVMDuration( vm:SequenceDuration( seq ) )
             end
         end
 
@@ -296,16 +379,16 @@ do
 
         if cl_ash_crosshair_drawlines.value then
             --left
-            DrawOutlineBox( x - size_line_w - size_center, y - math.floor( size_line_h * 0.5 ), size_line_w, size_line_h )
+            DrawOutlineBox( x - size_line_w - size_center, y - math_floor( size_line_h * 0.5 ), size_line_w, size_line_h )
 
             --right
-            DrawOutlineBox( x + size_center + 1, y - math.floor( size_line_h * 0.5 ), size_line_w, size_line_h )
+            DrawOutlineBox( x + size_center + 1, y - math_floor( size_line_h * 0.5 ), size_line_w, size_line_h )
 
             --bottom
-            DrawOutlineBox( x - math.floor( size_line_h * 0.5 ), y + size_center + 1, size_line_h, size_line_w )
+            DrawOutlineBox( x - math_floor( size_line_h * 0.5 ), y + size_center + 1, size_line_h, size_line_w )
 
             --top
-            DrawOutlineBox( x - math.floor( size_line_h * 0.5 ), y - size_line_w - size_center, size_line_h, size_line_w )
+            DrawOutlineBox( x - math_floor( size_line_h * 0.5 ), y - size_line_w - size_center, size_line_h, size_line_w )
         end
 
         local dot_size = 9
@@ -313,11 +396,11 @@ do
         -- if cl_ash_crosshair_drawdot.value then
         --     surface.SetDrawColor(0, 0, 0, 255)
         --     surface.SetMaterial(mat_cross)
-        --     surface.DrawTexturedRect(dot_x - math.floor( dot_size * 0.5 ), dot_y - math.floor( dot_size * 0.5 ), dot_size, dot_size)
+        --     surface.DrawTexturedRect(dot_x - math_floor( dot_size * 0.5 ), dot_y - math_floor( dot_size * 0.5 ), dot_size, dot_size)
 
         --     surface.SetDrawColor(224, 0, 0, 255)
         --     surface.SetMaterial(mat_dot)
-        --     surface.DrawTexturedRect(dot_x - math.floor( dot_size * 0.5 ), dot_y - math.floor( dot_size * 0.5 ), dot_size, dot_size)
+        --     surface.DrawTexturedRect(dot_x - math_floor( dot_size * 0.5 ), dot_y - math_floor( dot_size * 0.5 ), dot_size, dot_size)
         -- end
     end
 
@@ -375,257 +458,359 @@ do
     end
 end
 
-local STEPS_POS  = { 0.001, 0.01, 0.05, 0.1, 0.5, 1 }
-local STEPS_ANG  = { 0.01, 0.1, 0.5, 1, 5, 15 }
 
-local COL_ACTIVE = Color( 60, 130, 220 )
-local COL_IDLE   = Color( 70, 70, 70 )
+do
+    local reticle = Material( "models/frontfire/weapons/rif_aug/scope", "nomipmaps smooth" )
 
-local function Fmt( v )
-    local s = string.format( "%.4f", v )
-    s = s:gsub( "0+$", "" ):gsub( "%.$", "" )
-    if s == "-0" or s == "" then s = "0" end
 
-    return s
-end
+    SWEP.SightScissorSize = 0.8
 
-local function PrintSight( pos, ang )
-    print( "----" )
-    printf( "SWEP.Secondary.ViewModelSightPos = Vector( %f, %f, %f )\nSWEP.Secondary.ViewModelSightAng = Angle( %f, %f, %f )",
-        pos.x, pos.y, pos.z,
-        ang.x, ang.y, ang.z )
-end
+    SWEP.SightLocalPosition = Vector( 0, 0.125, -3 )
+    SWEP.SightLocalAngle = Angle()
+    ---@type "svg", "texture", "custom"
+    SWEP.SightRenderMode = "svg"
+    SWEP.SightSVG = ash_svg.Load( "data_static/materials/frontfire/scope/aug_scope.svg.txt" )
 
-local function BuildSightString( pos, ang )
-    return string.format( "SWEP.Secondary.ViewModelSightPos = Vector( %f, %f, %f )\nSWEP.Secondary.ViewModelSightAng = Angle( %f, %f, %f )",
-        pos.x, pos.y, pos.z,
-        ang.x, ang.y, ang.z )
-end
+    ---@param texture_size number
+    ---@param texture_half number
+    function SWEP:SightRender( texture_size, texture_half )
 
-local function OpenScopeSetup( wep )
-    if not IsValid( wep ) then return end
-
-    wep.Secondary = wep.Secondary or {}
-    wep.Secondary.ViewModelSightPos = wep.Secondary.ViewModelSightPos or Vector()
-    wep.Secondary.ViewModelSightAng = wep.Secondary.ViewModelSightAng or Angle()
-
-    local ViewModelSightPos = wep.Secondary.ViewModelSightPos
-    local ViewModelSightAng = wep.Secondary.ViewModelSightAng
-
-    local origPos = Vector( ViewModelSightPos.x, ViewModelSightPos.y, ViewModelSightPos.z )
-    local origAng = Angle( ViewModelSightAng.x, ViewModelSightAng.y, ViewModelSightAng.z )
-
-    local step = { pos = 0.01, ang = 0.1 }
-    local refreshers = {}
-
-    local function RefreshAll()
-        for _, fn in ipairs( refreshers ) do fn() end
     end
 
-    local frame = ash_ui.setPanel( "ash.weapon.ScopeSetup", "DFrame" )
-    frame:SetSize( 340, 440 )
-    frame:CenterVertical()
-    frame:MakePopup()
-    frame:SetTitle( "Scope Setup" )
+    local texture_size  = 512
+    local lens_size = 2
+    local SCALE = lens_size / texture_size
+    function SWEP:PostDrawViewModel( vm, wep, pl, flags )
+        if self:getInSight() then
+            local id = vm:LookupAttachment( "scope" )
+            if id <= 0 then return end
 
-    -- Множитель шага: Shift = x10, Ctrl = /10
-    local function Mult()
-        if input.IsShiftDown() then return 10 end
+            local att = vm:GetAttachment( id )
+            if not att then return end
 
-        if input.IsControlDown() then return 0.1 end
+            local fwd, right = att.Ang:Forward(), att.Ang:Right()
 
-        return 1
-    end
+            local pos = att.Pos
+            local ang = right:AngleEx( -fwd )
 
-    -- Выбор шага
-    local function AddStepSelector( title, list, key )
-        local lbl = vgui.Create( "DLabel", frame )
-        lbl:Dock( TOP )
-        lbl:DockMargin( 8, 6, 8, 2 )
-        lbl:SetText( title )
+            pos = LocalToWorld( self.SightLocalPosition, self.SightLocalAngle, pos, ang )
 
-        local row = vgui.Create( "DPanel", frame )
-        row:Dock( TOP )
-        row:SetTall( 24 )
-        row:DockMargin( 8, 0, 8, 0 )
-        row.Paint = nil
+            local w, h = ash_ui.ScreenWidth, ash_ui.ScreenHeight
+            local cx, cy = w * 0.5, h * 0.5
 
-        for _, value in ipairs( list ) do
-            local b = vgui.Create( "DButton", row )
-            b:Dock( LEFT )
-            b:SetWide( 48 )
-            b:DockMargin( 0, 0, 2, 0 )
-            b:SetText( tostring( value ) )
-            b:SetTextColor( color_white )
-            b.Paint = function( self, w, h )
-                draw.RoundedBox( 4, 0, 0, w, h, step[ key ] == value and COL_ACTIVE or COL_IDLE )
+            local scr = pos:ToScreen()
+            if scr.visible then
+                cx, cy = scr.x, scr.y
             end
-            b.DoClick = function()
-                step[ key ] = value
-            end
+
+            local half = h * self.SightScissorSize * 0.5
+
+            render.SetScissorRect( math_floor( cx - half ), math_floor( cy - half ), math_ceil( cx + half ), math_ceil( cy + half ), true )
+
+            local render_mode = SWEP.SightRenderMode
+            local texture_half = texture_size * 0.5
+
+            cam.Start3D2D( pos, ang, SCALE )
+                if render_mode == "svg" then
+                    self.SightSVG:Render( -(texture_half), -(texture_half), texture_size, texture_size )
+                elseif render_mode == "custom" then
+                    self:SightRender( texture_size, texture_half )
+                end
+            cam.End3D2D()
+
+            render.SetScissorRect( 0, 0, 0, 0, false )
         end
     end
+end
 
-    -- Строка редактирования одной оси
-    local function AddRow( label, group, get, set )
-        local row = vgui.Create( "DPanel", frame )
-        row:Dock( TOP )
-        row:SetTall( 28 )
-        row:DockMargin( 8, 0, 8, 4 )
-        row.Paint = nil
+---Внимание, аи слопчик
+do
+    local STEPS_POS  = { 0.001, 0.01, 0.05, 0.1, 0.5, 1 }
+    local STEPS_ANG  = { 0.01, 0.1, 0.5, 1, 5, 15 }
 
-        local function Apply( v )
-            set( math.round( v, 4 ) )
+    local COL_ACTIVE = Color( 60, 130, 220 )
+    local COL_IDLE   = Color( 70, 70, 70 )
+
+    local function Fmt( v )
+        local s = string.format( "%.4f", v )
+        s = s:gsub( "0+$", "" ):gsub( "%.$", "" )
+        if s == "-0" or s == "" then s = "0" end
+
+        return s
+    end
+
+    local function PrintSight( pos, ang )
+        print( "----" )
+        printf( "SWEP.Secondary.ViewModelSightPos = Vector( %f, %f, %f )\nSWEP.Secondary.ViewModelSightAng = Angle( %f, %f, %f )",
+            pos.x, pos.y, pos.z,
+            ang.x, ang.y, ang.z )
+    end
+
+    local function BuildSightString( pos, ang )
+        return string.format( "SWEP.Secondary.ViewModelSightPos = Vector( %f, %f, %f )\nSWEP.Secondary.ViewModelSightAng = Angle( %f, %f, %f )",
+            pos.x, pos.y, pos.z,
+            ang.x, ang.y, ang.z )
+    end
+
+    local function OpenScopeSetup( wep )
+        if not IsValid( wep ) then return end
+
+        wep.Secondary = wep.Secondary or {}
+        wep.Secondary.ViewModelSightPos = wep.Secondary.ViewModelSightPos or Vector()
+        wep.Secondary.ViewModelSightAng = wep.Secondary.ViewModelSightAng or Angle()
+
+        local ViewModelSightPos = wep.Secondary.ViewModelSightPos
+        local ViewModelSightAng = wep.Secondary.ViewModelSightAng
+
+        local origPos = Vector( ViewModelSightPos.x, ViewModelSightPos.y, ViewModelSightPos.z )
+        local origAng = Angle( ViewModelSightAng.x, ViewModelSightAng.y, ViewModelSightAng.z )
+
+        local step = { pos = 0.01, ang = 0.1 }
+        local refreshers = {}
+
+        local function RefreshAll()
+            for _, fn in ipairs( refreshers ) do fn() end
+        end
+
+        local frame = ash_ui.setPanel( "ash.weapon.ScopeSetup", "DFrame" )
+        frame:SetSize( 340, 440 )
+        frame:CenterVertical()
+        frame:MakePopup()
+        frame:SetTitle( "Scope Setup" )
+
+        -- Множитель шага: Shift = x10, Ctrl = /10
+        local function Mult()
+            if input.IsShiftDown() then return 10 end
+
+            if input.IsControlDown() then return 0.1 end
+
+            return 1
+        end
+
+        -- Выбор шага
+        local function AddStepSelector( title, list, key )
+            local lbl = vgui.Create( "DLabel", frame )
+            lbl:Dock( TOP )
+            lbl:DockMargin( 8, 6, 8, 2 )
+            lbl:SetText( title )
+
+            local row = vgui.Create( "DPanel", frame )
+            row:Dock( TOP )
+            row:SetTall( 24 )
+            row:DockMargin( 8, 0, 8, 0 )
+            row.Paint = nil
+
+            for _, value in ipairs( list ) do
+                local b = vgui.Create( "DButton", row )
+                b:Dock( LEFT )
+                b:SetWide( 48 )
+                b:DockMargin( 0, 0, 2, 0 )
+                b:SetText( tostring( value ) )
+                b:SetTextColor( color_white )
+                b.Paint = function( self, w, h )
+                    draw.RoundedBox( 4, 0, 0, w, h, step[ key ] == value and COL_ACTIVE or COL_IDLE )
+                end
+                b.DoClick = function()
+                    step[ key ] = value
+                end
+            end
+        end
+
+        -- Строка редактирования одной оси
+        local function AddRow( label, group, get, set )
+            local row = vgui.Create( "DPanel", frame )
+            row:Dock( TOP )
+            row:SetTall( 28 )
+            row:DockMargin( 8, 0, 8, 4 )
+            row.Paint = nil
+
+            local function Apply( v )
+                set( math.round( v, 4 ) )
+                RefreshAll()
+                PrintSight( ViewModelSightPos, ViewModelSightAng )
+            end
+
+            local function Nudge( dir )
+                Apply( get() + dir * step[ group ] * Mult() )
+            end
+
+            local lbl = vgui.Create( "DLabel", row )
+            lbl:Dock( LEFT )
+            lbl:SetWide( 50 )
+            lbl:SetText( label )
+
+            -- Кнопка обнуления (справа)
+            local zero = vgui.Create( "DButton", row )
+            zero:Dock( RIGHT )
+            zero:SetWide( 24 )
+            zero:DockMargin( 2, 0, 0, 0 )
+            zero:SetText( "0" )
+            zero.DoClick = function() Apply( 0 ) end
+
+            -- Кнопки с удержанием: -, +
+            local function HoldButton( text, dir, side )
+                local b = vgui.Create( "DButton", row )
+                b:Dock( side )
+                b:SetWide( 30 )
+                b:DockMargin( 2, 0, 2, 0 )
+                b:SetText( text )
+                b.Think = function( self )
+                    if self:IsDown() then
+                        local t = CurTime()
+                        if not self.held then
+                            self.held = true
+                            self.nextRep = t + 0.4
+                            Nudge( dir )
+                        elseif t >= self.nextRep then
+                            self.nextRep = t + 0.05
+                            Nudge( dir )
+                        end
+                    else
+                        self.held = false
+                    end
+                end
+                return b
+            end
+
+            HoldButton( "+", 1, RIGHT )
+
+            local entry = vgui.Create( "DTextEntry", row )
+            entry:Dock( FILL )
+
+            HoldButton( "-", -1, RIGHT )
+            -- "-" докается правее, поэтому переставим порядок через вторую пару:
+            -- (см. ниже: меняем сторону на LEFT для минуса)
+
+            entry:SetText( Fmt( get() ) )
+
+            local function Commit()
+                local n = tonumber( entry:GetValue() )
+                if n then Apply( n ) else entry:SetText( Fmt( get() ) ) end
+            end
+            entry.OnEnter = Commit
+            entry.OnLoseFocus = Commit
+
+            -- Колёсико мыши над полем: шаг, Shift = x10, Ctrl = /10
+            entry.OnMouseWheeled = function( self, delta )
+                Nudge( delta > 0 and 1 or -1 )
+                return true
+            end
+
+            -- Стрелки вверх/вниз в поле
+            entry.OnKeyCodeTyped = function( self, code )
+                if code == KEY_UP then
+                    Nudge( 1 )
+                    return
+                end
+
+                if code == KEY_DOWN then
+                    Nudge( -1 )
+                    return
+                end
+
+                if code == KEY_ENTER or code == KEY_PAD_ENTER then
+                    Commit()
+                    return
+                end
+
+                DTextEntry.OnKeyCodeTyped( self, code )
+            end
+
+            refreshers[ #refreshers + 1 ] = function()
+                if not entry:HasFocus() then
+                    entry:SetText( Fmt( get() ) )
+                end
+            end
+        end
+
+        -- Позиция
+        AddStepSelector( "Шаг позиции", STEPS_POS, "pos" )
+        AddRow( "Pos X", "pos", function() return ViewModelSightPos.x end, function( v ) ViewModelSightPos.x = v end )
+        AddRow( "Pos Y", "pos", function() return ViewModelSightPos.y end, function( v ) ViewModelSightPos.y = v end )
+        AddRow( "Pos Z", "pos", function() return ViewModelSightPos.z end, function( v ) ViewModelSightPos.z = v end )
+
+        -- Угол
+        AddStepSelector( "Шаг угла", STEPS_ANG, "ang" )
+        AddRow( "Ang P", "ang", function() return ViewModelSightAng.x end, function( v ) ViewModelSightAng.x = v end )
+        AddRow( "Ang Y", "ang", function() return ViewModelSightAng.y end, function( v ) ViewModelSightAng.y = v end )
+        AddRow( "Ang R", "ang", function() return ViewModelSightAng.z end, function( v ) ViewModelSightAng.z = v end )
+
+        local hint = vgui.Create( "DLabel", frame )
+        hint:Dock( TOP )
+        hint:DockMargin( 8, 4, 8, 0 )
+        hint:SetWrap( true )
+        hint:SetAutoStretchVertical( true )
+        hint:SetText( "Колёсико / ↑↓ в поле: изменить на шаг. Shift = x10, Ctrl = /10. Кнопки +/- можно удерживать." )
+
+        -- Нижние кнопки
+        local btnPanel = vgui.Create( "DPanel", frame )
+        btnPanel:Dock( BOTTOM )
+        btnPanel:SetTall( 30 )
+        btnPanel:DockMargin( 8, 4, 8, 8 )
+        btnPanel.Paint = nil
+
+        local btnCopy = vgui.Create( "DButton", btnPanel )
+        btnCopy:Dock( LEFT )
+        btnCopy:SetWide( 150 )
+        btnCopy:SetText( "Копировать" )
+        btnCopy.DoClick = function()
+            SetClipboardText( BuildSightString( ViewModelSightPos, ViewModelSightAng ) )
+            PrintSight( ViewModelSightPos, ViewModelSightAng )
+        end
+
+        local btnReset = vgui.Create( "DButton", btnPanel )
+        btnReset:Dock( RIGHT )
+        btnReset:SetWide( 150 )
+        btnReset:SetText( "Сбросить" )
+        btnReset.DoClick = function()
+            ViewModelSightPos.x = origPos.x
+            ViewModelSightPos.y = origPos.y
+            ViewModelSightPos.z = origPos.z
+            ViewModelSightAng.x = origAng.x
+            ViewModelSightAng.y = origAng.y
+            ViewModelSightAng.z = origAng.z
             RefreshAll()
             PrintSight( ViewModelSightPos, ViewModelSightAng )
         end
 
-        local function Nudge( dir )
-            Apply( get() + dir * step[ group ] * Mult() )
-        end
-
-        local lbl = vgui.Create( "DLabel", row )
-        lbl:Dock( LEFT )
-        lbl:SetWide( 50 )
-        lbl:SetText( label )
-
-        -- Кнопка обнуления (справа)
-        local zero = vgui.Create( "DButton", row )
-        zero:Dock( RIGHT )
-        zero:SetWide( 24 )
-        zero:DockMargin( 2, 0, 0, 0 )
-        zero:SetText( "0" )
-        zero.DoClick = function() Apply( 0 ) end
-
-        -- Кнопки с удержанием: -, +
-        local function HoldButton( text, dir, side )
-            local b = vgui.Create( "DButton", row )
-            b:Dock( side )
-            b:SetWide( 30 )
-            b:DockMargin( 2, 0, 2, 0 )
-            b:SetText( text )
-            b.Think = function( self )
-                if self:IsDown() then
-                    local t = CurTime()
-                    if not self.held then
-                        self.held = true
-                        self.nextRep = t + 0.4
-                        Nudge( dir )
-                    elseif t >= self.nextRep then
-                        self.nextRep = t + 0.05
-                        Nudge( dir )
-                    end
-                else
-                    self.held = false
-                end
-            end
-            return b
-        end
-
-        HoldButton( "+", 1, RIGHT )
-
-        local entry = vgui.Create( "DTextEntry", row )
-        entry:Dock( FILL )
-
-        HoldButton( "-", -1, RIGHT )
-        -- "-" докается правее, поэтому переставим порядок через вторую пару:
-        -- (см. ниже: меняем сторону на LEFT для минуса)
-
-        entry:SetText( Fmt( get() ) )
-
-        local function Commit()
-            local n = tonumber( entry:GetValue() )
-            if n then Apply( n ) else entry:SetText( Fmt( get() ) ) end
-        end
-        entry.OnEnter = Commit
-        entry.OnLoseFocus = Commit
-
-        -- Колёсико мыши над полем: шаг, Shift = x10, Ctrl = /10
-        entry.OnMouseWheeled = function( self, delta )
-            Nudge( delta > 0 and 1 or -1 )
-            return true
-        end
-
-        -- Стрелки вверх/вниз в поле
-        entry.OnKeyCodeTyped = function( self, code )
-            if code == KEY_UP then
-                Nudge( 1 )
-                return
-            end
-
-            if code == KEY_DOWN then
-                Nudge( -1 )
-                return
-            end
-
-            if code == KEY_ENTER or code == KEY_PAD_ENTER then
-                Commit()
-                return
-            end
-
-            DTextEntry.OnKeyCodeTyped( self, code )
-        end
-
-        refreshers[ #refreshers + 1 ] = function()
-            if not entry:HasFocus() then
-                entry:SetText( Fmt( get() ) )
-            end
-        end
+        return frame
     end
 
-    -- Позиция
-    AddStepSelector( "Шаг позиции", STEPS_POS, "pos" )
-    AddRow( "Pos X", "pos", function() return ViewModelSightPos.x end, function( v ) ViewModelSightPos.x = v end )
-    AddRow( "Pos Y", "pos", function() return ViewModelSightPos.y end, function( v ) ViewModelSightPos.y = v end )
-    AddRow( "Pos Z", "pos", function() return ViewModelSightPos.z end, function( v ) ViewModelSightPos.z = v end )
-
-    -- Угол
-    AddStepSelector( "Шаг угла", STEPS_ANG, "ang" )
-    AddRow( "Ang P", "ang", function() return ViewModelSightAng.x end, function( v ) ViewModelSightAng.x = v end )
-    AddRow( "Ang Y", "ang", function() return ViewModelSightAng.y end, function( v ) ViewModelSightAng.y = v end )
-    AddRow( "Ang R", "ang", function() return ViewModelSightAng.z end, function( v ) ViewModelSightAng.z = v end )
-
-    local hint = vgui.Create( "DLabel", frame )
-    hint:Dock( TOP )
-    hint:DockMargin( 8, 4, 8, 0 )
-    hint:SetWrap( true )
-    hint:SetAutoStretchVertical( true )
-    hint:SetText( "Колёсико / ↑↓ в поле: изменить на шаг. Shift = x10, Ctrl = /10. Кнопки +/- можно удерживать." )
-
-    -- Нижние кнопки
-    local btnPanel = vgui.Create( "DPanel", frame )
-    btnPanel:Dock( BOTTOM )
-    btnPanel:SetTall( 30 )
-    btnPanel:DockMargin( 8, 4, 8, 8 )
-    btnPanel.Paint = nil
-
-    local btnCopy = vgui.Create( "DButton", btnPanel )
-    btnCopy:Dock( LEFT )
-    btnCopy:SetWide( 150 )
-    btnCopy:SetText( "Копировать" )
-    btnCopy.DoClick = function()
-        SetClipboardText( BuildSightString( ViewModelSightPos, ViewModelSightAng ) )
-        PrintSight( ViewModelSightPos, ViewModelSightAng )
-    end
-
-    local btnReset = vgui.Create( "DButton", btnPanel )
-    btnReset:Dock( RIGHT )
-    btnReset:SetWide( 150 )
-    btnReset:SetText( "Сбросить" )
-    btnReset.DoClick = function()
-        ViewModelSightPos.x = origPos.x
-        ViewModelSightPos.y = origPos.y
-        ViewModelSightPos.z = origPos.z
-        ViewModelSightAng.x = origAng.x
-        ViewModelSightAng.y = origAng.y
-        ViewModelSightAng.z = origAng.z
-        RefreshAll()
-        PrintSight( ViewModelSightPos, ViewModelSightAng )
-    end
-
-    return frame
+    concommand.Add( "ash_weapon_scope_menu", function()
+        OpenScopeSetup( LocalPlayer():GetActiveWeapon() )
+    end )
 end
 
-concommand.Add( "ash_weapon_scope_menu", function()
-    OpenScopeSetup( LocalPlayer():GetActiveWeapon() )
-end )
+
+do
+    net.Receive( "animation", function( )
+        local wep = net.ReadEntity()
+        local pl = net.ReadEntity()
+
+        if not ( IsValid( wep ) and IsValid( pl ) ) then
+            return
+        end
+
+        ---@cast wep ash_weapon_base
+
+        if wep:GetOwner() ~= pl then
+            return
+        end
+
+        if not ( pl:IsPlayer() and pl:GetActiveWeapon() == wep ) then
+            return
+        end
+
+        local type_anim = net.ReadUInt( 2 )
+
+        local rate = net.ReadFloat()
+        local loop = net.ReadBool()
+        if type_anim == 1 then
+            print( "play string" )
+            wep:playVM( net.ReadString( ), rate, loop )
+        elseif type_anim == 2 then
+            print( "play act" )
+            wep:playVM( net.ReadUInt( 16 ), rate, loop )
+        end
+    end )
+end

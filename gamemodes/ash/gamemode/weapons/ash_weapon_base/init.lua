@@ -5,6 +5,7 @@ MODULE.ClientFiles = {
 
 MODULE.Networks = {
     "bullet_effect",
+    "animation",
 }
 
 ---@class ash_weapon_base: SWEP
@@ -46,7 +47,7 @@ hook.Add( "PlayerAmmoChanged", "Defaults", function( pl, ammotype, old, new )
         return
     end
 
-    if wep:Clip1() <= 0 and wep:GetMaxClip1() > 0 then
-        wep:Reload()
+    if wep:getClip1() <= 0 and wep:GetMaxClip1() > 0 then
+        wep:reload()
     end
 end )

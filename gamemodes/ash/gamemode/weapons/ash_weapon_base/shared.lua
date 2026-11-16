@@ -8,12 +8,12 @@ local ash_nw3_get = ash_nw3.get
 local ash_nw3_set = ash_nw3.set
 
 
+local bit_band = bit.band
+local ash_firing_time = ash_firing.curTime
 local math_approach = math.approach
 local math_max = math.max
 local math_min = math.min
-local SharedRandom = util.SharedRandom
-local math_randomseed = _G.math.randomseed
-local math_randomf = math.randomf
+local math_floor = math.floor
 
 ---@class ash_weapon_base.FireModes : table
 ---@field name? string
@@ -40,17 +40,17 @@ local math_randomf = math.randomf
 ---@field setKickCurZ fun( self: self, float: number )
 ---@field getKickCurZ fun( self: self ): number
 ---@field setShoot fun( self: self, float: number )
----@field GetShoot fun( self: self ): number
+---@field getShoot fun( self: self ): number
 ---@field setBufferedClick fun( self: self, bool: boolean )
 ---@field getBufferedClick fun( self: self ): boolean
 ---@field setInReload fun( self: self, bool: boolean )
 ---@field getInReload fun( self: self ): boolean
----@field SetReloadTime fun( self: self, float: number )
----@field GetReloadTime fun( self: self ): number
+---@field setReloadTime fun( self: self, float: number )
+---@field getReloadTime fun( self: self ): number
 ---@field setReloadDelay fun( self: self, float: number )
 ---@field getReloadDelay fun( self: self ): number
----@field SetIdleTime fun( self: self, float: number )
----@field GetIdleTime fun( self: self ): number
+---@field setIdleTime fun( self: self, float: number )
+---@field getIdleTime fun( self: self ): number
 ---@field setSilencer fun( self: self, bool: boolean )
 ---@field getSilencer fun( self: self ): boolean
 ---@field setSilencerTime fun( self: self, float: number )
@@ -67,6 +67,8 @@ local math_randomf = math.randomf
 ---@field getBurstTime fun( self: self ): number
 ---@field setIsBurstFire fun( self: self, bool: boolean )
 ---@field getIsBurstFire fun( self: self ): boolean
+---@field setIsMissfire fun( self: self, bool: boolean )
+---@field getIsMissfire fun( self: self ): boolean
 ---@field setInSight fun( self: self, bool: boolean )
 ---@field getInSight fun( self: self ): boolean
 ---@field setRecoverSight fun( self: self, float: number )
@@ -105,6 +107,44 @@ local math_randomf = math.randomf
 ---@field getSightProgress fun( self: self ): number
 ---@field setSightProgressSpeed fun( self: self, float: number )
 ---@field getSightProgressSpeed fun( self: self ): number
+---@field setReabilityAmount fun( self: self, float: number )
+---@field getReabilityAmount fun( self: self ): number
+---@field setReabilityMissfireChance fun( self: self, float: number )
+---@field getReabilityMissfireChance fun( self: self ): number
+---@field setManualReloadingSkipFirst fun( self: self, bool: boolean )
+---@field getManualReloadingSkipFirst fun( self: self ): boolean
+---@field setInScope fun( self: self, bool: boolean )
+---@field getInScope fun( self: self ): boolean
+---@field setAutomatic fun( self: self, bool: boolean )
+---@field getAutomatic fun( self: self ): boolean
+---@field setVMLoop fun( self: self, bool: boolean )
+---@field getVMLoop fun( self: self ): boolean
+---@field setVMActive fun( self: self, bool: boolean )
+---@field getVMActive fun( self: self ): boolean
+---@field setVMToIdle fun( self: self, bool: boolean )
+---@field getVMToIdle fun( self: self ): boolean
+---@field setIsMissfireFixingIsFast fun( self: self, bool: boolean )
+---@field getIsMissfireFixingIsFast fun( self: self ): boolean
+---@field setSkin fun( self: self, int: number )
+---@field getSkin fun( self: self ): number
+---@field setVMWeightedSequence fun( self: self, int: number )
+---@field getVMWeightedSequence fun( self: self ): number
+---@field setDelayFire fun( self: self, float: number )
+---@field getDelayFire fun( self: self ): number
+---@field setSpread fun( self: self, float: number )
+---@field getSpread fun( self: self ): number
+---@field setRecoverProgress fun( self: self, float: number )
+---@field getRecoverProgress fun( self: self ): number
+---@field setRecoverProgressTo fun( self: self, float: number )
+---@field getRecoverProgressTo fun( self: self ): number
+---@field setIsMissfireFixing fun( self: self, float: number )
+---@field getIsMissfireFixing fun( self: self ): number
+---@field setIsMissfireFixingFastTime fun( self: self, float: number )
+---@field getIsMissfireFixingFastTime fun( self: self ): number
+---@field setVMTime fun( self: self, float: number )
+---@field getVMTime fun( self: self ): number
+---@field setVMDuration fun( self: self, float: number )
+---@field getVMDuration fun( self: self ): number
 ---@field ViewKickList? Angle[]
 ---@field networks table<string, number>
 ---@field Spread Vector
@@ -138,6 +178,7 @@ SWEP.ReadyAnim = false
 SWEP.ReloadEmptyAnim = false
 SWEP.PumpAnim = false
 SWEP.SightSpeedStandart = 10
+SWEP.ManualReloadingSkipFirst = false
 
 SWEP.Primary.Automatic = false
 SWEP.Primary.IsAutomatic = false
@@ -180,10 +221,15 @@ SWEP.SpreadOnAir = Vector( 0, 15, 15 )
 SWEP.SpreadNoSight = Vector( 0, 0, 0 )
 
 SWEP.KickSpeed = 20
-SWEP.KickRecoverSpeed = 10
+SWEP.KickRecoverSpeed = 25
 SWEP.KickRandomMin = Angle( 0, 0, 0 )
 SWEP.KickRandomMax = Angle( 0, 0, 0 )
+SWEP.KickRandomStability = Angle( 1, 1, 1 )
+SWEP.KickMult = Angle( 1, 1, 1 )
 
+SWEP.Reability = false
+SWEP.ReabilityAmount = 300
+SWEP.ReabilityFastFixChance = 25
 
 local defaults_animations = {
     [ "draw" ] = {
@@ -244,6 +290,53 @@ function SWEP:addNetwork( ntype, name )
     self[ "set" .. name ] = self[ "Set" .. name ]
 end
 
+
+do
+    ash_nw3.register( "ash.weapon.Clip1", "uint16", ash_nw3.SEND_PVS )
+    ash_nw3.register( "ash.weapon.Clip2", "uint16", ash_nw3.SEND_PVS )
+
+    ---@return number
+    function SWEP:getClip1()
+        return ash_nw3_get( self, "ash.weapon.Clip1", 0 )
+    end
+
+    ---@return number
+    function SWEP:getClip2()
+        return ash_nw3_get( self, "ash.weapon.Clip2", 0 )
+    end
+
+    ---@return number
+    function SWEP:getMaxClip1(  )
+        return self.Primary.ClipSize or 0
+    end
+
+    ---@return number
+    function SWEP:getMaxClip2(  )
+        return self.Secondary.ClipSize or 0
+    end
+
+    ---@param amount number
+    function SWEP:setClip1( amount )
+        ash_nw3_set( self, "ash.weapon.Clip1", amount )
+    end
+
+    ---@param amount number
+    function SWEP:setClip2( amount )
+        ash_nw3_set( self, "ash.weapon.Clip2", amount )
+    end
+
+
+    ---@param amount number
+    function SWEP:takePrimaryAmmo( amount )
+        ash_nw3_set( self, "ash.weapon.Clip1", math_max( ash_nw3_get( self, "ash.weapon.Clip1", 0 ) - amount, 0 ) )
+    end
+
+    ---@param amount number
+    function SWEP:takeSecondaryAmmo( amount )
+        ash_nw3_set( self, "ash.weapon.Clip2", math_max( ash_nw3_get( self, "ash.weapon.Clip2", 0 ) - amount, 0 ) )
+    end
+end
+
 do
     local fallbacks = {
         [ "boolean" ] = false,
@@ -273,66 +366,78 @@ do
         end
 
         self[ "set" .. name ] = function( s, value )
-            return ash_nw3_set( s, full_name, value )
+            return ash_nw3_set( s, full_name, value, s.noSendContext )
         end
     end
 end
 
 function SWEP:SetupDataTables()
-    self:addNetwork( "Float", "KickX" )
-    self:addNetwork( "Float", "KickY" )
-    self:addNetwork( "Float", "KickZ" )
-    self:addNetwork( "Float", "KickReset" )
-    self:addNetwork( "Float", "KickCurX" )
-    self:addNetwork( "Float", "KickCurY" )
-    self:addNetwork( "Float", "KickCurZ" )
-    self:addNetwork( "Float", "Spread" )
-    self:addNetwork( "Float", "Shoot" )
-    self:addNetwork( "Float", "ReloadTime" )
-    self:addNetwork( "Float", "ReloadDelay" )
-    self:addNetwork( "Float", "IdleTime" )
-    self:addNetwork( "Float", "SilencerTime" )
-    self:addNetwork( "Float", "ShootReset" )
-    self:addNetwork( "Float", "BurstTime" )
-    self:addNetwork( "Float", "RecoverSight" )
-    self:addNetwork( "Float", "RateOfFire" )
-    self:addNetwork( "Float", "NextBurstDelay" )
-    self:addNetwork( "Float", "ReloadManualTime" )
-    self:addNetwork( "Float", "SightProgress" )
-    self:addNetwork( "Float", "SightProgressTo" )
-    self:addNetwork( "Float", "SightProgressFrom" )
-    self:addNetwork( "Float", "SightProgressSpeed" )
-    self:addNetwork( "Float", "RecoverProgress" )
-    self:addNetwork( "Float", "RecoverProgressTo" )
-    self:addNetwork( "Float", "DelayAnim" )
+    self:addNW3( "boolean", "BufferedClick" )
+    self:addNW3( "boolean", "InReload" )
+    self:addNW3( "boolean", "Silencer" )
+    self:addNW3( "boolean", "IsAutomatic" )
+    self:addNW3( "boolean", "IsBurstFire" )
+    self:addNW3( "boolean", "InSight" )
+    self:addNW3( "boolean", "LeftGun" )
+    self:addNW3( "boolean", "ManualReloadingStart" )
+    self:addNW3( "boolean", "IsReady" )
+    self:addNW3( "boolean", "IsRecover" )
+    self:addNW3( "boolean", "ManualReloadingSkipFirst" )
 
-    self:addNetwork( "Bool", "BufferedClick" )
-    self:addNetwork( "Bool", "InReload" )
-    self:addNetwork( "Bool", "Silencer" )
-    self:addNetwork( "Bool", "IsAutomatic" )
-    self:addNetwork( "Bool", "IsBurstFire" )
-    self:addNetwork( "Bool", "InSight" )
-    self:addNetwork( "Bool", "LeftGun" )
-    self:addNetwork( "Bool", "ManualReloadingStart" )
-    self:addNetwork( "Bool", "IsReady" )
-    self:addNetwork( "Bool", "IsRecover" )
+    self:addNW3( "uint8", "BurstCount" )
+    self:addNW3( "uint8", "SightState" )
+    self:addNW3( "uint8", "FireMode" )
+    self:addNW3( "uint8", "BurstCountCur" )
+    self:addNW3( "uint8", "BulletCountOnShoot" )
+    self:addNW3( "uint8", "Skin" )
+    self:addNW3( "uint8", "ReabilityMissfireChance" )
 
-    self:addNetwork( "Int", "BurstCount" )
-    self:addNetwork( "Int", "SightState" )
-    self:addNetwork( "Int", "FireMode" )
-    self:addNetwork( "Int", "BurstCountCur" )
-    self:addNetwork( "Int", "BulletCountOnShoot" )
-
-    self:addNetwork( "Vector", "SpreadAdded" )
-    self:addNetwork( "Vector", "SpreadMult" )
-
-    self:actionRun( "setupDataTables" )
+    self:addNW3( "vector", "SpreadAdded" )
+    self:addNW3( "vector", "SpreadMult" )
 
     self:addNW3( "boolean", "InScope" )
     self:addNW3( "boolean", "Automatic" )
+    self:addNW3( "boolean", "VMLoop" )
+    self:addNW3( "boolean", "VMActive" )
+    self:addNW3( "boolean", "VMToIdle" )
+    self:addNW3( "boolean", "IsMissfire" )
+    self:addNW3( "boolean", "IsMissfireFixingIsFast" )
 
-    self:addNW3( "float", "DelayFire" )
-    self:addNW3( "uint8", "Skin" )
+    self:addNW3( "double", "DelayFire" )
+    self:addNW3( "double", "KickX" )
+    self:addNW3( "double", "KickY" )
+    self:addNW3( "double", "KickZ" )
+    self:addNW3( "double", "KickReset" )
+    self:addNW3( "double", "KickCurX" )
+    self:addNW3( "double", "KickCurY" )
+    self:addNW3( "double", "KickCurZ" )
+    self:addNW3( "double", "Spread" )
+    self:addNW3( "double", "Shoot" )
+    self:addNW3( "double", "ReloadTime" )
+    self:addNW3( "double", "ReloadDelay" )
+    self:addNW3( "double", "IdleTime" )
+    self:addNW3( "double", "SilencerTime" )
+    self:addNW3( "double", "ShootReset" )
+    self:addNW3( "double", "BurstTime" )
+    self:addNW3( "double", "RecoverSight" )
+    self:addNW3( "double", "RateOfFire" )
+    self:addNW3( "double", "NextBurstDelay" )
+    self:addNW3( "double", "ReloadManualTime" )
+    self:addNW3( "double", "SightProgress" )
+    self:addNW3( "double", "SightProgressTo" )
+    self:addNW3( "double", "SightProgressFrom" )
+    self:addNW3( "double", "SightProgressSpeed" )
+    self:addNW3( "double", "RecoverProgress" )
+    self:addNW3( "double", "RecoverProgressTo" )
+    self:addNW3( "double", "DelayAnim" )
+    self:addNW3( "double", "IsMissfireFixing" )
+    self:addNW3( "double", "IsMissfireFixingFastTime" )
+
+    self:addNW3( "double", "VMTime" )
+    self:addNW3( "double", "VMDuration" )
+
+    self:addNW3( "uint16", "VMWeightedSequence" )
+    self:addNW3( "uint16", "ReabilityAmount" )
 
     if SERVER then
         self:setKickReset( -1 )
@@ -341,6 +446,8 @@ function SWEP:SetupDataTables()
         self:setSpreadMult( Vector( 1, 1, 1 ) )
         self:setSightProgressSpeed( self.SightSpeedStandart )
     end
+
+    self:actionRun( "setupDataTables" )
 end
 
 ---@param mode? number
@@ -402,215 +509,244 @@ function SWEP:changeFireMode( mode, nomsg )
     self:setRateOfFire( data.delay or self.Primary.Delay )
 end
 
-function SWEP:Think()
-    local owner = self:GetOwner()
-    local curTime = self:getCurTime()
+do
     local tick = engine.TickInterval()
+    SWEP.noSendContext = false
 
-    ---@cast owner Player
-    if not (owner ~= nil and owner:IsValid()) then
-        return
-    end
+    ---@param in_mask number
+    ---@param position Vector
+    ---@param angle Angle
+    ---@param time number
+    function SWEP:tick( in_mask, position, angle, time )
+        self.noSendContext = true
 
-    local reset = self:getKickReset()
+        local owner = self:GetOwner()
 
-    -- if reset ~= -1 and curTime >= reset then
-    --     self:setKickReset(-1)
-    --     -- self:setKickX(0)
-    --     -- self:setKickY(0)
-    --     -- self:setKickZ(0)
-    --     reset = -1
-    -- end
-
-    local shot_reset = self:getShootReset()
-
-    if curTime >= shot_reset then
-        self:setShoot( math_approach( self:GetShoot(), 0, 30 * tick ) )
-    end
-
-    local returning = reset == -1
-
-    local speed = self.KickSpeed
-
-    if returning then
-        speed = self.KickRecoverSpeed
-    end
-
-    local curX = self:getKickCurX()
-    local curY = self:getKickCurY()
-    local curZ = self:getKickCurZ()
-
-    local targetX = self:getKickX()
-    local targetY = self:getKickY()
-    local targetZ = self:getKickZ()
-
-    local x, y, z
-
-    local step = speed * tick
-
-    local isRecover = self:getIsRecover()
-
-    if not isRecover then
-        if curX == targetX and curY == targetY and curZ == targetZ then
-            self:setIsRecover( true )
-
-            self:setKickX( 0 )
-            self:setKickY( 0 )
-            self:setKickZ( 0 )
-        end
-    else
-        local recover = self:getRecoverProgress()
-
-        recover = math_approach( recover, self:getRecoverProgressTo(), 30 * tick )
-
-        self:setRecoverProgress( recover )
-
-        step = (recover) * tick
-    end
-
-    x = math_approach( curX, targetX, step )
-    y = math_approach( curY, targetY, step )
-    z = math_approach( curZ, targetZ, step )
-
-    self:setKickCurX( x )
-    self:setKickCurY( y )
-    self:setKickCurZ( z )
-
-    if not self.Primary.Automatic then
-        if owner:KeyPressed( IN_ATTACK ) and curTime < self:GetNextPrimaryFire() then
-            if self:GetNextPrimaryFire() - curTime <= 0.15 then
-                self:setBufferedClick( true )
-            end
+        ---@cast owner Player
+        if not (owner ~= nil and owner:IsValid()) then
+            return
         end
 
-        if self:getBufferedClick() and curTime >= self:GetNextPrimaryFire() then
-            self:PrimaryAttack()
-            self:setBufferedClick( false )
+        local reset = self:getKickReset()
+
+        -- if reset ~= -1 and curTime >= reset then
+        --     self:setKickReset(-1)
+        --     -- self:setKickX(0)
+        --     -- self:setKickY(0)
+        --     -- self:setKickZ(0)
+        --     reset = -1
+        -- end
+
+        local shot_reset = self:getShootReset()
+
+        if time >= shot_reset then
+            self:setShoot( math_approach( self:getShoot(), 0, 30 * tick ) )
         end
-    end
 
-    local inload = self:getInReload()
+        local returning = reset == -1
 
-    if inload then
-        if curTime >= self:GetReloadTime() then
-            self:setInReload( false )
-            self:actionRun( "reload" )
-            if self:canReload() then
-                self:reloadFinished()
-            end
+        local speed = self.KickSpeed
+
+        if returning then
+            speed = self.KickRecoverSpeed
         end
-    end
 
-    local primary_ammo_type = self:GetPrimaryAmmoType()
+        local curX = self:getKickCurX()
+        local curY = self:getKickCurY()
+        local curZ = self:getKickCurZ()
 
-    local reload_delay = self:getReloadDelay()
+        local targetX = self:getKickX()
+        local targetY = self:getKickY()
+        local targetZ = self:getKickZ()
 
-    if reload_delay > 0 and curTime >= reload_delay then
-        self:setReloadDelay( 0 )
-        self:Reload( 0 )
-    end
+        local x, y, z
 
-    local silencer = self:getSilencer()
-    local silencer_time = self:getSilencerTime()
+        local step = speed * tick
 
-    if silencer_time > 0 and curTime >= silencer_time then
-        self:setSilencer( not silencer )
-        self:setSilencerTime( 0 )
+        local isRecover = self:getIsRecover()
 
-        self:actionRun( "silencer" )
-    end
+        if not isRecover then
+            if curX == targetX and curY == targetY and curZ == targetZ then
+                self:setIsRecover( true )
 
-    local idle_time = self:GetIdleTime()
-    if idle_time > 0 and curTime >= idle_time and not inload and silencer_time <= 0 then
-        self:actionRun( "idle" )
-        self:SetIdleTime( -1 )
-        self:sendWeaponAnim( self:getAnimation( "idle" ) )
-    end
-
-    local recoverSight = self:getRecoverSight()
-
-    if recoverSight > 0 and curTime >= recoverSight and reload_delay <= 0 then
-        self:setRecoverSight( 0 )
-        if not self:getInSight() then
-            self:setInSight( true )
-        end
-    end
-
-    self.Primary.Automatic = self:getIsAutomatic()
-
-    local burst_count = self:getBurstCountCur()
-    local burst_delay = self:getBurstTime()
-
-    if burst_count > 0 and burst_delay > 0 and curTime >= burst_delay then
-        self:setBurstCountCur( burst_count - 1 )
-        self:setBurstAttack( self:getRateOfFire() )
-
-        if self:Clip1() > 0 then
-            self:fireBullet()
-        end
-    end
-
-    local reload_manual_time = self:getReloadManualTime()
-    if reload_manual_time > 0 and curTime >= reload_manual_time then
-        local anim, isSeq = self:getAnimation( "reload" )
-
-        if owner:GetAmmoCount( self:GetPrimaryAmmoType() ) > 0 then
-            self:sendWeaponAnim( anim, isSeq )
-            self:setReloadManualTime( curTime + (self:getAnimationTime( anim ) * 1.2) )
-
-            local new_clip_size = self:Clip1() + 1
-            local max_clip = self:GetMaxClip1()
-
-            self:SetClip1( math.clamp( new_clip_size, 0, max_clip ) )
-
-            if new_clip_size > max_clip then
-                anim = self:getAnimation( "reload_manual_finish" )
-                self:sendWeaponAnim( anim, isSeq )
-                self:setReloadManualTime( 0 )
-                self:setManualReloadingStart( false )
-
-                self:SetIdleTime( curTime + (self:getAnimationTime( anim ) * 1.2) )
-            else
-                owner:RemoveAmmo( 1, primary_ammo_type )
+                self:setKickX( 0 )
+                self:setKickY( 0 )
+                self:setKickZ( 0 )
             end
         else
-            anim, isSeq = self:getAnimation( "reload_manual_finish" )
-            self:sendWeaponAnim( anim, isSeq )
-            self:setReloadManualTime( 0 )
-            self:setManualReloadingStart( false )
+            local recover = self:getRecoverProgress()
 
-            self:SetIdleTime( curTime + (self:getAnimationTime( anim ) * 1.5) )
-        end
-    end
+            recover = math_approach( recover, self:getRecoverProgressTo(), 30 * tick )
 
-    local inSight = self:getInSight()
+            self:setRecoverProgress( recover )
 
-    if inSight then
-        -- if not owner:KeyDown( IN_ATTACK2 ) then
-        --     self:toogleADS()
-        -- end
-    end
-
-    self:setSightProgress( Lerp( tick * self:getSightProgressSpeed(), self:getSightProgress(), self:getSightProgressTo() ) )
-
-    local delay_anim_time = self:getDelayAnim()
-
-    if delay_anim_time > 0 and curTime >= delay_anim_time then
-        self:setDelayAnim( 0 )
-
-        local anim, isseq = self.DelayAnim, self.DelayAnimIsSeq
-
-        if anim then
-            self:sendWeaponAnim( anim, isseq )
-            self:SetIdleTime( curTime + self:getAnimationTime( anim ) )
+            step = (recover) * tick
         end
 
-        self.DelayAnim = nil
-        self.DelayAnimIsSeq = nil
-    end
+        x = math_approach( curX, targetX, step )
+        y = math_approach( curY, targetY, step )
+        z = math_approach( curZ, targetZ, step )
 
-    self:actionRun( "think" )
+        self:setKickCurX( x )
+        self:setKickCurY( y )
+        self:setKickCurZ( z )
+
+        local inload = self:getInReload()
+
+        if inload then
+            if time >= self:getReloadTime() then
+                self:setInReload( false )
+                self:actionRun( "reload" )
+                if self:canReload() then
+                    self:reloadFinished()
+                end
+            end
+        end
+
+        local primary_ammo_type = self:GetPrimaryAmmoType()
+
+        local reload_delay = self:getReloadDelay()
+
+        if reload_delay > 0 and time >= reload_delay then
+            self:setReloadDelay( 0 )
+            self:Reload( 0 )
+        end
+
+        local silencer = self:getSilencer()
+        local silencer_time = self:getSilencerTime()
+
+        if silencer_time > 0 and time >= silencer_time then
+            self:setSilencer( not silencer )
+            self:setSilencerTime( 0 )
+
+            self:actionRun( "silencer" )
+        end
+
+        local recoverSight = self:getRecoverSight()
+
+        if recoverSight > 0 and time >= recoverSight and reload_delay <= 0 then
+            self:setRecoverSight( 0 )
+            if not self:getInSight() then
+                self:setInSight( true )
+            end
+        end
+
+        self.Primary.Automatic = self:getIsAutomatic()
+
+        local burst_count = self:getBurstCountCur()
+        local burst_delay = self:getBurstTime()
+
+        if burst_count > 0 and burst_delay > 0 and time >= burst_delay then
+            self:setBurstCountCur( burst_count - 1 )
+            self:setBurstAttack( self:getRateOfFire() )
+
+            if self:getClip1() > 0 then
+                self:fireBullet()
+            end
+        end
+
+        local reload_manual_time = self:getReloadManualTime()
+        if reload_manual_time > 0 and time >= reload_manual_time then
+            local anim, isSeq = self:getAnimation( "reload" )
+
+            if owner:GetAmmoCount( self:GetPrimaryAmmoType() ) > 0 then
+                if self:getManualReloadingSkipFirst() then
+                    self:setManualReloadingSkipFirst( false )
+                else
+                    self:playVM( anim, 1, false )
+                end
+
+                self:setReloadManualTime( time + (self:getAnimationTime( anim ) * 1.2) )
+
+                local new_clip_size = self:getClip1() + 1
+                local max_clip = self:getMaxClip1()
+
+                self:setClip1( math.clamp( new_clip_size, 0, max_clip ) )
+
+                if new_clip_size > max_clip then
+                    anim = self:getAnimation( "reload_manual_finish" )
+                    self:playVM( anim, 1, true )
+                    self:setReloadManualTime( 0 )
+                    self:setManualReloadingStart( false )
+                else
+                    owner:RemoveAmmo( 1, primary_ammo_type )
+                end
+            else
+                anim = self:getAnimation( "reload_manual_finish" )
+                self:playVM( anim, 1, true )
+                self:setReloadManualTime( 0 )
+                self:setManualReloadingStart( false )
+            end
+        end
+
+        local inSight = self:getInSight()
+
+        if inSight then
+            -- if not owner:KeyDown( IN_ATTACK2 ) then
+            --     self:toogleADS()
+            -- end
+        end
+
+        self:setSightProgress( Lerp( tick * self:getSightProgressSpeed(), self:getSightProgress(), self:getSightProgressTo() ) )
+
+        local delay_anim_time = self:getDelayAnim()
+
+        if delay_anim_time > 0 and time >= delay_anim_time then
+            self:setDelayAnim( 0 )
+
+            local anim, isseq = self.DelayAnim, self.DelayAnimIsSeq
+
+            if anim then
+                self:sendWeaponAnim( anim, isseq )
+                self:setIdleTime( time + self:getAnimationTime( anim ) )
+            end
+
+            self.DelayAnim = nil
+            self.DelayAnimIsSeq = nil
+        end
+
+        if SERVER then
+            local clip1_engine = self:Clip1()
+            local clip1 = self:getClip1()
+
+            if clip1_engine ~= clip1 then
+                self:SetClip1( clip1 )
+            end
+
+            local clip2_engine = self:Clip2()
+            local clip2 = self:getClip2()
+
+            if clip2_engine ~= clip2 then
+                self:SetClip1( clip2 )
+            end
+        end
+
+        local missfire_fix = self:getIsMissfireFixing()
+
+        if self:getIsMissfire() and missfire_fix > 0 then
+            if time >= missfire_fix then
+                if not self:getIsMissfireFixingIsFast() then
+                    self:setIsMissfire( false )
+                    self:setReabilityMissfireChance( 0 )
+                    self:setReabilityAmount( self.ReabilityAmount )
+                elseif self.ReabilityFastFixChance >= ash_firing.randomNumber( owner, 0, 100 ) then
+                    self:setIsMissfire( false )
+                    self:setReabilityMissfireChance( 0 )
+                    self:setReabilityAmount( self.ReabilityAmount )
+                end
+
+                self:setIsMissfireFixingIsFast( false )
+                self:setIsMissfireFixing( 0 )
+            end
+        end
+
+        self:actionRun( "think" )
+
+        self.noSendContext = false
+    end
 end
+
+function SWEP:Think() end
 
 function SWEP:FireAnimationEvent( _, __, event )
     if event == 5001 then
@@ -624,7 +760,7 @@ function SWEP:callback()
 end
 
 function SWEP:getCurTime()
-    local curtime = CurTime()
+    local curtime = ash_firing_time()
     local curatt = self:GetNextPrimaryFire()
     local diff = curtime - curatt
 
@@ -707,7 +843,7 @@ end
 function SWEP:Deploy()
     local draw_anim = self:getAnimation( "draw" )
     local len = self:getAnimationTime( draw_anim )
-    local curTime = CurTime()
+    local curTime = ash_firing_time()
 
     if self.ReadyAnim and not self:getIsReady() then
         self:setIsReady( true )
@@ -718,11 +854,11 @@ function SWEP:Deploy()
 
     self:nextPrimaryFire( len )
     self:nextSecondaryFire( len )
-    self:SetIdleTime( curTime + len )
-    self:sendWeaponAnim( draw_anim )
+    self:setIdleTime( curTime + len )
+    self:playVM( self:getSilencer() and ACT_VM_DRAW_SILENCED or ACT_VM_DRAW )
     self:setInReload( false )
     self:setSilencerTime( 0 )
-    self:SetReloadTime( 0 )
+    self:setReloadTime( 0 )
 
     self:setKickCurX( 0 )
     self:setKickCurY( 0 )
@@ -754,7 +890,7 @@ function SWEP:Deploy()
         return true
     end
 
-    if self:GetMaxClip1() > 0 and self:Clip1() <= 0 and owner:GetAmmoCount( self:GetPrimaryAmmoType() ) > 0 then
+    if self:getMaxClip1() > 0 and self:getClip1() <= 0 and owner:GetAmmoCount( self:GetPrimaryAmmoType() ) > 0 then
         self:Reload( len )
     end
 
@@ -776,10 +912,10 @@ function SWEP:calcSpread()
         return vector_origin
     end
 
-    local velocity = owner:GetVelocity():Length2D()
+    local velocity = math_floor( owner:GetVelocity():Length2D() )
 
     local spreadMax = self.SpreadMax
-    local spread = (self.Spread * self:getCurShoot()) + self.SpreadStart
+    local spread = (self.Spread * self:getCurShoot() ) + self.SpreadStart
     spread = Vector( 0, math_min( spread.y, spreadMax.y ), math_min( spread.z, spreadMax.z ) )
 
     if velocity >= 25 then
@@ -810,21 +946,57 @@ function SWEP:calcSpread()
     return spread
 end
 
-function SWEP:Initialize()
-    self:setIsAutomatic( self.Primary.IsAutomatic )
-    self:callback()
-    self:actionRun( "initialized" )
+do
+    function SWEP:initialize()
+        self:setIsAutomatic( self.Primary.IsAutomatic )
+        self:callback()
+        self:actionRun( "initialized" )
 
-    self:setRateOfFire( self.Primary.Delay )
+        self:setRateOfFire( self.Primary.Delay )
 
-    self:setSightProgress( 0 )
-    self:setSightProgressFrom( 0 )
-    self:setSightProgressTo( 0 )
-    self:setBulletCountOnShoot( self.Primary.BulletCountOnShoot )
+        self:setSightProgress( 0 )
+        self:setSightProgressFrom( 0 )
+        self:setSightProgressTo( 0 )
+        self:setBulletCountOnShoot( self.Primary.BulletCountOnShoot )
 
-    self:setAutomatic( self.Primary.IsAutomatic )
+        self:setAutomatic( self.Primary.IsAutomatic )
 
-    self:setIsReady( false )
+
+        local owner = self:GetOwner()
+        ---@cast owner Player
+
+        if not (owner ~= nil and owner:IsValid()) then
+            return
+        end
+
+
+        local clip1_max = self:getMaxClip1()
+        local amount_reserve = self.Primary.DefaultClip - clip1_max
+        if amount_reserve > 0 then
+            if amount_reserve <= clip1_max then
+                self:setClip1( amount_reserve )
+            else
+                self:setClip1( clip1_max )
+            end
+        end
+
+        self:setReabilityAmount( self.ReabilityAmount )
+
+        self:setClip1( self.Primary.ClipSize )
+        self:SetClip2( self.Secondary.ClipSize )
+        self:setIsReady( false )
+
+        ash.Logger:debug( "Weapon created! %s", tostring( self ) )
+    end
+
+    ---@param entity ash_weapon_base
+    hook.Add( "OnEntityCreated", "ash_weapon_base", function( entity )
+        timer.Simple( 0, function()
+            if entity ~= nil and entity:IsValid() and entity.IsAshWeapon then
+                entity:initialize()
+            end
+        end )
+    end )
 end
 
 --- [SHARED]
@@ -859,8 +1031,8 @@ function SWEP:canReload()
         return false
     end
 
-    local max_clip = self:GetMaxClip1()
-    if self:Clip1() >= ((self.Chamber and not self.ManualReloading) and max_clip + 1 or max_clip) then
+    local max_clip = self:getMaxClip1()
+    if self:getClip1() >= ((self.Chamber and not self.ManualReloading) and max_clip + 1 or max_clip) then
         return false
     end
 
@@ -888,7 +1060,7 @@ function SWEP:reloadFinished()
 
     local ammo_type = self:GetPrimaryAmmoType()
     local reserve_ammo = owner:GetAmmoCount( ammo_type )
-    local current_clip = self:Clip1()
+    local current_clip = self:getClip1()
     local max_clip = self.Primary.ClipSize
     max_clip = self.Chamber and max_clip + 1 or max_clip
 
@@ -904,60 +1076,60 @@ function SWEP:reloadFinished()
 
     owner:RemoveAmmo( take_ammo, ammo_type )
 
-    self:SetClip1( current_clip + take_ammo )
+    self:setClip1( current_clip + take_ammo )
 end
 
 ---@param reload_delay? number
-function SWEP:Reload( reload_delay )
-    if not self:canReload() then
-        return
-    end
+-- function SWEP:Reload( reload_delay )
+--     if not self:canReload() then
+--         return
+--     end
 
-    if self:getInSight() then
-        self:toogleADS()
-    end
+--     if self:getInSight() then
+--         self:toogleADS()
+--     end
 
-    self:setInSight( false )
-    self:setRecoverSight( 0 )
-    self:setDelayAnim( 0 )
+--     self:setInSight( false )
+--     self:setRecoverSight( 0 )
+--     self:setDelayAnim( 0 )
 
-    reload_delay      = reload_delay or 0
+--     reload_delay      = reload_delay or 0
 
-    local cur_time    = CurTime()
-    local anim, isSeq = self:getAnimation( "reload" )
-    local time        = cur_time + self:getAnimationTime( anim )
+--     local cur_time    = ash_firing_time()
+--     local anim, isSeq = self:getAnimation( "reload" )
+--     local time        = cur_time + self:getAnimationTime( anim )
 
-    if self.ReloadEmptyAnim and self:Clip1() == 0 then
-        anim, isSeq = self:getAnimation( "reload_empty" )
-        time        = cur_time + self:getAnimationTime( anim )
-    end
+--     if self.ReloadEmptyAnim and self:getClip1() == 0 then
+--         anim, isSeq = self:getAnimation( "reload_empty" )
+--         time        = cur_time + self:getAnimationTime( anim )
+--     end
 
-    if reload_delay > 0 then
-        self:setReloadDelay( cur_time + reload_delay )
-    else
-        if not self.ManualReloading then
-            self:setInReload( true )
-            self:sendWeaponAnim( anim, isSeq )
-            self:SetReloadTime( time )
-            self:SetIdleTime( time )
-        else
-            anim, isSeq = self:getAnimation( "reload_manual_start" )
-            self:sendWeaponAnim( anim, isSeq )
-            self:setManualReloadingStart( true )
+--     if reload_delay > 0 then
+--         self:setReloadDelay( cur_time + reload_delay )
+--     else
+--         if not self.ManualReloading then
+--             self:setInReload( true )
+--             self:setReloadTime( time )
+--             self:setIdleTime( time )
+--             self:playVM( anim, 1, false )
+--         else
+--             anim, isSeq = self:getAnimation( "reload_manual_start" )
+--             self:sendWeaponAnim( anim, isSeq )
+--             self:setManualReloadingStart( true )
 
-            local time_reload = (self:getAnimationTime( anim ))
-            self:SetIdleTime( 0 )
-            self:setReloadManualTime( cur_time + time_reload )
+--             local time_reload = (self:getAnimationTime( anim ))
+--             self:setIdleTime( 0 )
+--             self:setReloadManualTime( cur_time + time_reload )
 
-            anim, isSeq = self:getAnimation( "reload" )
+--             anim, isSeq = self:getAnimation( "reload" )
 
-            time_reload = time_reload + (self:getAnimationTime( anim ) * 1.2)
+--             time_reload = time_reload + (self:getAnimationTime( anim ) * 1.2)
 
-            self:nextPrimaryFire( time_reload )
-            self:nextSecondaryFire( time_reload )
-        end
-    end
-end
+--             self:nextPrimaryFire( time_reload )
+--             self:nextSecondaryFire( time_reload )
+--         end
+--     end
+-- end
 
 --- [SHARED]
 ---
@@ -1030,7 +1202,7 @@ function SWEP:actionRun( action, ... )
 end
 
 function SWEP:getCurShoot()
-    return math.floor( self:GetShoot() )
+    return math_floor( self:getShoot() )
 end
 
 function SWEP:addKick( ang )
@@ -1042,7 +1214,7 @@ function SWEP:addKick( ang )
     y = math.clamp( y + ang.y, -viewPunchMax.y, viewPunchMax.y )
     r = math.clamp( r + ang.r, -viewPunchMax.z, viewPunchMax.z )
 
-    local curtime = CurTime()
+    local curtime = ash_firing_time()
     local curatt = self:GetNextPrimaryFire()
     local diff = curtime - curatt
 
@@ -1065,35 +1237,39 @@ function SWEP:addKick( ang )
         return
     end
 
-    local shoot = self:GetShoot()
+    local shoot = self:getShoot()
     ---@cast owner Player
-    Player_SetViewPunchAngles( owner, ang * 2 )
+
 end
 
 function SWEP:GetKick()
-    return Angle( self:getKickCurX(), self:getKickCurY(), self:getKickCurZ() )
+    return Angle( math.round( self:getKickCurX(), 3 ) , math.round( self:getKickCurY(), 3 ), math.round( self:getKickCurZ(), 3 ) )
 end
 
----@return Vector
-function SWEP:getDir()
-    local owner = self:GetOwner()
-    if not (owner ~= nil and owner:IsValid()) then
-        return vector_origin
+do
+    local data = {}
+    ---@return Angle
+    function SWEP:getShootAngle( angle )
+        local owner = self:GetOwner()
+        if not (owner ~= nil and owner:IsValid()) then
+            return angle
+        end
+
+        local kick = self:GetKick()
+
+        local ang = angle + kick + Player_GetViewPunchAngles( owner )
+        data.angle = ang
+
+        self:actionRun( "shootAngle", data )
+
+        return data.angle
     end
-
-    local kick = self:GetKick()
-    ---@cast owner Player
-
-    local dir = { Angle_Forward( Player_EyeAngles( owner ) + (kick) + Player_GetViewPunchAngles( owner ) ) }
-
-    self:actionRun( "dir", dir )
-
-    return dir[ 1 ]
 end
+
 
 ---@param delay number
 function SWEP:nextPrimaryFire( delay )
-    local curtime = CurTime()
+    local curtime = ash_firing_time()
     local curatt = self:GetNextPrimaryFire()
     local diff = curtime - curatt
 
@@ -1106,7 +1282,7 @@ end
 
 ---@param delay number
 function SWEP:nextSecondaryFire( delay )
-    local curtime = CurTime()
+    local curtime = ash_firing_time()
     local curatt = self:GetNextSecondaryFire()
     local diff = curtime - curatt
 
@@ -1142,30 +1318,41 @@ if CLIENT then
     end )
 end
 
---- [SHARED]
----
---- Calculates the damage based on the current distance from the start to the stop distance.
----
----@param current_distance number
----@param stop_distance number
----@param start_distance number
----@param damage_max number
----@param damage_min number
----@return number
-function SWEP:calculateDamageDistance( current_distance, stop_distance, start_distance, damage_max, damage_min )
-    if current_distance < start_distance then
-        return damage_max
-    end
+do
 
-    if current_distance >= start_distance and current_distance <= stop_distance then
-        return damage_max - (damage_max - damage_min) * (current_distance - start_distance) / (stop_distance - start_distance)
-    end
+    local data = {}
+    --- [SHARED]
+    ---
+    --- Calculates the damage based on the current distance from the start to the stop distance.
+    ---
+    ---@param current_distance number
+    ---@param stop_distance number
+    ---@param start_distance number
+    ---@param damage_max number
+    ---@param damage_min number
+    ---@return number
+    function SWEP:calculateDamageDistance( current_distance, stop_distance, start_distance, damage_max, damage_min )
+        local damage = damage_max
 
-    if current_distance > stop_distance then
-        return damage_min
-    end
+        if current_distance < start_distance then
+            damage = damage_max
+        elseif current_distance >= start_distance and current_distance <= stop_distance then
+            damage = damage_max - (damage_max - damage_min) * (current_distance - start_distance) / (stop_distance - start_distance)
+        elseif current_distance > stop_distance then
+            damage = damage_min
+        end
 
-    return damage_max
+        data.damage = damage
+        data.current_distance = current_distance
+        data.stop_distance = stop_distance
+        data.start_distance = start_distance
+        data.damage_max = damage_max
+        data.damage_min = damage_min
+
+        self:actionRun( "calcDamageDistance", data )
+
+        return data.damage
+    end
 end
 
 function SWEP:getPrimaryDamage()
@@ -1233,8 +1420,6 @@ end
 ---
 ---@return boolean
 function SWEP:canPrimaryAttack()
-    local curTime = CurTime()
-
     if self:getSilencerTime() > 0 then
         return false
     end
@@ -1244,6 +1429,10 @@ function SWEP:canPrimaryAttack()
     end
 
     if self:getBurstCountCur() > 0 then
+        return false
+    end
+
+    if self:getIsMissfire() then
         return false
     end
 
@@ -1269,7 +1458,7 @@ if CLIENT then
         data.shootpos = shootpos
         data.dir = dir
         data.time = time
-        data.seed = CurTime()
+        data.seed = ash_firing_time()
         data.spread = self:calcSpread()
 
         self:actionRun( "clientShot", data )
@@ -1303,41 +1492,353 @@ local distance_limit = 65536
 
 local hits = {}
 
+--[[
+function SWEP:PrimaryAttack()
+    if not self:canPrimaryAttack() then
+        return
+    end
+
+    local curTime = ash_firing_time()
+    local owner = self:GetOwner()
+
+    if not (owner ~= nil and owner:IsValid()) then
+        return
+    end
+
+    if self:getClip1() <= 0 then
+        self:SetNextPrimaryFire(curTime + 1)
+        return
+    end
+
+    if CLIENT and IsFirstTimePredicted() and self.Primary.Shaking then
+        util.ScreenShake( vector_origin, self.Primary.ShakeAmlitude, self.Primary.ShakeFrequency, self.Primary.ShakeDuration, 0 )
+    end
+
+    ---@cast owner Player
+
+    self:setReloadManualTime( 0 )
+    self:setManualReloadingStart( false )
+
+    local kick = self.ViewKickList
+    local ang = kick and kick[math_min(math_max(self:getCurShoot(), 1), #kick)] or angle_zero
+
+
+    local delay = self:getRateOfFire()
+
+    local random_kick_min = self.KickRandomMin
+    local random_kick_max = self.KickRandomMax
+    -- local random_kick = Angle( SharedRandom( "ash_weapon_base.RandomKickY", random_kick_min.x, random_kick_max.x ), SharedRandom( "ash_weapon_base.RandomKickY", random_kick_min.y, random_kick_max.y ), SharedRandom( "ash_weapon_base.RandomKickZ", random_kick_min.z, random_kick_max.z ) )
+
+    -- if not random_kick:IsZero() then
+    --     ang = ang + random_kick
+    -- end
+
+    self:addKick( ang )
+    self:setShootReset( curTime + .5 )
+    self:setShoot(self:getCurShoot() + 1)
+    self:takePrimaryAmmo( 1 )
+
+    local insight = self:getInSight()
+
+    if not self.Secondary.NoRecoverSight then
+        if insight then
+            self:setInSight(false)
+            self:setRecoverSight(curTime + (delay * 0.9))
+        elseif self:getRecoverSight() > 0 then
+            self:setRecoverSight(curTime + (delay * 0.9))
+        end
+    end
+
+    if self:getClip1() <= 0 and self:canReload() then
+        self:Reload()
+    end
+
+    if self:getIsBurstFire() then
+        self:setBurstCountCur(self:getBurstCount() - 1)
+        self:setBurstAttack(delay)
+        self:nextPrimaryFire( self:getNextBurstDelay() )
+    else
+        self:nextPrimaryFire(delay)
+    end
+
+    self:setLeftGun( not self:getLeftGun() )
+    self:actionRun("primaryAttack")
+end
+
+]]
+
+function SWEP:emitSound( sound_name, sound_level, pitch, volume, channel, sound_flags, dsp )
+    local owner = self:GetOwner()
+
+    if not ( owner ~= nil and owner:IsValid() ) then
+        return
+    end
+    ---@cast owner Player
+
+    local isPlayer = owner:IsPlayer()
+
+    if CLIENT then
+        if LocalPlayer() == owner then
+            self:EmitSound( sound_name, sound_level, pitch, volume, channel, sound_flags, dsp )
+        end
+    else
+        local rf = RecipientFilter()
+        rf:AddPAS( self:EyePos() )
+        if isPlayer then
+            rf:RemovePlayer( owner )
+        end
+
+        self:EmitSound( sound_name, sound_level, pitch, volume, channel, sound_flags, dsp, rf )
+    end
+end
+
+function SWEP:calcKick( )
+    local owner = self:GetOwner()
+
+    ---@cast owner Player
+    if not ( owner ~= nil and IsValid( owner ) ) then
+        return
+    end
+
+    local kick = self.ViewKickList
+    local ang = kick and kick [ math_min( math_max( self:getCurShoot(), 1 ), #kick ) ] or angle_zero
+
+    local random_kick_min = self.KickRandomMin
+    local random_kick_max = self.KickRandomMax
+
+    local random_kick = Angle( ash_firing.randomNumber( owner, random_kick_min.x, random_kick_max.x ), ash_firing.randomNumber( owner, random_kick_min.y, random_kick_max.y ), ash_firing.randomNumber( owner, random_kick_min.z, random_kick_max.z ) )
+
+    local stability = self.KickRandomStability
+
+    random_kick[ 1 ] = random_kick[ 1 ] * stability[ 1 ]
+    random_kick[ 2 ] = random_kick[ 2 ] * stability[ 2 ]
+    random_kick[ 3 ] = random_kick[ 3 ] * stability[ 3 ]
+
+    ang = ang + random_kick
+    local mult = self.KickMult
+    ang[ 1 ] = ang[ 1 ] * mult[ 1 ]
+    ang[ 2 ] = ang[ 2 ] * mult[ 2 ]
+    ang[ 3 ] = ang[ 3 ] * mult[ 3 ]
+
+    return ang
+end
+
+do
+    local data = {}
+    function SWEP:calcDamage( target, tr_result )
+        local position_start, position_end = tr_result.StartPos, tr_result.HitPos
+        local distance = position_start:Distance( position_end )
+        local damage = self:calculateDamageDistance( distance, self.Primary.DistanceMax, self.Primary.DistanceMin, self:getPrimaryDamage(), self:getPrimaryDamageMin() )
+
+        damage = damage * self:getHitgroupScale( tr_result.HitGroup )
+        data.damage = damage
+        data.target = target
+        data.trace_result = tr_result
+        data.distance = distance
+
+        self:actionRun( "calcDamage", data )
+
+        return data.damage
+    end
+end
+
 ---@param owner Player
 ---@param position Vector
 ---@param angle Angle
 ---@param time number
 function SWEP:primaryAttack( owner, position, angle, time )
+    if not self:canPrimaryAttack() then
+        return
+    end
+
+    local curTime = ash_firing_time()
+
+    -- print( "randomNumber",  )
+
+    if self:getClip1() <= 0 then
+        self:SetNextPrimaryFire( curTime + 1 )
+        return
+    end
+
+    if CLIENT and self.Primary.Shaking then
+        util.ScreenShake( vector_origin, self.Primary.ShakeAmlitude, self.Primary.ShakeFrequency, self.Primary.ShakeDuration, 0 )
+    end
+
+    self:setReloadManualTime( 0 )
+    self:setManualReloadingStart( false )
+
+    ---kick
+    do
+        self:addKick( self:calcKick( ) )
+        self:setShootReset( curTime + .5 )
+        self:setShoot( self:getCurShoot() + 1 )
+    end
+
+    ---reability
+    do
+        local new_reability = math_max( self:getReabilityAmount() - 1, 0 )
+        self:setReabilityAmount( new_reability )
+
+        if new_reability <= 0 then
+            local new_missfire = math_min( self:getReabilityMissfireChance() + 1, 100 )
+
+            if new_missfire >= ash_firing.randomNumber( owner, 0, 100 ) then
+                self:setIsMissfire( true )
+            end
+
+            self:setReabilityMissfireChance( new_missfire )
+        end
+    end
+
+    ---sound
+    self:emitSound( self:getSilencer() and self.Primary.SoundSilencer or self.Primary.Sound )
+
+    self:takePrimaryAmmo( 1 )
+
     local dir = Angle_Forward( angle )
 
-    if not self:getInScope() then
-        dir = LocalToWorld( Vector( 0, ash_firing.randomNumber( owner, -0.1, 0.1 ), ash_firing.randomNumber( owner, -0.1, 0.1 ) ), angle_zero, dir, angle )
-    end
+    local spread = self:calcSpread()
+    local y = spread.y / 500
+    local z = spread.z / 500
+    local origin_dir = dir
+    dir = LocalToWorld( Vector( 0, ash_firing.randomNumber( owner, -y, y ), ash_firing.randomNumber( owner, -z, z ) ), angle_zero, origin_dir, angle )
 
-    self:setDelayFire( CurTime() + 0.1 )
+    self:setDelayFire( curTime + self:getRateOfFire() )
 
-    local tr_result = ash_firing.fireBullet( time, owner, position, dir )
-    self:sendWeaponAnim( self:getAnimation( "attack_primary" ) )
-
-    if CLIENT then
-        hits[ #hits + 1 ] = { tr_result.StartPos, tr_result.HitPos, Color( 255, 255, 0 ), CurTime() + 30 }
-
-        local vm = owner:GetViewModel()
-
+    if not self.PumpAnim then
+        self:playVM( self:getSilencer() and ACT_VM_PRIMARYATTACK_SILENCED or ACT_VM_PRIMARYATTACK )
     else
-        local pos_hit = tr_result.HitPos
-        local pos_start = tr_result.StartPos
-
-        net.Start( "bullet_effect" )
-        net.WriteFloat( pos_start[ 1 ] )
-        net.WriteFloat( pos_start[ 2 ] )
-        net.WriteFloat( pos_start[ 3 ] )
-
-        net.WriteFloat( pos_hit[ 1 ] )
-        net.WriteFloat( pos_hit[ 2 ] )
-        net.WriteFloat( pos_hit[ 3 ] )
-        net.Send( owner )
+        self:playVM( self:getAnimation( "pump" ), 1, true )
     end
+
+
+    self:setBufferedClick( false )
+
+    for i = 1, self.Primary.BulletCountOnShoot do
+        dir = LocalToWorld( Vector( 0, ash_firing.randomNumber( owner, -y, y ), ash_firing.randomNumber( owner, -z, z ) ), angle_zero, origin_dir, angle )
+
+        local tr_result = ash_firing.fireBullet( time, owner, position, dir )
+
+        if CLIENT then
+            hits[ #hits + 1 ] = { tr_result.StartPos, tr_result.HitPos, Color( 255, 255, 0 ), curTime + 30 }
+
+            local vm = owner:GetViewModel()
+
+        else
+            local pos_hit = tr_result.HitPos
+            local pos_start = tr_result.StartPos
+
+            net.Start( "bullet_effect" )
+            net.WriteFloat( pos_start[ 1 ] )
+            net.WriteFloat( pos_start[ 2 ] )
+            net.WriteFloat( pos_start[ 3 ] )
+
+            net.WriteFloat( pos_hit[ 1 ] )
+            net.WriteFloat( pos_hit[ 2 ] )
+            net.WriteFloat( pos_hit[ 3 ] )
+            net.Send( owner )
+
+            local target = tr_result.Entity
+
+            if target ~= nil and target:IsValid() then
+                local dmginfo = DamageInfo()
+                dmginfo:SetDamageType( DMG_BULLET )
+                dmginfo:SetAttacker( owner )
+                dmginfo:SetInflictor( self )
+                dmginfo:SetWeapon( self )
+                dmginfo:SetDamage( self:calcDamage( target, tr_result ) )
+                dmginfo:SetReportedPosition( tr_result.StartPos )
+                dmginfo:SetDamagePosition( tr_result.HitPos )
+
+                target:TakeDamageInfo( dmginfo )
+            end
+
+        end
+    end
+end
+
+function SWEP:Reload()
+
+end
+
+function SWEP:reload( owner, reload_delay )
+    local cur_time = ash_firing_time()
+    if not self:getIsMissfire() then
+        if not self:canReload() then
+            return
+        end
+
+        if self:getInSight() then
+            self:toogleADS()
+        end
+
+        self:setInSight( false )
+        self:setRecoverSight( 0 )
+        self:setDelayAnim( 0 )
+
+        reload_delay      = reload_delay or 0
+
+        local anim, isSeq = self:getAnimation( "reload" )
+        local time = cur_time + self:getAnimationTime( anim )
+
+        if self.ReloadEmptyAnim and self:getClip1() == 0 then
+            anim, isSeq = self:getAnimation( "reload_empty" )
+            time = cur_time + self:getAnimationTime( anim )
+        end
+
+        if reload_delay > 0 then
+            self:setReloadDelay( cur_time + reload_delay )
+        else
+            if not self.ManualReloading then
+                self:setInReload( true )
+                self:setReloadTime( time )
+                anim = self:getSilencer() and ACT_VM_RELOAD_SILENCED or ACT_VM_RELOAD
+
+                if self.ReloadEmptyAnim then
+                    if self:getClip1() <= 0 then
+                        anim = self:getAnimation( "reload_empty" )
+                    end
+                end
+
+                self:playVM( anim )
+            else
+                anim, isSeq = self:getAnimation( "reload_manual_start" )
+                self:playVM( anim, 1, false )
+                self:setManualReloadingStart( true )
+
+                local time_reload = (self:getAnimationTime( anim ) )
+                self:setReloadManualTime( cur_time + time_reload )
+
+                anim = self:getAnimation( "reload" )
+                if self.ManualReloadingSkipFirst then
+                    self:setManualReloadingSkipFirst( true )
+                    anim = self:getAnimation( "reload_manual_start" )
+                end
+
+                time_reload = time_reload + ( self:getAnimationTime( anim ) )
+
+                self:nextPrimaryFire( time_reload )
+                self:nextSecondaryFire( time_reload )
+            end
+        end
+    elseif self:getIsMissfireFixing() <= 0 then
+        local anim, isSeq = self:getAnimation( "reload" )
+        local time = cur_time + self:getAnimationTime( anim )
+        self:setIsMissfireFixing( time )
+        self:setIsMissfireFixingFastTime( cur_time + 0.5 )
+        self:setIsMissfireFixingIsFast( false )
+
+        self:playVM( anim, 1, true )
+    elseif not self:getIsMissfireFixingIsFast() and cur_time <= self:getIsMissfireFixingFastTime() then
+        local anim, isSeq = self:getAnimation( "reload" )
+        local time = cur_time + ( self:getAnimationTime( anim ) * 0.5 )
+        self:setIsMissfireFixing( time )
+        self:setIsMissfireFixingIsFast( true )
+
+        self:playVM( anim, 2, true )
+    end
+
+    print( "reloading!" )
 end
 
 ---@param owner Player
@@ -1345,30 +1846,76 @@ end
 ---@param angle Angle
 function SWEP:secondaryAttack( owner, position, angle )
     self:setInScope( not self:getInScope() )
-
-    print( "InScope:", self:getInScope() )
 end
 
----@param owner Player
-function SWEP:reload( owner )
-    if CLIENT then
-        local vm = owner:GetViewModel()
-
-        if vm ~= nil and vm:IsValid() then
-            local seq = vm:SelectWeightedSequence( ACT_VM_RELOAD )
-            if seq ~= -1 then
-                vm:SendViewModelMatchingSequence( seq )
-                vm:SetCycle( 0 )
-                vm:SetPlaybackRate( 1 )
-            end
-        end
+--- Resolves a sequence index from an activity (number) or a sequence name (string).
+---@param vm Entity Viewmodel entity
+---@param anim ACT|string ACT_* enum or sequence name, e.g. "fire_01"
+---@return integer seq Sequence index, or -1 if not found
+function SWEP:lookupVMSeq( vm, anim )
+    if isstring( anim ) then
+        local seq = vm:LookupSequence( anim )
+        return seq
+    elseif isnumber( anim ) then
+        return vm:SelectWeightedSequence( anim )
     end
+    return -1
+end
+
+--- Returns the animation length in seconds without playing it.
+---@param anim ACT|string ACT_* enum or sequence name
+---@param rate? number Playback rate (default 1)
+---@return number length Length in seconds adjusted by rate, 0 if the animation was not found
+function SWEP:getVMAnimLength( anim, rate )
+    local owner = self:GetOwner()
+    if not IsValid( owner ) or not owner:IsPlayer() then return 0 end
+
+    local vm = owner:GetViewModel( 0 )
+    if not IsValid( vm ) then return 0 end
+
+    local seq = self:lookupVMSeq( vm, anim )
+    if seq < 0 then return 0 end
+
+    rate = ( rate and rate > 0 ) and rate or 1
+    return vm:SequenceDuration( seq ) / rate
+end
+
+
+--- Plays an animation on the viewmodel.
+---@param anim integer|string ACT_* enum or sequence name ("fire_01")
+---@param rate? number Playback rate (default 1)
+---@param to_idle? boolean
+function SWEP:playVM( anim, rate, to_idle )
+    local owner = self:GetOwner()
+    if not IsValid( owner ) or not owner:IsPlayer() then return 0 end
+
+    local vm = owner:GetViewModel( 0 )
+    if not IsValid( vm ) then return 0 end
+
+    local seq = self:lookupVMSeq( vm, anim )
+    if seq < 0 then return 0 end -- keep the current animation untouched
+
+    rate = rate or 1
+    local duration = vm:SequenceDuration( seq )
+
+    if rate ~= 1 then
+        duration = duration * ( 1 / rate )
+    end
+
+    if to_idle == nil then
+        to_idle = true
+    end
+
+    self:setVMWeightedSequence( seq )
+    self:setVMTime( CurTime() )
+    self:setVMDuration( duration )
+    self:setVMToIdle( to_idle )
 end
 
 if CLIENT then
     net.Receive( "bullet_effect", function()
-        local t = { Vector( net.ReadFloat(), net.ReadFloat(), net.ReadFloat() ), Vector( net.ReadFloat(), net.ReadFloat(), net.ReadFloat() ), Color( 255, 0, 0 ), CurTime() + 5 }
-        timer.Simple( 0.25, function()
+        local t = { Vector( net.ReadFloat(), net.ReadFloat(), net.ReadFloat() ), Vector( net.ReadFloat(), net.ReadFloat(), net.ReadFloat() ), Color( 255, 0, 0 ), ash_firing_time() + 15 }
+        timer.Simple( 1, function()
             hits[ #hits + 1 ] = t
         end )
     end )
@@ -1378,9 +1925,8 @@ if CLIENT then
             local v = hits[ i ]
 
             render.DrawLine( v[ 1 ], v[ 2 ], v[ 3 ], true )
-            render.DrawSphere( v[ 2 ], 2, 16, 16, v[ 3 ] )
 
-            if CurTime() > v[ 4 ] then
+            if ash_firing_time() > v[ 4 ] then
                 table.remove( hits, i )
 
                 break
@@ -1470,7 +2016,7 @@ end
 --         return
 --     end
 
---     local curTime = CurTime()
+--     local curTime = ash_firing_time()
 
 --     if CLIENT and IsFirstTimePredicted() then
 --         local data = self:clientShootInfo()
@@ -1519,7 +2065,7 @@ end
 --         anim, isSeq = self:getAnimation( "pump" )
 --         self:sendWeaponAnim( anim, isSeq, anim_time )
 --     else
---         self:SetIdleTime( curTime + anim_time )
+--         self:setIdleTime( curTime + anim_time )
 --     end
 
 --     self:EmitSound( self:getSilencer() and self.Primary.SoundSilencer or self.Primary.Sound )
@@ -1531,14 +2077,14 @@ function SWEP:PrimaryAttack()
         return
     end
 
-    local curTime = CurTime()
+    local curTime = ash_firing_time()
     local owner = self:GetOwner()
 
     if not (owner ~= nil and owner:IsValid()) then
         return
     end
 
-    if self:Clip1() <= 0 then
+    if self:getClip1() <= 0 then
         self:SetNextPrimaryFire(curTime + 1)
         return
     end
@@ -1569,7 +2115,7 @@ function SWEP:PrimaryAttack()
     self:addKick( ang )
     self:setShootReset( curTime + .5 )
     self:setShoot(self:getCurShoot() + 1)
-    self:TakePrimaryAmmo( 1 )
+    self:takePrimaryAmmo( 1 )
 
     local insight = self:getInSight()
 
@@ -1582,7 +2128,7 @@ function SWEP:PrimaryAttack()
         end
     end
 
-    if self:Clip1() <= 0 and self:canReload() then
+    if self:getClip1() <= 0 and self:canReload() then
         self:Reload()
     end
 
@@ -1641,10 +2187,10 @@ function SWEP:attachSilencer()
     local anim = self:getSilencer() and ACT_VM_DETACH_SILENCER or ACT_VM_ATTACH_SILENCER
     local time = self:getAnimationTime( anim )
 
-    local ct = CurTime()
+    local ct = ash_firing_time()
     self:setSilencerTime( ct + time )
-    self:SetIdleTime( ct + time )
-    self:sendWeaponAnim( anim )
+    self:setIdleTime( ct + time )
+    self:playVM( anim )
     self:nextPrimaryFire( time )
     self:nextSecondaryFire( time )
 end

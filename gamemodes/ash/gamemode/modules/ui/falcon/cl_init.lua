@@ -895,7 +895,7 @@ do
                                             pnl:invalidateLayoutParent()
 
                                             local recursive = self:get( "recursiveResize", true )
-                                            pnl:sizeToChildrenParent( true, true, recursive, recursive )
+                                            -- pnl:sizeToChildrenParent( true, true, recursive, recursive )
                                         end
                                     end
                                 end

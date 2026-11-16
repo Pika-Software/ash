@@ -1,11 +1,12 @@
 ---@class ash.nw3
 local nw3 = include "shared.lua"
 
-local types = nw3.types
 local registered_vars = nw3.registered_vars
 
 local Entity_EntIndex = Entity.EntIndex
 
+--- entity index -> { [ 0 ] = count, { key, value }, ... }
+---@type table<number, table>
 local unknown_entity_map = {}
 
 net.Receive( "send", function()
@@ -20,14 +21,22 @@ net.Receive( "send", function()
 	end
 
 	local value = data[ 1 ][ 2 ]( )
-	if entity ~= nil then
-		if entity ~= game.GetWorld() then
-			if not entity:IsValid() then
-				unknown_entity_map[ entity_id ] = { key, value }
 
-				return
-			end
+	if entity ~= game.GetWorld() and not entity:IsValid() then
+		local pending = unknown_entity_map[ entity_id ]
+
+		if pending == nil then
+			pending = { [ 0 ] = 0 }
+
+			unknown_entity_map[ entity_id ] = pending
 		end
+
+		local count = pending[ 0 ] + 1
+
+		pending[ count ] = { key, value }
+		pending[ 0 ] = count
+
+		return
 	end
 
 	nw3.set( entity, key, value )
@@ -40,12 +49,16 @@ end )
 
 hook.Add( "ash.entity.Created", "Defaults", function( entity )
 	local idx = Entity_EntIndex( entity )
-	local data = unknown_entity_map[ idx ]
+	local pending = unknown_entity_map[ idx ]
 
-	if data then
-		nw3.set( entity, data[ 1 ], data[ 2 ] )
-
+	if pending then
 		unknown_entity_map[ idx ] = nil
+
+		for i = 1, pending[ 0 ] do
+			local kv = pending[ i ]
+
+			nw3.set( entity, kv[ 1 ], kv[ 2 ] )
+		end
 	end
 end )
 
