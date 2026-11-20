@@ -49,9 +49,12 @@ local compensation_entities_map = firing.compensation_entities_map
 local allowedLagCompensationEntity = {}
 firing.allowedLagCompensationEntity = allowedLagCompensationEntity
 
+local function isCompensatable( entity )
+	return entity:IsPlayer() or entity:IsNPC() or allowedLagCompensationEntity[ Entity_GetClass( entity ) ]
+end
 timer.Simple( 1, function()
 	for _, entity in ash_entity.iterator() do
-		if entity:IsPlayer() or entity:IsNPC() or allowedLagCompensationEntity[ Entity_GetClass( entity ) ] and not compensation_entities_map[ entity ] then
+		if isCompensatable( entity ) then
 			local count = compensation_entities[ 0 ] + 1
 
 			---@diagnostic disable-next-line: assign-type-mismatch
@@ -64,19 +67,18 @@ timer.Simple( 1, function()
 end )
 
 do
-	concommand.Add( "frng_entity", function( pl )
-		for i = 1, compensation_entities[ 0 ] do
-			local entity = compensation_entities[ i ]
+	-- concommand.Add( "frng_entity", function( pl )
+	-- 	for i = 1, compensation_entities[ 0 ] do
+	-- 		local entity = compensation_entities[ i ]
 
-			pl:PrintMessage( HUD_PRINTCONSOLE, tostring( entity ) .. "\n" )
-		end
-	end )
+	-- 		pl:PrintMessage( HUD_PRINTCONSOLE, tostring( entity ) .. "\n" )
+	-- 	end
+	-- end )
 
 	local function addEntity( entity )
-		if entity:IsPlayer() or entity:IsNPC() or allowedLagCompensationEntity[ Entity_GetClass( entity ) ]  and not compensation_entities_map[ entity ] then
+		if isCompensatable( entity ) and not compensation_entities_map[ entity ] then
 			local count = compensation_entities[ 0 ] + 1
 
-			---@diagnostic disable-next-line: assign-type-mismatch
 			compensation_entities[ count ] = entity
 			compensation_entities[ 0 ] = count
 
@@ -85,15 +87,13 @@ do
 	end
 
 	local function removeEntity( entity )
-		if entity:IsPlayer() or entity:IsNPC() or allowedLagCompensationEntity[ Entity_GetClass( entity ) ]  and compensation_entities_map[ entity ] then
+		if compensation_entities_map[ entity ] then
 			local count = compensation_entities[ 0 ]
 
-			compensation_entities_map[ entity ]  = nil
+			compensation_entities_map[ entity ] = nil
 
 			if table_removeByValue( compensation_entities, entity, count ) then
-				count = count - 1
-
-				compensation_entities[ 0 ] = count
+				compensation_entities[ 0 ] = count - 1
 			end
 		end
 	end
@@ -105,7 +105,7 @@ do
 	end )
 
 	hook.Add( "EntityRemoved", "CompensationEntity", function( entity )
-		if entity ~= nil and entity:IsValid() then
+		if entity ~= nil then
 			removeEntity( entity )
 		end
 	end )

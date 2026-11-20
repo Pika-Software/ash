@@ -1,6 +1,12 @@
 local Entity_IsValid = Entity.IsValid
 local hook_Run = hook.Run
 
+---@type ash.nw3
+local ash_nw3 = import "ash.nw3"
+
+local ash_nw3_get = ash_nw3.get
+local ash_nw3_set = ash_nw3.set
+
 ---@class flame.player
 local flame_player = {}
 
@@ -453,5 +459,30 @@ end
 hook.Add( "GravGunPunt", "Defaults", function( arguments, pl, entity )
     return arguments[ 2 ] ~= false
 end, POST_HOOK_RETURN )
+
+
+do
+    hook.Add( "PlayerStartTaunt", "Taunt", function( pl, _, len )
+        ash_nw3_set( pl, "flame.TauntMoveDelay", CurTime() + len )
+    end )
+
+    hook.Add( "ash.player.ShouldMove", "Taunt", function( pl )
+        if ash_nw3_get( pl, "flame.TauntMoveDelay", 0 ) > CurTime() then
+            return false
+        end
+    end )
+
+    ash_nw3.register( "flame.TauntMoveDelay", "float" )
+
+    hook.Add( "ash.player.PostDeath", "Taunt", function( pl )
+        ash_nw3_set( pl, "flame.TauntMoveDelay", 0 )
+    end )
+
+    local function resetTaunt( pl )
+        ash_nw3_set( pl, "flame.TauntMoveDelay", 0 )
+    end
+
+    hook.Add( "ash.player.PostSpawn", "Taunt", resetTaunt )
+end
 
 return flame_player

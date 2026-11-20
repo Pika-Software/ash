@@ -80,8 +80,6 @@ firing.compensation_entities = compensation_entities
 ---@type table< Entity, boolean >
 local compensation_entities_map = {  }
 firing.compensation_entities_map = compensation_entities_map
-gc.setTableRules( compensation_entities_map, true )
-gc.setup( compensation_entities_map, "Entity" )
 
 local function xorshift32( x )
     x = bit_bxor( x, bit_lshift( x, 13 ))
