@@ -375,12 +375,16 @@ do
         -- data.Dir = ((trace_result.HitPos or trace.endpos) - shoot_pos):GetNormalized()
     end
 
+
     ---@param entity Entity
     ---@param data Bullet
     hook.Add( "EntityFireBullets", "BulletFix", function( entity, data )
         if entity:IsPlayer() then
             ---@cast entity Player
-            data_setup( entity, data )
+
+            if hook_Run( "flame.player.PlayerHandAim", entity ) ~= false then
+                data_setup( entity, data )
+            end
         elseif entity:IsWeapon() then
             local owner = entity:GetOwner()
             if owner and owner:IsValid() and owner:IsPlayer() then
