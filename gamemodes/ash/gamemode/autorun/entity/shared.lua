@@ -1677,4 +1677,470 @@ do
     end
 end
 
+do
+    local math_floor = math.floor
+    local math_abs = math.abs
+    local math_huge = math.huge
+    local Vector_DistToSqr = Vector.DistToSqr
+    local hook_Run = hook.Run
+    local table_removeByValue = table.removeByValue
+    local ash_entity_iterator = ash_entity.iterator
+
+    local Entity_GetPos = Entity.GetPos
+
+    ---@type integer
+    local chunk_size = 256
+
+    ---@type integer
+    local chunk_count = 128
+
+    ---@type integer
+    local half = chunk_count / 2
+
+    ---@class ash.entity.chunk
+    ---@field id integer unique chunk id
+    ---@field x number world X of the chunk origin (chunk_size * cx)
+    ---@field y number world Y of the chunk origin (chunk_size * cy)
+    ---@field [1] number same as x
+    ---@field [2] number same as y
+    ---@field cx integer chunk grid index along X, from -half to half - 1
+    ---@field cy integer chunk grid index along Y, from -half to half - 1
+    ---@field entities Entity[] entities in the chunk, entities[0] holds the count
+    ---@field neighbors ash.entity.chunk[] up to 8 surrounding chunks, neighbors[0] holds the count
+    ---@field area ash.entity.chunk[] the chunk itself + neighbors (3x3), shared table, do not modify
+    ---@field area_count integer number of chunks in `area`
+
+    ---@type table<integer, table<integer, ash.entity.chunk>>
+    local chunks = {}
+
+    ---@type table<integer, ash.entity.chunk>
+    local chunks_byid = {}
+
+    -- Build the grid
+    do
+        local id = 0
+        for j = -half, half - 1 do
+            chunks[ j ] = {}
+
+            for i = -half, half - 1 do
+                id = id + 1
+
+                local x = chunk_size * j
+                local y = chunk_size * i
+
+                ---@type ash.entity.chunk
+                local chunk = {
+                    [ "id" ] = id,
+                    [ "x" ] = x,
+                    [ "y" ] = y,
+                    [ 1 ] = x,
+                    [ 2 ] = y,
+                    [ "cx" ] = j,
+                    [ "cy" ] = i,
+                    [ "entities" ] = { [ 0 ] = 0 },
+                }
+
+                chunks[ j ][ i ] = chunk
+                chunks_byid[ id ] = chunk
+            end
+        end
+    end
+
+    for j = -half, half - 1 do
+        for i = -half, half - 1 do
+            local chunk = chunks[ j ][ i ]
+
+            ---@type ash.entity.chunk[]
+            local neighbors = { [ 0 ] = 0 }
+            local count = 0
+
+            for dj = -1, 1 do
+                local row = chunks[ j + dj ]
+                if row ~= nil then
+                    for di = -1, 1 do
+                        if dj ~= 0 or di ~= 0 then
+                            local neighbor = row[ i + di ]
+                            if neighbor ~= nil then
+                                count = count + 1
+                                neighbors[ count ] = neighbor
+                            end
+                        end
+                    end
+                end
+            end
+
+            neighbors[ 0 ] = count
+            chunk[ "neighbors" ] = neighbors
+
+            ---@type ash.entity.chunk[]
+            local area = { chunk }
+            for k = 1, count do
+                area[ k + 1 ] = neighbors[ k ]
+            end
+
+            chunk[ "area" ] = area
+            chunk[ "area_count" ] = count + 1
+        end
+    end
+
+    --- [SHARED]
+    ---
+    --- Get a chunk by its unique id.
+    ---
+    ---@param id integer unique chunk id
+    ---@return ash.entity.chunk? chunk the chunk, or `nil` if the id is invalid
+    ---@nodiscard
+    local function getChunkByID( id )
+        return chunks_byid[ id ]
+    end
+    ash_entity.getChunkByID = getChunkByID
+
+    --- [SHARED]
+    ---
+    --- Get the chunk that contains the given world position (Z is ignored).
+    ---
+    ---@param position Vector world position
+    ---@return ash.entity.chunk? chunk the chunk, or `nil` if the position is outside the grid
+    ---@nodiscard
+    local function getChunk( position )
+        local column = chunks[ math_floor( position[ 1 ] / chunk_size ) ]
+        if not column then return nil end
+
+        return column[ math_floor( position[ 2 ] / chunk_size ) ]
+    end
+    ash_entity.getChunk = getChunk
+
+
+    ---@type table<Entity, ash.entity.chunk>
+    local entity_chunk = {}
+    gc.setTableRules( entity_chunk, true )
+    gc.setup( entity_chunk, "Entity" )
+
+    ---@type table<Entity, Vector>
+    local entity_positions = {}
+    gc.setTableRules( entity_positions, true )
+    gc.setup( entity_positions, "Entity" )
+
+    --- [SHARED]
+    ---
+    --- Get all chunks that a line segment passes through (grid traversal, Z is ignored).
+    --- Chunks are returned in order from `start_pos` to `end_pos`.
+    --- Parts of the line outside the grid are skipped.
+    ---
+    ---@param start_pos Vector line start in world coordinates
+    ---@param end_pos Vector line end in world coordinates
+    ---@return ash.entity.chunk[] chunks list of chunks, a new table on every call
+    ---@return integer count number of chunks in the list
+    local function getChunksInLine( start_pos, end_pos )
+        ---@type ash.entity.chunk[]
+        local result = {}
+        local count = 0
+
+        local x0, y0 = start_pos[ 1 ] / chunk_size, start_pos[ 2 ] / chunk_size
+        local x1, y1 = end_pos[ 1 ] / chunk_size, end_pos[ 2 ] / chunk_size
+
+        local cx, cy = math_floor( x0 ), math_floor( y0 )
+        local end_cx, end_cy = math_floor( x1 ), math_floor( y1 )
+
+        local dx, dy = x1 - x0, y1 - y0
+
+        local step_x, step_y = 0, 0
+        local t_max_x, t_max_y = math_huge, math_huge
+        local t_delta_x, t_delta_y = math_huge, math_huge
+
+        if dx > 0 then
+            step_x = 1
+            t_max_x = ( cx + 1 - x0 ) / dx
+            t_delta_x = 1 / dx
+        elseif dx < 0 then
+            step_x = -1
+            t_max_x = ( cx - x0 ) / dx
+            t_delta_x = -1 / dx
+        end
+
+        if dy > 0 then
+            step_y = 1
+            t_max_y = ( cy + 1 - y0 ) / dy
+            t_delta_y = 1 / dy
+        elseif dy < 0 then
+            step_y = -1
+            t_max_y = ( cy - y0 ) / dy
+            t_delta_y = -1 / dy
+        end
+
+        local max_steps = math_abs( end_cx - cx ) + math_abs( end_cy - cy ) + 1
+
+        for _ = 1, max_steps do
+            local column = chunks[ cx ]
+            local chunk = column and column[ cy ]
+
+            if chunk then
+                count = count + 1
+                result[ count ] = chunk
+            end
+
+            if cx == end_cx and cy == end_cy then break end
+
+            if t_max_x < t_max_y then
+                t_max_x = t_max_x + t_delta_x
+                cx = cx + step_x
+            else
+                t_max_y = t_max_y + t_delta_y
+                cy = cy + step_y
+            end
+        end
+
+        return result, count
+    end
+    ash_entity.getChunksInLine = getChunksInLine
+
+    --- [SHARED]
+    ---
+    --- Get the chunk at `position` and all chunks within `range` chunks around it
+    --- (a square area of `(2 * range + 1)^2` chunks, clamped to the grid).
+    ---
+    --- If `range` is 0 or less, only the chunk itself is returned.
+    --- If `range` is 1, the shared precomputed `chunk.area` table is returned,
+    --- **do not modify it**. Otherwise a new table is created.
+    ---
+    ---@param position Vector world position of the center
+    ---@param range integer how many chunks to add on each side of the center chunk
+    ---@return ash.entity.chunk[] chunks list of chunks (empty if the position is outside the grid)
+    ---@return integer count number of chunks in the list
+    local function getChunkInRange( position, range )
+        local chunk = getChunk( position )
+
+        if chunk == nil then
+            return {}, 0
+        end
+
+        if range <= 0 then
+            return { chunk }, 1
+        end
+
+        if range == 1 then
+            return chunk.area, chunk.area_count
+        end
+
+        local cx, cy = chunk.cx, chunk.cy
+
+        local min_x = cx - range
+        if min_x < -half then min_x = -half end
+
+        local max_x = cx + range
+        if max_x > half - 1 then max_x = half - 1 end
+
+        local min_y = cy - range
+        if min_y < -half then min_y = -half end
+
+        local max_y = cy + range
+        if max_y > half - 1 then max_y = half - 1 end
+
+        ---@type ash.entity.chunk[]
+        local list = {}
+        local count = 0
+
+        for x = min_x, max_x do
+            local column = chunks[ x ]
+
+            for y = min_y, max_y do
+                count = count + 1
+                list[ count ] = column[ y ]
+            end
+        end
+
+        return list, count
+    end
+    ash_entity.getChunkInRange = getChunkInRange
+
+    --- [SHARED]
+    ---
+    --- Get all tracked entities within `radius` of `position` (2D chunk culling + 3D distance check).
+    --- Positions are taken from the cache, which is updated every 0.5 seconds,
+    --- so results may lag slightly behind the real entity positions.
+    ---
+    ---@param position Vector center of the search
+    ---@param radius number search radius in world units
+    ---@return Entity[] entities a new table with the found entities
+    ---@return integer count number of found entities
+    local function getChunksEntitiesInRadius( position, radius )
+        ---@type Entity[]
+        local result = {}
+        local count = 0
+
+        local px, py = position[ 1 ], position[ 2 ]
+        local radius_sqr = radius * radius
+
+        local min_cx = math_floor( ( px - radius ) / chunk_size )
+        local max_cx = math_floor( ( px + radius ) / chunk_size )
+        local min_cy = math_floor( ( py - radius ) / chunk_size )
+        local max_cy = math_floor( ( py + radius ) / chunk_size )
+
+        if min_cx < -half then min_cx = -half end
+        if max_cx > half - 1 then max_cx = half - 1 end
+        if min_cy < -half then min_cy = -half end
+        if max_cy > half - 1 then max_cy = half - 1 end
+
+        for cx = min_cx, max_cx do
+            local column = chunks[ cx ]
+
+            local x0 = cx * chunk_size
+            local x1 = x0 + chunk_size
+
+            -- distance along X from the point to the chunk column
+            local dx = 0
+            if px < x0 then dx = x0 - px elseif px > x1 then dx = px - x1 end
+            local dx_sqr = dx * dx
+
+            if dx_sqr <= radius_sqr then
+                for cy = min_cy, max_cy do
+                    local chunk = column[ cy ]
+                    local entities = chunk.entities
+                    local n = entities[ 0 ]
+
+                    if n ~= 0 then
+                        local y0 = cy * chunk_size
+                        local y1 = y0 + chunk_size
+
+                        -- distance along Y from the point to the chunk
+                        local dy = 0
+                        if py < y0 then dy = y0 - py elseif py > y1 then dy = py - y1 end
+
+                        -- skip the chunk if it is entirely outside the radius
+                        if dx_sqr + dy * dy <= radius_sqr then
+                            for i = 1, n do
+                                local entity = entities[ i ]
+
+                                if Vector_DistToSqr( position, entity_positions[ entity ] ) <= radius_sqr then
+                                    count = count + 1
+                                    result[ count ] = entity
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+        return result, count
+    end
+    ash_entity.getChunksEntitiesInRadius = getChunksEntitiesInRadius
+
+    ---@param chunk ash.entity.chunk chunk to remove the entity from
+    ---@param entity Entity entity to remove
+    local function removeFromChunk( chunk, entity )
+        local entities = chunk.entities
+        local count = entities[ 0 ]
+
+        if table_removeByValue( entities, entity, count ) then
+            entities[ 0 ] = count - 1
+        end
+    end
+
+    --- [ SHARED ]
+    ---
+    --- Forget the entity when it is removed.
+    ---
+    ---@param entity Entity the removed entity
+    hook.Add( "ash.entity.Removed", "Chunks", function( entity )
+        local cur_chunk = entity_chunk[ entity ]
+
+        if cur_chunk ~= nil then
+            removeFromChunk( cur_chunk, entity )
+        end
+
+        entity_chunk[ entity ] = nil
+        entity_positions[ entity ] = nil
+    end )
+
+    do
+        ---@param entity Entity entity to move
+        ---@param chunk ash.entity.chunk? new chunk, `nil` if the entity left the grid
+        local function setEntityChunk( entity, chunk )
+            local old_chunk = entity_chunk[ entity ]
+            if old_chunk == chunk then return end
+
+            if old_chunk then
+                removeFromChunk( old_chunk, entity )
+            end
+
+            if chunk then
+                local entities = chunk.entities
+                local count = entities[ 0 ] + 1
+
+                entities[ count ] = entity
+                entities[ 0 ] = count
+            end
+
+            entity_chunk[ entity ] = chunk
+        end
+
+        timer.Create( "ash.entity.ChunksPositionUpdate", 0.5, 0, function()
+            for _, entity in ash_entity_iterator() do
+                ---@cast entity Entity
+                local position = Entity_GetPos( entity )
+                local old_position = entity_positions[ entity ]
+
+                if old_position == nil or position ~= old_position then
+                    entity_positions[ entity ] = position
+
+                    setEntityChunk( entity, getChunk( position ) )
+
+                    hook_Run( "ash.entity.ChunksPositionUpdate", entity, position )
+                end
+            end
+        end )
+    end
+
+    -- if  CLIENT then
+    --     --- Height of the debug box top.
+    --     ---@type number
+    --     local height = chunk_size
+
+    --     ---@type Color
+    --     local color_red = Color( 255, 0, 0 )
+
+    --     --- Bottom Z of the debug box (near the map's lower bound).
+    --     ---@type number
+    --     local bottom = -( 16384 - 100 )
+
+    --     --- Radius (in chunks) of the debug area around the origin.
+    --     ---@type integer
+    --     local radius = 2
+
+    --     -- reusable vectors to avoid allocations every frame
+    --     local mins, maxs = Vector(), Vector()
+
+    --     ---
+    --     --- Draw a wireframe box around a chunk.
+    --     ---
+    --     ---@param chunk ash.entity.chunk chunk to draw
+    --     ---@param color Color wireframe color
+    --     local function drawChunk( chunk, color )
+    --         mins[ 1 ], mins[ 2 ], mins[ 3 ] = chunk[ 1 ], chunk[ 2 ], bottom
+    --         maxs[ 1 ], maxs[ 2 ], maxs[ 3 ] = chunk[ 1 ] + chunk_size, chunk[ 2 ] + chunk_size, height
+
+    --         render.DrawWireframeBox( vector_origin, angle_zero, mins, maxs, color, true )
+    --     end
+
+    --     --- Debug: draw chunks around the world origin, the one the local player stands in is red.
+    --     hook.Add( "PostDrawOpaqueRenderables", "DebugChunks", function()
+    --         local ply = LocalPlayer()
+    --         if not IsValid( ply ) then return end
+
+    --         local pos = Entity_GetPos( ply )
+    --         local cur_chunk = getChunk( pos )
+
+    --         local chunks_list, chunks_count = getChunkInRange( vector_origin, radius )
+
+    --         for i = 1, chunks_count do
+    --             local chunk = chunks_list[ i ]
+
+    --             drawChunk( chunk, chunk == cur_chunk and color_red or color_white )
+    --         end
+    --     end )
+    -- end
+end
+
 return ash_entity
+

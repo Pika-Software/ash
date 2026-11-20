@@ -189,13 +189,6 @@ function firing.sharedFiring( pl, wep, in_mask, position, angle, time, cseq )
     firing.time = time
     firing.seq = cseq or 0
 
-    local tick = wep.tick
-
-    if tick ~= nil then
-        firing.rand_index = 0
-        tick( wep, in_mask, position, angle, time )
-    end
-
     if bit_band( in_mask, IN_ATTACK ) ~= 0 then
         if wep:getAutomatic( ) then
             if time >= wep:getDelayFire( ) then
@@ -234,6 +227,13 @@ function firing.sharedFiring( pl, wep, in_mask, position, angle, time, cseq )
         end
     else
         ash_nw3_set( pl, "ash.firing.Reloading", false )
+    end
+
+    local tick = wep.tick
+
+    if tick ~= nil then
+        firing.rand_index = 0
+        tick( wep, in_mask, position, angle, time )
     end
 
     firing.time = nil
